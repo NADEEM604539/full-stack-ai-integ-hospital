@@ -1,0 +1,152 @@
+{
+  "structured_soap": {
+    "subjective": {
+      "chief_complaint": "Low blood pressure and fever",
+      "history_of_present_illness": "Patient reports feeling unwell with a low blood pressure reading of 92 and a temperature of 39°C.",
+      "relevant_medical_history": "Not provided",
+      "current_medications": "Not provided",
+      "allergies": "Not provided"
+    },
+    "objective": {
+      "vital_signs": {
+        "blood_pressure": "92 mmHg (low)",
+        "heart_rate": "Not provided",
+        "temperature": "39°C (fever)",
+        "oxygen_saturation": "Not provided",
+        "weight": "Not provided",
+        "height": "Not provided"
+      },
+      "physical_examination": "Not provided",
+      "lab_results": "Not provided",
+      "imaging_results": "Not provided",
+      "other_findings": "Not provided"
+    },
+    "assessment": {
+      "structured": "Patient presents with hypotension and fever.",
+      "note": "Low blood pressure combined with fever is concerning for possible systemic infection or sepsis. Further evaluation is needed to identify source of infection, organ dysfunction, or other causes of hypotension."
+    },
+    "plan": {
+      "immediate_actions": "Check heart rate, oxygen saturation, and other vital signs; establish IV access; begin fluid resuscitation if indicated; obtain blood cultures, CBC, and other infection markers; start empiric antibiotics if sepsis suspected.",
+      "follow_up": "Continuous monitoring of vital signs and reassessment based on clinical progression; consider blood gas analysis and chest imaging if respiratory symptoms present.",
+      "warnings": "Hypotension with fever may rapidly progress to septic shock. Urgent evaluation is warranted."
+    }
+  },
+  "differential_diagnoses": [
+    {
+      "rank": 1,
+      "diagnosis": "Sepsis",
+      "probability_percent": 60,
+      "reasoning": "Fever and low BP are classic signs of infection-induced systemic inflammatory response.",
+      "supporting_findings": [
+        "Fever 39°C",
+        "Hypotension 92 mmHg"
+      ],
+      "against_findings": [
+        "No data on infection focus or labs"
+      ],
+      "icd10_code": "A41.9"
+    },
+    {
+      "rank": 2,
+      "diagnosis": "Dehydration or Hypovolemia",
+      "probability_percent": 20,
+      "reasoning": "Hypotension and fever may also result from volume depletion caused by fever or underlying illness.",
+      "supporting_findings": [
+        "Low blood pressure",
+        "Fever"
+      ],
+      "against_findings": [
+        "No clinical signs of volume loss provided"
+      ],
+      "icd10_code": "E86.0"
+    },
+    {
+      "rank": 3,
+      "diagnosis": "Other causes of shock (e.g., cardiogenic, anaphylactic)",
+      "probability_percent": 10,
+      "reasoning": "Other forms of shock may present with hypotension and fever but require additional clinical data.",
+      "supporting_findings": [
+        "Hypotension with fever"
+      ],
+      "against_findings": [
+        "Lack of further clinical details"
+      ],
+      "icd10_code": "R57.9"
+    }
+  ],
+  "medication_recommendations": [
+    {
+      "drug_name": "Empiric broad-spectrum antibiotics",
+      "strength": "As per institutional protocol",
+      "route": "IV",
+      "frequency": "As per protocol",
+      "indication": "Suspected sepsis",
+      "contraindications": [
+        "Known allergy to selected antibiotics"
+      ],
+      "patient_contraindications": "Not provided",
+      "interactions_with_current_meds": "Not provided",
+      "side_effects": [
+        "Allergic reactions",
+        "Antibiotic-associated diarrhea"
+      ],
+      "monitoring": "Watch for signs of improvement or allergic reaction",
+      "confidence": "Moderate"
+    },
+    {
+      "drug_name": "IV fluids (e.g., normal saline)",
+      "strength": "500-1000 mL bolus",
+      "route": "IV",
+      "frequency": "Initially as bolus, then reassess",
+      "indication": "Hypotension due to hypovolemia or septic shock",
+      "contraindications": [
+        "Fluid overload",
+        "Heart failure"
+      ],
+      "patient_contraindications": "Not provided",
+      "interactions_with_current_meds": "Not applicable",
+      "side_effects": [
+        "Fluid overload"
+      ],
+      "monitoring": "Blood pressure, urine output, lung auscultation",
+      "confidence": "High"
+    }
+  ],
+  "drug_interactions_analysis": {
+    "current_medications": "Not provided",
+    "interactions_found": "Unable to assess due to missing current medications data",
+    "severe_interactions": "None detected",
+    "allergy_compatibility": "Allergies not provided; check before antibiotic administration"
+  },
+  "missing_information": {
+    "critical": [
+      "Heart rate and oxygen saturation",
+      "Patient history and presenting symptoms",
+      "Current medications and allergies",
+      "Physical examination findings",
+      "Laboratory results including CBC, blood cultures, lactate",
+      "Source or focus of fever/infection"
+    ],
+    "important": [
+      "History of recent infections or hospitalizations",
+      "Use of immunosuppressants",
+      "Signs or symptoms of organ dysfunction"
+    ],
+    "optional": [
+      "Past medical history including chronic diseases",
+      "Travel history or exposure to contagious illnesses"
+    ]
+  },
+  "clinical_analysis": "The patient presents with hypotension (BP 92) and high-grade fever (39°C), which are red flags suggesting systemic infection or sepsis, a potentially life-threatening condition. The lack of additional vital signs, physical exam data, and labs limits diagnostic confidence. Immediate steps should focus on stabilizing hemodynamics, identifying infection source, and early empiric antibiotic therapy. Close monitoring for progression to septic shock or organ failure is critical. Differential diagnosis includes sepsis, hypovolemia due to fluid loss, and other shock etiologies. Further detailed clinical information is needed to refine diagnosis and guide treatment.",
+  "summary": {
+    "primary_concern": "Possible sepsis or septic shock",
+    "next_steps": [
+      "Obtain full vital signs including HR and oxygen saturation",
+      "Perform detailed physical examination",
+      "Order laboratory workup — CBC, blood cultures, lactate, renal function",
+      "Begin IV fluid resuscitation",
+      "Initiate empiric broad-spectrum antibiotics after cultures"
+    ],
+    "urgency_level": "EMERGENT - urgent evaluation and treatment necessary"
+  }
+}
