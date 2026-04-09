@@ -1,0 +1,133 @@
+Department of Computing
+CS343: Web Technologies
+Members:
+Abdul Hadi (507134)
+Nadeem Mushtaq(501372)
+M. Saad Rehman(521082)
+Project Proposal: MedSync HMS
+1. Introduction
+MedSync HMS is a state-of-the-art web application designed to digitize healthcare 
+workflows. By utilizing Next.js, the project leverages modern web capabilities like Server￾Side Rendering (SSR) and Server Actions to provide a lightning-fast user experience. The 
+system acts as a centralized bridge between patients, medical staff, and administrators, 
+ensuring that critical health data is accessible, secure, and synchronized across all 
+hospital departments in real-time.
+2. Motivation
+The primary motivation is to solve the "Latency vs. Data Integrity" trade-off in healthcare 
+software. Traditional systems often suffer from slow data fetching or inconsistent records 
+during high-traffic periods (e.g., peak appointment hours).
+• Web Efficiency: Using Next.js allows us to pre-render patient dashboards, 
+significantly reducing load times.
+• Database Reliability: By using a structured MySQL backend, we aim to implement 
+advanced relational constraints that prevent common medical errors, such as 
+double-booking or pharmacy stock-outs, which are often the result of poor 
+database concurrency management.
+3. Scope of the Project
+The scope of MedSync focuses on the operational core of a hospital environment:
+• Patient Management: Registration, medical history tracking, and appointment 
+scheduling.
+• Staff Coordination: Doctor schedules, consultation logs, and availability status.
+• Administrative Oversight: Resource allocation, billing generation, and user role 
+management (RBAC).
+• Technical Boundary: The project will focus on the internal hospital network and will 
+be optimized for desktop and tablet views commonly used in clinical settings.
+4. Features
+• Real-time Appointment Engine: A conflict-detection system that prevents 
+overlapping schedules using MySQL transaction isolation.
+• Electronic Health Records (EHR): A secure repository for patient vitals, 
+prescriptions, and lab results.
+• Dynamic Billing Module: Automated invoice generation that aggregates consultation 
+fees and medicine costs.
+• Role-Based Dashboards: Custom views for Admins (Analytics), Doctors (Clinical), 
+and Patients (Personal Records).
+• Responsive Design: A mobile-friendly interface ensuring nurses and doctors can 
+update records on the go.
+5. Methodology
+We will follow an Agile development approach, dividing the project into sprints:
+A. Architecture & Technology Stack
+• Frontend: Next.js (App Router) for routing and UI components.
+• Styling: Tailwind CSS for a modern, responsive interface.
+• Backend: Next.js Server Actions for secure, server-side data handling.
+• Database: MySQL for relational data storage and integrity.
+B. Database Implementation (ADBMS Focus)
+The database will be the "single source of truth." We will focus on:
+• Normalization: Ensuring the schema is in 3rd Normal Form (3NF) to eliminate 
+redundancy.
+• Indexing: Implementing B-Tree indexes on frequently searched columns like 
+patient_id and appointment_date to ensure O(log n) search performance.
+• Concurrency Control: Using MySQL Transactions (ACID) to handle sensitive 
+operations like billing and booking to prevent "Lost Updates."
+C. Integration & Security
+We will implement Clerk for authentication and user management. This allows for secure, 
+managed sign-ins and session handling while enabling us to sync user IDs with our MySQL 
+database. On the data layer, the database will enforce Referential Integrity using Foreign 
+Keys, ensuring that a prescription cannot exist without a valid patient and doctor record.
+6. References
+1. Next.js Documentation. Data Fetching and Server Actions. Available at: 
+http://www.nextjs.org/docs
+2. Elmasri, R., & Navathe, S. B. Fundamentals of Database Systems. (7th Edition). 
+Pearson Education.
+3. MySQL 8.0 Reference Manual. Optimization and Indexes. Available at: 
+dev.mysql.com/doc/refman/8.0/en/
+4. Marcotte, E. Responsive Web Design. A Book Apart.
+Department of Computer Science
+CS236: Advance Database Systems
+Members:
+Abdul Hadi (507134)
+Nadeem Mushtaq(501372)
+M. Saad Rehman(521082)
+Project Proposal: MedSync HMS
+1. Title
+MedSync: A Scalable Hospital Management System powered by MySQL
+2. Introduction
+MedSync is a high-performance web application designed to manage hospital operations 
+including patient registration, appointment scheduling, and pharmacy inventory. By 
+leveraging a centralized MySQL database, the system ensures data consistency across 
+multiple web interfaces, allowing doctors, nurses, and admins to access real-time medical 
+information.
+3. Motivation
+We chose MySQL for its proven reliability in web environments. Our motivation is to build a 
+system that balances speed (for the web frontend) with complex data management (for 
+the ADBMS backend). This project allows us to explore relational mapping, query 
+optimization, and how a database can handle simultaneous requests from hundreds of 
+hospital staff members.
+4. Database Choice: MySQL
+We will use MySQL as our relational database engine.
+• Core Focus: We will utilize MySQL Stored Procedures and Triggers to handle 
+backend logic.
+• ADBMS Features: To meet advanced requirements, we will implement Views for 
+sensitive data abstraction, B-Tree Indexing for fast record retrieval, and ACID￾compliant transactions to ensure billing and scheduling accuracy.
+5. Expected Outcomes
+• Unified Patient Dashboard: A single view of a patient's history, current 
+medications, and upcoming appointments.
+• Conflict-Free Scheduling: A backend logic layer that prevents double-booking of 
+doctors or operation theaters.
+• Automated Data Integrity: Triggers that automatically update room availability 
+when a patient is discharged.
+• Secure Web Access: A responsive frontend communicating with MySQL through a 
+secure backend API, ensuring medical data is never exposed directly.
+6. Team Members & Database Roles
+Name Role Core Database Responsibilities
+Abdul Hadi
+Database 
+Architect
+Physical & Logical Design: Creating EER diagrams, 
+ensuring 3NF normalization, and implementing indexing 
+strategies to optimize query performance.
+Nadeem 
+Mushtaq
+Database 
+Programmer
+Backend Logic: Developing MySQL Stored Procedures for 
+complex operations (like patient admission) and 
+Functions for data calculation.
+Saad 
+Rehman
+Integration & 
+Security
+Connectivity & Safety: Managing Web-to-DB 
+connectivity, implementing Triggers for audit logs, and 
+setting up User Privileges/Roles within MySQL.
+
+
+
+this is my combined project of web and advance database management system ... so i want you to give me very very very very high level database first make proper plan how much there should be roles and access of each role ... means i guess u are getting ... so make a very very high plan about role and their access and authorization ... and make very very high level schema mysql and above requirements should also be fillled 

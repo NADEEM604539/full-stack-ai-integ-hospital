@@ -1,0 +1,503 @@
+================================================================================
+                  MedSync HMS - SYSTEM ARCHITECTURE & PLANNING
+              Backend-Heavy Design with Clerk Authentication & MySQL RBAC
+================================================================================
+
+PROJECT: MedSync - Hospital Management System (CS343 + CS236)
+DATABASE: Comprehensive schema with 23 tables, 9 triggers, 4 procedures, 6 functions, 13 views
+ARCHITECTURE: Backend-heavy (Next.js Server Actions) vs Database-heavy
+AUTHENTICATION: Clerk (session management) + MySQL (role-based access control)
+
+================================================================================
+SECTION 1: ROLE-BASED ACCESS CONTROL (RBAC) - 7 SYSTEM ROLES
+================================================================================
+
+QUICK REFERENCE TABLE:
+
+Role         | Purpose                          | Key Permissions
+─────────────────────────────────────────────────────────────────────────────
+ADMIN        | System control & monitoring      | All tables FULL access
+DOCTOR       | Clinical decision maker          | Own patients, encounters, SOAP
+NURSE        | Clinical support, vitals         | Record vitals, limited read
+RECEPTIONIST | Patient registration & booking   | Patients, appointments
+PHARMACIST   | Medication management            | Prescriptions, inventory
+FINANCE      | Invoice & payment processing     | Invoices, payments
+PATIENT      | End-user health records          | Own records READ-ONLY
+
+ROLE 1: ADMIN (System Administrator)
+├─ Purpose: System control, configuration, user management
+├─ Database Access: FULL PRIVILEGES on all tables
+├─ Key Permissions:
+│  ├─ Manage all users (staff, doctors, receptionists, patients)
+│  ├─ Assign/revoke roles and permissions
+│  ├─ Access all patient records
+│  ├─ View system-wide analytics & audit trails
+│  ├─ Configure system settings
+│  └─ View complete audit logs
+└─ Cannot: Deleted from system (preservation)
+
+ROLE 2: DOCTOR (Clinical Decision Maker)
+├─ Purpose: Clinical workflow, patient care, diagnosis
+├─ Database Access: Own patients + encounters + SOAP notes
+├─ Key Permissions:
+│  ├─ View assigned patient list and medical history
+│  ├─ Create/manage encounters
+│  ├─ Record SOAP notes (Subjective, Objective, Assessment, Plan)
+│  ├─ Order lab tests
+│  ├─ Write prescriptions
+│  ├─ View appointment schedule
+│  └─ Cannot: Delete records, access admin settings
+└─ Access Level: SELECT, INSERT, UPDATE (clinical tables only)
+
+ROLE 3: NURSE / MEDICAL STAFF (Clinical Support)
+├─ Purpose: Clinical support, vitals recording
+├─ Database Access: Vitals + limited patient data (assigned patients)
+├─ Key Permissions:
+│  ├─ Record patient vitals (BP, HR, Temperature, O2, Weight, Height)
+│  ├─ Assist in patient care
+│  ├─ View limited patient data (assigned patients only)
+│  ├─ Cannot finalize treatment plans
+│  └─ Cannot access financial/billing data
+└─ Access Level: SELECT, INSERT (limited tables)
+
+ROLE 4: RECEPTIONIST (Front Desk Operations)
+├─ Purpose: Patient registration, appointment scheduling
+├─ Database Access: Patients + appointments only
+├─ Key Permissions:
+│  ├─ Register new patients
+│  ├─ Book appointments with conflict checking
+│  ├─ Manage appointment schedule
+│  ├─ Update patient contact info
+│  ├─ Cannot access medical/diagnostic data
+│  └─ Cannot access staff salaries or HR data
+└─ Access Level: SELECT, INSERT, UPDATE (patients, appointments)
+
+ROLE 5: PHARMACIST (Medication Management)
+├─ Purpose: Pharmacy operations, medication dispensing
+├─ Database Access: Prescriptions + inventory management
+├─ Key Permissions:
+│  ├─ View prescriptions for dispensing
+│  ├─ Manage medication inventory
+│  ├─ Record pharmacy transactions
+│  ├─ Access low-stock alerts
+│  ├─ Track medication expiration
+│  └─ Cannot view patient diagnosis/assessment
+└─ Access Level: SELECT, UPDATE (inventory, prescriptions)
+
+ROLE 6: FINANCE/BILLING (Invoice & Payment Processing)
+├─ Purpose: Invoice generation, payment processing
+├─ Database Access: Invoices + payments + patient billing data
+├─ Key Permissions:
+│  ├─ Generate invoices
+│  ├─ Process payments
+│  ├─ View outstanding balances & generate reports
+│  ├─ Cannot access clinical information
+│  └─ Cannot access staff salaries or HR data
+└─ Access Level: SELECT, INSERT, UPDATE (billing tables)
+
+ROLE 7: PATIENT (End User)
+├─ Purpose: Personal health records access
+├─ Database Access: Own records READ-ONLY (row-level filtering)
+├─ Key Permissions:
+│  ├─ View own medical history
+│  ├─ View own appointment history
+│  ├─ Book own appointments
+│  ├─ View own prescriptions
+│  ├─ View own invoices & payment history
+│  └─ Cannot access other patients' data
+└─ Access Level: SELECT (own_patient_id only)
+
+================================================================================
+SECTION 2: AI INTEGRATION & CLINICAL DECISION SUPPORT
+================================================================================
+
+AI-POWERED FEATURES:
+
+1️⃣  CLINICAL DECISION SUPPORT
+├─ Real-time diagnosis suggestions based on:
+│  ├─ Patient symptoms (Subjective data)
+│  ├─ Vital signs trends (Objective data)
+│  ├─ Medical history and allergies
+│  ├─ Similar patient case patterns
+│  └─ Latest medical guidelines
+├─ AI generates differential diagnoses (ranked by probability)
+├─ Doctor reviews AI suggestions and selects/custom assessment
+├─ Final diagnosis documented in Assessment table
+└─ Audit trail: AI suggestion vs. final diagnosis (for compliance)
+
+2️⃣  MEDICATION RECOMMENDATION ENGINE
+├─ AI analyzes:
+│  ├─ Patient diagnosis (primary + differential)
+│  ├─ Allergies and contraindications
+│  ├─ Current medications (drug-drug interactions)
+│  ├─ Renal/hepatic function (patient vitals)
+│  └─ Previous treatment outcomes
+├─ AI generates medication suggestions with dosages
+├─ Shows confidence scores & evidence basis
+├─ Pharmacist validates before dispensing
+└─ Database tracks: Suggested vs. Prescribed (analytics)
+
+3️⃣  RISK PREDICTION & PATIENT MONITORING
+├─ AI predicts patient risk scores for:
+│  ├─ Hospital-acquired infections
+│  ├─ Medication side effects
+│  ├─ Treatment failure likelihood
+│  ├─ Length of stay (LOS) prediction
+│  └─ Patient readmission risk
+├─ Real-time alerts when risk thresholds exceeded
+├─ Recommended interventions (proactive care)
+├─ Stored in audit_logs for historical analysis
+└─ Improves outcomes through early intervention
+
+4️⃣  NLP-POWERED SOAP NOTE GENERATION
+├─ Doctor records voice/text clinical notes
+├─ AI NLP engine:
+│  ├─ Extracts subjective symptoms
+│  ├─ Recognizes objective findings
+│  ├─ Identifies suspected conditions
+│  └─ Suggests assessment keywords
+├─ Structures into SOAP format (4 separate tables)
+├─ Doctor reviews and edits AI suggestions
+├─ Final notes stored with AI confidence metadata
+└─ Improves documentation quality and speed
+
+5️⃣  BILLING OPTIMIZATION & FRAUD DETECTION
+├─ AI analyzes billing patterns:
+│  ├─ Detects unusual charges (outlier detection)
+│  ├─ Identifies billing errors or duplicates
+│  ├─ Suggests optimal coding (ICD-10 compliance)
+│  ├─ Predicts insurance claim approval rate
+│  └─ Recommends payment collection strategies
+├─ Finance staff reviews AI flagged invoices
+├─ Reduces revenue cycle time
+└─ Improves billing accuracy
+
+6️⃣  INVENTORY FORECASTING & OPTIMIZATION
+├─ AI predicts medication demand:
+│  ├─ Seasonal trends (flu season, etc.)
+│  ├─ Department-specific usage patterns
+│  ├─ Patient admission forecasts
+│  └─ Expiration risk (prevent waste)
+├─ Auto-suggests reorder quantities
+├─ Optimizes storage space allocation
+├─ Pharmacy staff reviews AI suggestions
+└─ Reduces stockouts and waste
+
+7️⃣  APPOINTMENT SCHEDULING INTELLIGENCE
+├─ AI optimizes doctor schedules:
+│  ├─ Predicts no-show likelihood per patient
+│  ├─ Recommends overbooking strategies
+│  ├─ Predicts optimal appointment duration
+│  ├─ Suggests appointment clustering (same procedures)
+│  └─ Identifies idle time for capacity planning
+├─ Backend Server Actions use AI predictions
+├─ Improves clinic efficiency (wait times, revenue)
+└─ Receptionist enabled via smart scheduling UI
+
+AI IMPLEMENTATION ARCHITECTURE:
+
+EXTERNAL AI SERVICES:
+├─ OpenAI API (GPT-4) for:
+│  ├─ Clinical diagnosis suggestions
+│  ├─ SOAP note NLP parsing
+│  └─ Clinical text generation
+├─ Custom ML Models (trained on hospital data):
+│  ├─ Risk prediction (infections, readmission)
+│  ├─ Medication interaction detection
+│  └─ Billing fraud detection
+└─ Third-party APIs:
+   ├─ UpToDate / Lexicomp (medication info)
+   └─ ICD-10 / CPT coding databases
+
+AI WORKFLOW INTEGRATION:
+
+When Doctor Creates Encounter:
+1. Doctor inputs symptoms/vitals
+2. Backend calls AI Clinical Decision Support
+3. AI analyzes patient medical history from DB
+4. AI returns 3-5 diagnosis suggestions with scores
+5. Doctor selects/customizes assessment
+6. Final assessment stored in assessment_notes table
+
+When Doctor Writes Prescription:
+1. AI analyzes patient allergies + current meds
+2. AI checks drug-drug interactions
+3. AI suggests medications + dosages
+4. Shows confidence scores & alternatives
+5. Doctor approves or customizes
+6. Prescription stored with AI_suggestion_id foreign key
+
+When Pharmacist Dispenses:
+1. AI checks inventory levels
+2. AI forecasts future demand
+3. AI alerts if medication near expiration
+4. Pharmacist approves dispensing
+5. Inventory auto-deducted
+6. AI learns from dispensing patterns
+
+AUDIT & COMPLIANCE:
+
+AI decisions are NEVER final:
+├─ All AI suggestions reviewed by qualified professionals
+├─ Audit trail captures:
+│  ├─ AI_suggestion (what AI recommended)
+│  ├─ Human_decision (what professional chose)
+│  ├─ Confidence_score (AI certainty)
+│  └─ Override_reason (if human disagrees)
+├─ Enables compliance audits
+└─ Improves AI model accuracy over time
+
+================================================================================
+SECTION 3: CLERK AUTHENTICATION & MYSQL INTEGRATION
+================================================================================
+
+AUTHENTICATION FLOW:
+1. User logs in via Clerk UI
+2. Clerk returns user_id and session token
+3. Application stores clerk_user_id in MySQL users table
+4. Backend queries users table to get role_id
+5. Middleware loads permissions from role_permissions table
+6. All subsequent requests use cached permissions
+
+CLERK ↔ MYSQL SYNC:
+├─ users.clerk_user_id = VARCHAR(255) NOT NULL UNIQUE (Clerk's external ID)
+├─ users.role_id = INT (links to roles table)
+├─ staff.user_id = INT (links to users table for hospital staff)
+└─ patients.user_id = INT (links to users table for patient portal)
+
+PERMISSION LAYERS:
+
+Layer 1 - AUTHENTICATION (Clerk)
+├─ User logs in via Clerk UI
+└─ Session token stored in browser & backend
+
+Layer 2 - AUTHORIZATION (Next.js Middleware)
+├─ Verify Clerk session
+├─ Load user role from MySQL users table
+├─ Load permissions from role_permissions table
+├─ Block request if user lacks permission (403 Forbidden)
+└─ ⚠️ CRITICAL: Authorization BEFORE database query
+
+Layer 3 - DATABASE SECURITY
+├─ clerk_user_id synced with Clerk (unique constraint)
+├─ created_by & updated_by fields track changes
+├─ is_deleted flag for soft deletes (not hard delete)
+├─ deleted_at timestamp for recovery
+├─ audit_logs table for compliance
+└─ Row-level filtering in backend queries (not DB views)
+
+================================================================================
+SECTION 4: TRANSACTION BOUNDARIES (Backend Implementation)
+================================================================================
+
+ALL complex operations are ACID transactions in BACKEND:
+
+BOOKING APPOINTMENT:
+1. Check doctor availability (SELECT)
+2. Validate time slot not taken
+3. INSERT appointment record
+4. COMMIT on success, ROLLBACK on conflict
+
+DISPENSING MEDICATION:
+1. Load prescription details
+2. Check inventory levels (inventory_items.quantity_in_stock)
+3. UPDATE inventory quantity
+4. INSERT inventory_transactions record
+5. UPDATE prescription status to 'Dispensed'
+6. COMMIT
+
+CREATING INVOICE:
+1. Load encounter services (consultation, meds, lab, bed)
+2. Calculate subtotal, tax, discount, total
+3. INSERT invoice record
+4. INSERT invoice_line_items records
+5. COMMIT
+
+ADMITTING PATIENT:
+1. Create encounter record
+2. Link to patient and doctor
+3. Record admission_date = NOW()
+4. Set status = 'Active'
+5. COMMIT
+
+================================================================================
+SECTION 5: SOFT DELETE STRATEGY (Data Safety & Compliance)
+================================================================================
+
+SOFT DELETE FIELDS on critical tables:
+├─ is_deleted BOOLEAN DEFAULT FALSE
+└─ deleted_at TIMESTAMP NULL
+
+DELETION FLOW:
+1. UPDATE record SET is_deleted = TRUE, deleted_at = NOW()
+2. Backend logs change to audit_logs table
+3. Record remains in database but excluded from queries
+
+RECOVERY (Admin Only):
+1. Query with is_deleted = TRUE to view deleted records
+2. Update is_deleted = FALSE, deleted_at = NULL to restore
+3. Keep records permanently for audit trails
+
+APPLIES TO: patients, appointments, encounters, prescriptions, invoices
+
+================================================================================
+SECTION 6: CORE BUSINESS RULES
+================================================================================
+
+APPOINTMENTS:
+✓ Prevent double-booking (TRG_T1 enforces strict interval overlap detection)
+✓ Validate doctor availability (shift times from doctor_availability table)
+✓ Enforce doctor daily appointment limit (max_appointments_per_day from doctors table)
+✓ Dynamic 30-minute default duration with custom support
+✓ Doctor availability checked in trigger + function FN4
+✓ Soft delete when cancelled (is_deleted = TRUE)
+
+INVENTORY:
+✓ Prevent stock-outs (sp_dispense_medication uses FOR UPDATE row locking)
+✓ Race condition detection (TRG_T3 validates stock before deducting)
+✓ Auto-deduct on dispensing (trigger + procedure safeguards)
+✓ Trigger prevents negative inventory (CHECK constraint + validation)
+✓ Reorder alerts via vw_low_stock_items view
+
+BILLING:
+✓ Calculate totals in backend (with TRG_T9 integrity validation)
+✓ Components: Consultation + Meds + Lab + Bed charges
+✓ Tax applied: tax_percent * subtotal
+✓ Payment status: Paid/Partial/Unpaid
+✓ TRG_T9 prevents manual corruption (total = subtotal + tax - discount)
+
+ENCOUNTERS:
+✓ Linked to appointment
+✓ One SOAP note per encounter (UNIQUE constraint)
+✓ Soft delete on discharge (is_deleted = TRUE)
+✓ created_by tracks who created encounter
+
+AUDIT & COMPLIANCE:
+✓ Every record has created_by & updated_by
+✓ Soft deletes enable recovery
+✓ Audit logging via backend (manual inserts)
+✓ Clerk integration enables authentication audit
+
+================================================================================
+SECTION 7: IMPLEMENTATION PHASES (10 Weeks)
+================================================================================
+
+PHASE 1: Database Schema (Week 1-2)
+├─ ✅ COMPLETED: Create 23 tables with 3NF normalization
+├─ ✅ COMPLETED: Add soft delete fields (is_deleted, deleted_at)
+├─ ✅ COMPLETED: Define relationships & 25+ foreign key constraints
+├─ ✅ COMPLETED: Implement 40+ indexes for performance + partitioning strategy
+├─ ✅ COMPLETED: Create 9 validation/automation triggers (including T9 invoice integrity)
+├─ ✅ COMPLETED: Create 4 ACID transaction procedures with row-level locking
+├─ ✅ COMPLETED: Create 6 deterministic functions (including FN4 with shift validation)
+├─ ✅ COMPLETED: Create 13 views (3 RLS + 5 soft-delete enforcement + 5 analytical)
+├─ ✅ COMPLETED: Add CHECK constraints on doctors, appointments, inventory, invoices, payments
+├─ ✅ COMPLETED: Add doctor daily appointment limit enforcement (TRG_T1)
+├─ ✅ COMPLETED: Add invoice consistency validation (TRG_T9)
+├─ ✅ COMPLETED: Add inventory race condition detection (TRG_T3)
+└─ ✅ COMPLETED: Add forensic tracking (ip_address, user_agent) to ai_logs & audit_logs
+
+PHASE 2: Authentication & RBAC (Week 3)
+├─ Set up Clerk integration
+├─ Create roles & permissions tables (with 7 system roles)
+├─ Populate role_permissions with specific permission grants
+├─ Build Next.js middleware for authorization
+└─ Test Clerk → MySQL sync (clerk_user_id)
+
+PHASE 3: Backend Logic (Week 4-5)
+├─ Create Server Actions for:
+│  ├─ Appointment booking (conflict checking)
+│  ├─ Medication dispensing (inventory management)
+│  ├─ Invoice generation (billing calculations)
+│  ├─ Patient operations (soft delete support)
+│  └─ Encounter workflows (admission/discharge)
+├─ Integrate AI Decision Support APIs:
+│  ├─ OpenAI GPT-4 for diagnosis suggestions
+│  ├─ Medication recommendation engine
+│  ├─ Risk prediction ML models
+│  └─ NLP SOAP note parsing
+├─ Implement transaction boundaries
+├─ Add audit logging to audit_logs table
+└─ Validation: All logic must be TESTABLE in backend code
+
+PHASE 4: Frontend Development (Week 6-8)
+├─ Next.js pages with role-based access
+├─ AI suggestion display UI:
+│  ├─ Diagnosis suggestions with confidence scores
+│  ├─ Medication recommendations with alternatives
+│  ├─ Risk alerts and interventions
+│  └─ SOAP note generation assistance
+├─ Form validation before API calls
+├─ Error handling from Server Actions
+├─ Clerk UI integration
+└─ Loading states & optimistic updates
+
+PHASE 5: Testing & Deployment (Week 9-10)
+├─ Unit tests for Server Actions (including AI integration)
+├─ AI model validation tests (accuracy, safety)
+├─ Integration tests for transactions
+├─ Authorization boundary testing
+├─ Human-in-the-loop testing (doctor/pharmacist review)
+├─ Database backup strategy
+└─ Production deployment & monitoring
+
+================================================================================
+SECTION 8: DATABASE SCHEMA SUMMARY (Complete ADBMS Features - 10/10 Polish)
+================================================================================
+
+See db.txt for complete technical specification including:
+
+TABLES:            23 tables with 3NF normalization
+RELATIONSHIPS:     25+ Foreign Key constraints
+INDEXES:           40+ B-Tree & Full-Text indexes + partitioning hints
+TRIGGERS:          9 comprehensive data integrity triggers
+STORED PROCEDURES: 4 complex ACID transaction procedures
+FUNCTIONS:         6 reusable deterministic functions
+VIEWS:             13 total (3 RLS + 5 soft-delete enforcement + 5 analytical)
+NORMALIZATION:     Third Normal Form (3NF)
+SOFT DELETES:      Implemented with enforcement views (patients_active, etc.)
+USER TRACKING:     created_by/updated_by on all records
+AUDIT LOGGING:     Complete modification history with JSON + forensic tracking
+
+CS236 ADBMS FEATURES DEMONSTRATED:
+✓ ACID Transactions (explicit START TRANSACTION/COMMIT/ROLLBACK)
+✓ Trigger Cascading (appointment scheduling, inventory, invoice, audit automations) 
+✓ Referential Integrity (25+ foreign keys with constraints)
+✓ B-Tree Indexing (40+ indexes including composite indexes on join paths)
+✓ Full-Text Search (medical notes, patient names)
+✓ Computed Columns (line_total using GENERATED ALWAYS AS)
+✓ Temporal Data (created_at, updated_at, deleted_at tracking)
+✓ Complex Query Logic (aggregations, subqueries, CASE statements)
+✓ View-Based Abstraction (13 views for RLS, soft-delete enforcement, analytics)
+✓ JSON Support (audit logs with before/after data)
+✓ Error Handling (SIGNAL SQLSTATE for validation)
+✓ Deterministic Functions (repeatable results for optimization)
+✓ Row-Level Locking (FOR UPDATE in procedures for ACID isolation)
+✓ Multi-Level Constraints (CHECK, UNIQUE, FK, view-based enforcement)
+
+ADVANCED FEATURES (Production-Grade Polish):
+✓ Doctor Daily Appointment Limit Enforcement (TRG_T1)
+✓ Invoice Total Calculation Integrity (TRG_T9)
+✓ Inventory Race Condition Detection (TRG_T3 + sp_dispense_medication FOR UPDATE)
+✓ Soft-Delete Enforcement Views (5 views force backend to use active records)
+✓ Dynamic Duration Availability Checking (FN4 with shift time validation)
+✓ Forensic IP + User Agent Tracking (ai_logs, audit_logs for compliance)
+✓ Clinical Governance Approval Workflow (ai_logs.approval_status + approved_by)
+✓ Strict Interval Overlap Detection (TRG_T1 eliminates scheduling edge cases)
+
+AI FEATURES MONITORING:
+
+Database columns support AI integration:
+✓ assessment_notes.ai_suggestion & ai_confidence
+✓ prescription_details.ai_recommended_dosage & ai_alternative_drugs
+✓ prescriptions.ai_interaction_alerts
+✓ invoices.ai_billing_optimization
+✓ vitals.ai_risk_score
+✓ patients.ai_readmission_risk
+✓ ai_logs table for complete audit trail with governance tracking
+
+All AI suggestions tracked with confidence scores for compliance & analytics.
+AI decisions are never final - always reviewed by qualified professionals.
+AI_logs tracks: suggestion, human_decision, override_reason, approval_status, ip_address
+
+================================================================================
