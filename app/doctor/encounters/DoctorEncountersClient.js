@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FileText, Loader, AlertCircle } from 'lucide-react';
+import { FileText, Loader, AlertCircle, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 export default function DoctorEncountersClient() {
   const [encounters, setEncounters] = useState([]);
@@ -79,22 +80,65 @@ export default function DoctorEncountersClient() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="font-bold" style={{ color: '#6B7280' }}>Patient ID: {encounter.patient_id}</p>
-                  <p className="text-lg font-bold mt-2" style={{ color: '#1E40AF' }}>
-                    {encounter.encounter_type} Encounter
-                  </p>
-                  <p className="text-sm mt-1" style={{ color: '#6B7280' }}>
-                    {new Date(encounter.admission_date).toLocaleDateString()}
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-xl font-bold" style={{ color: '#1E40AF' }}>
+                      {encounter.patient_first_name && encounter.patient_last_name 
+                        ? `${encounter.patient_first_name} ${encounter.patient_last_name}` 
+                        : encounter.patient_id ? `Patient ID: ${encounter.patient_id}` : 'Unknown Patient'}
+                    </p>
+                    <span className="px-2 py-1 rounded text-xs font-bold bg-gray-100 text-gray-600">
+                      MRN: {encounter.mrn || 'N/A'}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: '#6B7280' }}>Encounter Type</p>
+                      <p className="text-md font-medium" style={{ color: '#374151' }}>
+                        {encounter.encounter_type || 'General'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: '#6B7280' }}>Date</p>
+                      <p className="text-md font-medium" style={{ color: '#374151' }}>
+                        {encounter.admission_date ? new Date(encounter.admission_date).toLocaleDateString() : 'No date'}
+                        {encounter.discharge_date && ` - ${new Date(encounter.discharge_date).toLocaleDateString()}`}
+                      </p>
+                    </div>
+                    
+                    {encounter.chief_complaint && (
+                      <div className="md:col-span-2">
+                        <p className="text-sm font-semibold" style={{ color: '#6B7280' }}>Chief Complaint</p>
+                        <p className="text-md mt-1 italic" style={{ color: '#4B5563' }}>
+                          "{encounter.chief_complaint}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <span
-                    className="inline-block mt-2 px-3 py-1 rounded-lg text-xs font-bold"
+                    className="inline-block mt-4 px-3 py-1 rounded-lg text-xs font-bold"
                     style={{
-                      backgroundColor: '#D1FAE5',
-                      color: '#065F46',
+                      backgroundColor: encounter.status === 'Active' ? '#D1FAE5' : '#F3F4F6',
+                      color: encounter.status === 'Active' ? '#065F46' : '#374151',
                     }}
                   >
-                    {encounter.status}
+                    {encounter.status || 'Unknown'}
                   </span>
+                </div>
+                
+                <div className="flex flex-col items-end ml-4 gap-2">
+                  <Link
+                    href={`/doctor/encounters/${encounter.encounter_id}`}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all"
+                    style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}
+                    onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#1D4ED8')}
+                    onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#2563EB')}
+                  >
+                    View Details
+                    <ArrowRight size={18} />
+                  </Link>
                 </div>
               </div>
             </div>

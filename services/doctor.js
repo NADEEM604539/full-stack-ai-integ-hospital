@@ -344,18 +344,20 @@ export async function getDoctorProfile() {
     const [result] = await connection.query(
       `SELECT 
         d.doctor_id,
-        d.first_name,
-        d.last_name,
-        d.email,
-        d.phone_number,
+        s.first_name,
+        s.last_name,
+        u.email,
+        s.phone_number,
         d.specialization,
         d.consultation_fee,
-        d.status,
-        d.license_number,
-        d.employee_id,
-        dept.department_name
+        s.status,
+        s.employee_id,
+        dept.department_name,
+        s.hire_date
       FROM doctors d
-      LEFT JOIN departments dept ON d.department_id = dept.department_id
+      JOIN staff s ON d.staff_id = s.staff_id
+      JOIN users u ON s.user_id = u.user_id
+      LEFT JOIN departments dept ON s.department_id = dept.department_id
       WHERE d.doctor_id = ?`,
       [access.doctorId]
     );
@@ -390,7 +392,10 @@ export async function updateDoctorPhone(phoneNumber) {
     const access = await checkDoctorAccess(connection);
 
     const [result] = await connection.query(
-      `UPDATE doctors SET phone_number = ? WHERE doctor_id = ?`,
+      `UPDATE staff s
+       JOIN doctors d ON s.staff_id = d.staff_id
+       SET s.phone_number = ? 
+       WHERE d.doctor_id = ?`,
       [phoneNumber, access.doctorId]
     );
 
@@ -418,22 +423,27 @@ export async function getDoctorColleagues() {
 
     const access = await checkDoctorAccess(connection);
 
-    // Get all doctors in the same department (excluding current doctor)
+    // Get all staff members in the same department (excluding current doctor's staff record)
     const [colleagues] = await connection.query(
       `SELECT 
+        s.staff_id,
         d.doctor_id,
-        d.first_name,
-        d.last_name,
-        d.email,
-        d.phone_number,
+        s.first_name,
+        s.last_name,
+        u.email,
+        s.phone_number,
+        s.designation,
+        s.status,
+        dept.department_name,
         d.specialization,
-        d.status,
-        d.consultation_fee,
-        dept.department_name
-      FROM doctors d
-      JOIN departments dept ON d.department_id = dept.department_id
-      WHERE d.department_id = ? AND d.doctor_id != ?
-      ORDER BY d.first_name, d.last_name`,
+        d.consultation_fee
+      FROM staff s
+      JOIN users u ON s.user_id = u.user_id
+      LEFT JOIN departments dept ON s.department_id = dept.department_id
+      LEFT JOIN doctors d ON s.staff_id = d.staff_id
+      WHERE s.department_id = ? 
+        AND s.staff_id != (SELECT staff_id FROM doctors WHERE doctor_id = ?)
+      ORDER BY d.doctor_id IS NULL, s.first_name, s.last_name`,
       [access.departmentId, access.doctorId]
     );
 

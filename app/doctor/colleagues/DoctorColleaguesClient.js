@@ -135,9 +135,9 @@ export default function DoctorColleaguesClient() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            {displayedColleagues.map(colleague => (
+            {displayedColleagues.map((colleague, index) => (
               <div
-                key={colleague.doctor_id}
+                key={colleague.staff_id || index}
                 className="rounded-2xl p-6 transition-all hover:shadow-xl"
                 style={{ backgroundColor: '#FFFFFF', border: '2px solid #E5E7EB' }}
               >
