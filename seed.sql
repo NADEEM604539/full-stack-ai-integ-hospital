@@ -41,7 +41,7 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (2, 'clerk_admin_002', 'nadeem.admin@hospital.com', 'Nadeem Admin', 1, TRUE),
 
 -- DOCTOR USERS (6 doctors - Will have staff records with department_id)
-(10, 'nadeem', 'ullahasmut310gmail.com', 'Dr. Ahmed Hassan', 2, TRUE),
+(10, 'nadeem doc', 'ullahasmut310gmail.com', 'Dr. Ahmed Hassan', 2, TRUE),
 (11, 'clerk_doctor_002', 'dr.fatima@hospital.com', 'Dr. Fatima Khan', 2, TRUE),
 (12, 'clerk_doctor_003', 'dr.ali@hospital.com', 'Dr. Ali Malik', 2, TRUE),
 (13, 'clerk_doctor_004', 'dr.sara@hospital.com', 'Dr. Sara Ahmed', 2, TRUE),
@@ -49,12 +49,12 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (15, 'clerk_doctor_006', 'dr.maryam@hospital.com', 'Dr. Maryam Saif', 2, TRUE),
 
 -- RECEPTIONIST USERS (3 receptionists)
-(20, 'nadeem', 'nmushtaq.bscs24seecs@seecs.edu.pk', 'Receptionist Aisha', 4, TRUE),
+(20, 'nadeem recep', 'nmushtaq.bscs24seecs@seecs.edu.pk', 'Receptionist Aisha', 4, TRUE),
 (21, 'clerk_receptionist_002', 'receptionist2@hospital.com', 'Receptionist Hina', 4, TRUE),
 (22, 'clerk_receptionist_003', 'receptionist3@hospital.com', 'Receptionist Ali', 4, TRUE),
 
 -- NURSE USERS (3 nurses)
-(30, 'nadeem', 'programmingworld360@hospital.com', 'Nurse Saira', 3, TRUE),
+(30, 'nadeem nurse', 'programmingworld360@hospital.com', 'Nurse Saira', 3, TRUE),
 (31, 'clerk_nurse_002', 'nurse2@hospital.com', 'Nurse Amina', 3, TRUE),
 (32, 'clerk_nurse_003', 'nurse3@hospital.com', 'Nurse Rizwan', 3, TRUE),
 
@@ -67,7 +67,7 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (51, 'clerk_finance_002', 'finance2@hospital.com', 'Finance Officer Rana', 6, TRUE),
 
 -- PATIENT USERS (16 patients - NO staff records)
-(100, 'nadeem', 'ndm604539@gmail.com', 'John Doe', 7, TRUE),
+(100, 'nadeem clerk clerk_patient_001', 'ndm604539@gmail.com', 'John Doe', 7, TRUE),
 (101, 'clerk_patient_002', 'fatima.khan@email.com', 'Fatima Khan', 7, TRUE),
 (102, 'clerk_patient_003', 'ali.hassan@email.com', 'Ali Hassan', 7, TRUE),
 (103, 'clerk_patient_004', 'sara.ahmed@email.com', 'Sara Ahmed', 7, TRUE),

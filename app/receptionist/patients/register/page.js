@@ -192,6 +192,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   />
@@ -210,6 +211,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   />
@@ -227,6 +229,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   />
@@ -243,6 +246,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   >
@@ -264,6 +268,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   >
@@ -296,6 +301,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   />
@@ -314,6 +320,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   />
@@ -332,6 +339,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   />
@@ -350,6 +358,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   />
@@ -377,6 +386,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   />
@@ -395,6 +405,7 @@ export default function RegisterPatientPage() {
                     style={{
                       borderColor: '#E5E7EB',
                       backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
                     }}
                     disabled={loading}
                   />

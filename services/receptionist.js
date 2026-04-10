@@ -96,7 +96,7 @@ async function findOrCreateUserByEmail(email, connection) {
 
     // Check if user exists with this email
     const [existingUsers] = await connection.query(
-      `SELECT user_id FROM users WHERE email = ? AND is_deleted = 0`,
+      `SELECT user_id FROM users WHERE email = ?`,
       [email]
     );
 
@@ -477,7 +477,191 @@ export async function createPatient(patientData) {
   }
 }
 
-export async function scheduleAppointment(appointmentData) {
+/**
+ * Update existing patient with optional user email change
+ * If email changes, find or create new user and link to patient
+ * Returns: updated patient data
+ */
+export async function updatePatient(patientId, patientData) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const { userId } = await checkReceptionistAccess(connection);
+    const departmentIds = await getReceptionistDepartments(userId, connection);
+
+    // Get current patient to verify access
+    const [currentPatient] = await connection.query(
+      `SELECT * FROM patients WHERE patient_id = ? AND department_id IN (${departmentIds.map(() => '?').join(',')})`,
+      [patientId, ...departmentIds]
+    );
+
+    if (!currentPatient.length) {
+      throw new Error('Patient not found or not in your department');
+    }
+
+    const patient = currentPatient[0];
+
+    // Handle user email change with find-or-create logic
+    let newUserId = patient.user_id;
+    if (patientData.email && patientData.email !== patient.email) {
+      newUserId = await findOrCreateUserByEmail(patientData.email, connection);
+      console.log(`Email changed from ${patient.email} to ${patientData.email}, linked to user_id: ${newUserId}`);
+    }
+
+    // Update patient record
+    await connection.query(
+      `UPDATE patients SET 
+        first_name = ?,
+        last_name = ?,
+        date_of_birth = ?,
+        gender = ?,
+        blood_type = ?,
+        phone_number = ?,
+        email = ?,
+        address = ?,
+        city = ?,
+        emergency_contact = ?,
+        emergency_phone = ?,
+        user_id = ?,
+        updated_by = ?,
+        updated_at = NOW()
+      WHERE patient_id = ?`,
+      [
+        patientData.first_name || patient.first_name,
+        patientData.last_name || patient.last_name,
+        patientData.date_of_birth || patient.date_of_birth,
+        patientData.gender || patient.gender,
+        patientData.blood_type || patient.blood_type,
+        patientData.phone_number || patient.phone_number,
+        patientData.email || patient.email,
+        patientData.address || patient.address,
+        patientData.city || patient.city,
+        patientData.emergency_contact || patient.emergency_contact,
+        patientData.emergency_phone || patient.emergency_phone,
+        newUserId,
+        userId,
+        patientId
+      ]
+    );
+
+    // Return updated patient
+    const [updatedPatient] = await connection.query(
+      `SELECT * FROM patients WHERE patient_id = ?`,
+      [patientId]
+    );
+
+    return updatedPatient[0] || null;
+  } catch (error) {
+    throw new Error(`Failed to update patient: ${error.message}`);
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get all doctors for a specific department including their staff details
+ */
+export async function getDoctorsForDepartment(departmentId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    const [doctors] = await connection.query(
+      `SELECT 
+        d.doctor_id,
+        d.staff_id,
+        d.specialization,
+        d.consultation_fee,
+        s.first_name as staff_first_name,
+        s.last_name as staff_last_name,
+        s.employee_id,
+        dep.department_name
+      FROM doctors d
+      JOIN staff s ON d.staff_id = s.staff_id
+      JOIN departments dep ON s.department_id = dep.department_id
+      WHERE s.department_id = ? 
+      AND s.status = 'Active'
+      ORDER BY s.first_name, s.last_name`,
+      [departmentId]
+    );
+
+    return doctors;
+  } catch (error) {
+    throw new Error(`Failed to fetch doctors for department: ${error.message}`);
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get available time slots for a doctor on a specific date
+ * Generates 30-minute slots based on doctor's availability and existing appointments
+ */
+export async function getAvailableTimeSlots(doctorId, appointmentDate) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Get doctor's availability for the day of week
+    const dayOfWeek = new Date(appointmentDate).toLocaleDateString('en-US', { weekday: 'long' });
+
+    const [availability] = await connection.query(
+      `SELECT shift_start_time, shift_end_time
+       FROM doctor_availability
+       WHERE doctor_id = ? AND day_of_week = ? AND is_working = true`,
+      [doctorId, dayOfWeek]
+    );
+
+    if (!availability.length) {
+      return []; // Doctor not available on this day
+    }
+
+    const { shift_start_time, shift_end_time } = availability[0];
+
+    // Get booked appointments for this doctor on this date
+    const [bookedSlots] = await connection.query(
+      `SELECT appointment_time
+       FROM appointments
+       WHERE doctor_id = ? 
+       AND appointment_date = ? 
+       AND status != 'Cancelled'
+       AND is_deleted = false`,
+      [doctorId, appointmentDate]
+    );
+
+    const bookedTimes = new Set(bookedSlots.map(slot => slot.appointment_time));
+
+    // Generate 30-minute slots between shift times
+    const slots = [];
+    const [startHours, startMin] = shift_start_time.split(':').map(Number);
+    const [endHours, endMin] = shift_end_time.split(':').map(Number);
+
+    let currentHours = startHours;
+    let currentMin = startMin;
+    const endTotalMin = endHours * 60 + endMin;
+
+    while (currentHours * 60 + currentMin < endTotalMin) {
+      const timeStr = `${String(currentHours).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}:00`;
+      
+      // Only add if not already booked
+      if (!bookedTimes.has(timeStr)) {
+        slots.push(timeStr.substring(0, 5)); // Return HH:MM format
+      }
+
+      currentMin += 30;
+      if (currentMin >= 60) {
+        currentMin -= 60;
+        currentHours += 1;
+      }
+    }
+
+    return slots;
+  } catch (error) {
+    throw new Error(`Failed to fetch available time slots: ${error.message}`);
+  } finally {
+    if (connection) connection.release();
+  }
+}
   let connection;
   try {
     connection = await db.getConnection();
@@ -543,4 +727,3 @@ export async function scheduleAppointment(appointmentData) {
   } finally {
     if (connection) connection.release();
   }
-}

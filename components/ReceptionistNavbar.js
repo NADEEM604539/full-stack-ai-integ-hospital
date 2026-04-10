@@ -1,13 +1,16 @@
 'use client';
 
-import { Home, Users, Calendar, Clock, LogOut, Menu, X } from 'lucide-react';
+import { Home, Users, Calendar, Clock, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
+import { UserButton } from '@clerk/nextjs';
 
 export default function ReceptionistNavbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useUser();
 
   const navLinks = [
     { href: '/receptionist/dashboard', label: 'Dashboard', icon: Home },
@@ -89,23 +92,26 @@ export default function ReceptionistNavbar() {
         >
           <div className="mb-4 p-3 rounded-lg" style={{ backgroundColor: '#FFE4F5' }}>
             <p className="text-sm font-semibold" style={{ color: '#065F46' }}>
-              Sarah Johnson
+              {user?.firstName && user?.lastName 
+                ? `${user.firstName} ${user.lastName}` 
+                : user?.emailAddresses?.[0]?.emailAddress 
+                ? user.emailAddresses[0].emailAddress.split('@')[0]
+                : 'User'}
             </p>
             <p className="text-xs" style={{ color: '#10B981' }}>
               Receptionist
             </p>
           </div>
-          <button
-            className="w-full p-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-all hover:shadow-md"
-            style={{
-              backgroundColor: '#FFFFFF',
-              color: '#EF4444',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-            }}
-          >
-            <LogOut size={16} />
-            Logout
-          </button>
+          <div className="flex justify-center">
+            <UserButton 
+              appearance={{
+                elements: {
+                  userButtonBox: 'w-full',
+                  userButtonAvatarBox: 'w-auto',
+                },
+              }}
+            />
+          </div>
         </div>
       </aside>
 
@@ -126,13 +132,16 @@ export default function ReceptionistNavbar() {
           </div>
           MedSync
         </h1>
-        <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="lg:hidden"
-          style={{ color: '#10B981' }}
-        >
-          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="flex items-center gap-4">
+          <UserButton />
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="lg:hidden"
+            style={{ color: '#10B981' }}
+          >
+            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu */}

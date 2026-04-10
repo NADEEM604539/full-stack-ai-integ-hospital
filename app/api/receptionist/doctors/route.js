@@ -1,4 +1,4 @@
-import { getAvailableDoctors, getDoctorAvailability } from '@/services/receptionist';
+import { getAvailableDoctors, getDoctorAvailability, getDoctorsForDepartment } from '@/services/receptionist';
 
 // GET available doctors or specific doctor availability
 export async function GET(request) {
@@ -6,6 +6,19 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const doctorId = searchParams.get('doctorId');
     const dayOfWeek = searchParams.get('dayOfWeek');
+    const departmentId = searchParams.get('department_id');
+
+    // Get doctors for specific department
+    if (departmentId) {
+      const doctors = await getDoctorsForDepartment(parseInt(departmentId, 10));
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: doctors,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get specific doctor's availability for a day
     if (doctorId && dayOfWeek) {
