@@ -9,7 +9,7 @@ export default function DoctorLayout({ children }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F9FAFB' }}>
       <DoctorNavbar />
-      <main style={{ marginLeft: 'auto', width: '100%' }} className="lg:ml-64">
+      <main style={{ width: '100%' }} className="lg:ml-64">
         {children}
       </main>
     </div>

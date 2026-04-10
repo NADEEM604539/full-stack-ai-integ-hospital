@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Search, Loader, AlertCircle, Phone, Mail } from 'lucide-react';
+import { Users, Search, Loader, AlertCircle, Phone, Mail, MapPin, User, Calendar, Heart, AlertTriangle } from 'lucide-react';
 
 export default function DoctorPatientsClient() {
   const [patients, setPatients] = useState([]);
@@ -135,39 +135,150 @@ export default function DoctorPatientsClient() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 mb-12">
-            {displayedPatients.map(patient => (
-              <div
-                key={patient.patient_id}
-                className="p-6 rounded-lg transition-all hover:shadow-lg"
-                style={{ backgroundColor: '#FFFFFF', border: '2px solid #E5E7EB' }}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold" style={{ color: '#1E40AF' }}>
-                      {patient.first_name} {patient.last_name}
-                    </h3>
-                    <p className="text-sm mt-1" style={{ color: '#6B7280' }}>
-                      MRN: {patient.mrn}
-                    </p>
-                    <div className="flex gap-4 mt-3">
-                      {patient.phone_number && (
-                        <div className="flex items-center gap-2">
-                          <Phone size={16} style={{ color: '#3B82F6' }} />
-                          <span className="text-sm" style={{ color: '#6B7280' }}>{patient.phone_number}</span>
-                        </div>
-                      )}
-                      {patient.email && (
-                        <div className="flex items-center gap-2">
-                          <Mail size={16} style={{ color: '#3B82F6' }} />
-                          <span className="text-sm" style={{ color: '#6B7280' }}>{patient.email}</span>
-                        </div>
-                      )}
+          <div className="grid gap-6 mb-12">
+            {displayedPatients.map(patient => {
+              // Calculate age from date of birth
+              const calculateAge = (dob) => {
+                if (!dob) return null;
+                const today = new Date();
+                const birthDate = new Date(dob);
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const month = today.getMonth() - birthDate.getMonth();
+                if (month < 0 || (month === 0 && today.getDate() < birthDate.getDate())) {
+                  age--;
+                }
+                return age;
+              };
+
+              const age = calculateAge(patient.date_of_birth);
+              const formattedDOB = patient.date_of_birth 
+                ? new Date(patient.date_of_birth).toLocaleDateString()
+                : 'N/A';
+
+              return (
+                <div
+                  key={patient.patient_id}
+                  className="p-6 rounded-lg transition-all hover:shadow-lg hover:scale-[1.01]"
+                  style={{ backgroundColor: '#FFFFFF', border: '2px solid #E5E7EB' }}
+                >
+                  {/* Header: Name and MRN */}
+                  <div className="flex items-start justify-between mb-4 pb-4 border-b border-gray-200">
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold" style={{ color: '#1E40AF' }}>
+                        {patient.first_name} {patient.last_name}
+                      </h3>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="px-3 py-1 rounded-full text-sm font-semibold" style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}>
+                          MRN: {patient.mrn}
+                        </span>
+                        {patient.gender && (
+                          <span className="px-3 py-1 rounded-full text-sm font-semibold" style={{ backgroundColor: '#F0FDF4', color: '#166534' }}>
+                            {patient.gender === 'M' || patient.gender === 'Male' ? '👨 Male' : patient.gender === 'F' || patient.gender === 'Female' ? '👩 Female' : patient.gender}
+                          </span>
+                        )}
+                        {age && (
+                          <span className="px-3 py-1 rounded-full text-sm font-semibold" style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>
+                            {age} years old
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Two-column details layout */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Left Column: Contact Information */}
+                    <div>
+                      <h4 className="font-bold text-sm mb-3" style={{ color: '#4B5563' }}>📞 Contact Information</h4>
+                      <div className="space-y-2">
+                        {patient.phone_number && (
+                          <div className="flex items-center gap-3">
+                            <Phone size={18} style={{ color: '#3B82F6' }} className="flex-shrink-0" />
+                            <div>
+                              <p className="text-xs" style={{ color: '#9CA3AF' }}>Phone</p>
+                              <span className="text-sm font-semibold" style={{ color: '#1F2937' }}>{patient.phone_number}</span>
+                            </div>
+                          </div>
+                        )}
+                        {patient.email && (
+                          <div className="flex items-center gap-3">
+                            <Mail size={18} style={{ color: '#3B82F6' }} className="flex-shrink-0" />
+                            <div>
+                              <p className="text-xs" style={{ color: '#9CA3AF' }}>Email</p>
+                              <span className="text-sm font-semibold break-all" style={{ color: '#1F2937' }}>{patient.email}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right Column: Personal Information */}
+                    <div>
+                      <h4 className="font-bold text-sm mb-3" style={{ color: '#4B5563' }}>👤 Personal Information</h4>
+                      <div className="space-y-2">
+                        {patient.date_of_birth && (
+                          <div className="flex items-center gap-3">
+                            <Calendar size={18} style={{ color: '#8B5CF6' }} className="flex-shrink-0" />
+                            <div>
+                              <p className="text-xs" style={{ color: '#9CA3AF' }}>Date of Birth</p>
+                              <span className="text-sm font-semibold" style={{ color: '#1F2937' }}>{formattedDOB}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Address Section */}
+                  {(patient.address || patient.city) && (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <h4 className="font-bold text-sm mb-3" style={{ color: '#4B5563' }}>📍 Address</h4>
+                      <div className="flex items-start gap-3">
+                        <MapPin size={18} style={{ color: '#EF4444' }} className="flex-shrink-0 mt-1" />
+                        <div>
+                          {patient.address && (
+                            <p className="text-sm" style={{ color: '#1F2937' }}>{patient.address}</p>
+                          )}
+                          {patient.city && (
+                            <p className="text-sm" style={{ color: '#6B7280' }}>{patient.city}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Emergency Contact Section */}
+                  {(patient.emergency_contact || patient.emergency_phone) && (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <h4 className="font-bold text-sm mb-3 flex items-center gap-2" style={{ color: '#DC2626' }}>
+                        <AlertTriangle size={18} />
+                        Emergency Contact
+                      </h4>
+                      <div className="space-y-2">
+                        {patient.emergency_contact && (
+                          <div className="flex items-center gap-3">
+                            <User size={18} style={{ color: '#6366F1' }} className="flex-shrink-0" />
+                            <div>
+                              <p className="text-xs" style={{ color: '#9CA3AF' }}>Name</p>
+                              <span className="text-sm font-semibold" style={{ color: '#1F2937' }}>{patient.emergency_contact}</span>
+                            </div>
+                          </div>
+                        )}
+                        {patient.emergency_phone && (
+                          <div className="flex items-center gap-3">
+                            <Phone size={18} style={{ color: '#6366F1' }} className="flex-shrink-0" />
+                            <div>
+                              <p className="text-xs" style={{ color: '#9CA3AF' }}>Phone</p>
+                              <span className="text-sm font-semibold" style={{ color: '#1F2937' }}>{patient.emergency_phone}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {hasMore && (
