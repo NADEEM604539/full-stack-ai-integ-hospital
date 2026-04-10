@@ -22,32 +22,22 @@ SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_F
 
 CREATE TABLE roles (
     role_id INT AUTO_INCREMENT PRIMARY KEY,
-    role_name VARCHAR(50) NOT NULL UNIQUE,
-    description TEXT,
-    permission_level INT DEFAULT 5,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_role_level (permission_level)
+    role VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE permissions (
-    permission_id INT AUTO_INCREMENT PRIMARY KEY,
-    permission_name VARCHAR(100) NOT NULL UNIQUE,
-    description TEXT,
-    resource VARCHAR(50),
-    action VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_resource (resource),
-    INDEX idx_action (action)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- ================================================================================
+-- INSERT INITIAL ROLES DATA
+-- ================================================================================
 
-CREATE TABLE role_permissions (
-    role_id INT NOT NULL,
-    permission_id INT NOT NULL,
-    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (role_id, permission_id),
-    FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE CASCADE,
-    FOREIGN KEY (permission_id) REFERENCES permissions(permission_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO roles (role_id, role, description) VALUES
+(1, 'ADMIN', 'System Administrator - Full access to all tables and system configuration'),
+(2, 'DOCTOR', 'Clinical Decision Maker - Access to assigned patients, encounters, SOAP notes, and prescriptions'),
+(3, 'NURSE', 'Clinical Support - Record vitals, assist patient care, limited patient data access'),
+(4, 'RECEPTIONIST', 'Front Desk Operations - Patient registration and appointment scheduling'),
+(5, 'PHARMACIST', 'Medication Management - Prescriptions and inventory management'),
+(6, 'FINANCE', 'Invoice & Payment Processing - Billing and payment management'),
+(7, 'PATIENT', 'End User - Personal health records READ-ONLY access');
 
 -- ================================================================================
 -- SECTION 2: USER & AUTHENTICATION TABLES
@@ -58,7 +48,7 @@ CREATE TABLE users (
     clerk_user_id VARCHAR(255) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
     username VARCHAR(50),
-    role_id INT NOT NULL,
+    role_id INT NOT NULL DEFAULT 7 COMMENT 'Default role is PATIENT (role_id=7)',
     is_active BOOLEAN DEFAULT TRUE,
     last_login TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

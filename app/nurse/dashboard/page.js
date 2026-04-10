@@ -2,8 +2,8 @@ import React from 'react'
 
 const page = () => {
   return (
-    <div>Doctor Dashboard</div>
+    <div>nurse Dashboard</div>
   )
 }
 
-export default page 
+export default page

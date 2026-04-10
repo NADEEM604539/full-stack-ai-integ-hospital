@@ -1,0 +1,199 @@
+================================================================================
+HOSPITAL MANAGEMENT SYSTEM - DESIGN COLOR PALETTE & GUIDELINES
+Created: April 10, 2026
+Reference: Receptionist Dashboard
+================================================================================
+
+🎨 COLOR PALETTE (STRICT)
+================================================================================
+
+PRIMARY GREEN (60-70% USAGE):
+  #10B981 - Medium Green (primary actions, icons, accents)
+  #059669 - Dark Green (darker elements, secondary)
+  #047857 - Very Dark Green (emphasis)
+  #065F46 - Darkest Green (text, headers - use for contrast)
+  #F0FDF4 - Light Green (section backgrounds)
+  #E8F8F5 - Extra Light Green (cards, subtle backgrounds)
+
+PINK / NUDE / WARM TONES (15-20% USAGE):
+  #FFE4F5 - Light Pink (sidebar backgrounds, alternating cards)
+  #FFD9E8 - Dark Pink / Mauve (alert boxes, accent sections)
+  #FFE4D6 - Peach (warm accents, stat cards)
+  #FFF5E6 - Warm Beige (secondary backgrounds)
+  #FFFBF0 - Off-white Warm (subtle backgrounds)
+
+GOLD / AMBER (5-10% USAGE):
+  #F59E0B - Gold / Amber (icons, badges, highlights ONLY)
+  #D97706 - Dark Gold (emphasis on gold elements)
+  #FBBF24 - Light Gold (subtle accents)
+
+NEUTRAL / WHITE (15-25% USAGE):
+  #FFFFFF - Pure White (main page background, cards, clean space)
+  #F3F4F6 - Off-white (soft backgrounds)
+
+TEXT COLORS:
+  #065F46 - Dark Green (primary text, headers)
+  #10B981 - Green (secondary text, labels)
+  #6B7280 - Gray (tertiary text, hints)
+  #FFFFFF - White (on dark backgrounds)
+
+================================================================================
+
+📐 COLOR USAGE STRATEGY (MUST FOLLOW)
+================================================================================
+
+MAIN PAGE BACKGROUND:
+  Always: #FFFFFF (clean, white)
+  Never: colored/gradient backgrounds
+
+CARDS & SECTIONS:
+  Primary: #FFFFFF (white cards)
+  Alternating: Rotate between #E8F8F5, #FFE4F5, #FFD9E8, #FFE4D6
+  Pattern: White → Green → Pink → Dark Pink → Peach (repeat)
+
+STAT CARDS (Row of 4):
+  Card 1: #E8F8F5 (light green) + #10B981 icon
+  Card 2: #FFE4F5 (light pink) + #059669 icon
+  Card 3: #FFD9E8 (dark pink) + #F59E0B icon (gold)
+  Card 4: #FFE4D6 (peach) + #10B981 icon
+
+SECTION BACKGROUNDS:
+  List/Data sections: #F0FDF4 (light green tint)
+  Sidebars: #FFE4F5 (light pink tint)
+  Alert boxes: #FFD9E8 (dark pink with #F59E0B border)
+  Action buttons: Alternate between #FFFFFF, #FFE4F5, #FFD9E8, #FFE4D6
+
+BUTTONS:
+  Primary: #10B981 background, white text
+  Secondary: Outline with #10B981 border
+  Gold accent: #F59E0B background (use sparingly)
+  Disabled: #D1D5DB background, gray text
+
+BORDERS:
+  Default: rgba(16, 185, 129, 0.15) - soft green border
+  Pink: rgba(245, 158, 11, 0.15) - soft gold border
+  Emphasis: #F59E0B - gold border (alerts, important)
+
+SHADOWS:
+  Subtle: 0 4px 20px rgba(16, 185, 129, 0.08)
+  On pink sections: 0 4px 20px rgba(245, 158, 11, 0.08)
+  Hover: Increase shadow & add scale(1.05) transform
+
+HOVER STATES:
+  Cards: Slight shadow increase + 5% darker
+  Buttons: 10% darker background + scale(1.05)
+  Links: #10B981 color + underline
+
+================================================================================
+
+🎨 COMPONENT EXAMPLES
+================================================================================
+
+STAT CARDS (4-grid):
+  Background: [#E8F8F5, #FFE4F5, #FFD9E8, #FFE4D6] (rotate)
+  Icon: [#10B981, #059669, #F59E0B, #10B981]
+  Text: #065F46 (headers), #10B981 (labels)
+  Border: 1.5px solid rgba(16, 185, 129, 0.15)
+
+APPOINTMENT LIST:
+  Container background: #F0FDF4 (light green)
+  Row backgrounds: Alternate #FFFFFF and #E8F8F5
+  Waiting appointment: #FFE4F5 background
+  Border: 1px solid rgba(16, 185, 129, 0.15)
+
+QUICK ACTION BUTTONS:
+  Background: Alternate [#FFFFFF, #FFE4F5, #FFD9E8, #FFFFFF]
+  Icon color: [#10B981, #F59E0B, #059669, #F59E0B]
+  Border: 1px solid matching color with 0.15 opacity
+  Hover: Subtle shadow + slight color intensification
+
+ALERT/NOTICE BOXES:
+  Background: #FFD9E8 (dark pink)
+  Border-left: 4px solid #F59E0B (gold)
+  Icon: #D97706 (dark gold)
+  Text: #065F46 (dark green)
+
+FORMS/INPUTS:
+  Background: #FFFFFF
+  Border: 1px solid rgba(16, 185, 129, 0.2)
+  Focus: Border #10B981 + soft shadow rgba(16, 185, 129, 0.1)
+  Label: #065F46
+
+================================================================================
+
+📊 COLOR RATIO DISTRIBUTION (FINAL)
+================================================================================
+
+Per Page:
+  60-70% = Green (backgrounds, text, neutral space)
+  15-20% = Pink/Warm Tones (accents, alternating sections)
+  5-10%  = Gold (highlights, icons, alerts)
+  15-25% = White (clean space, cards, breathing room)
+
+Example on 100 components:
+  60-70 components: Use green shades (#10B981, #E8F8F5, #F0FDF4)
+  15-20 components: Use pink shades (#FFE4F5, #FFD9E8)
+  5-10 components: Use gold (#F59E0B)
+  15-25 components: Use white (#FFFFFF)
+
+================================================================================
+
+🚫 WHAT TO AVOID (CRITICAL)
+================================================================================
+
+❌ Never use colored page background (always #FFFFFF)
+❌ Never mix more than 3 main colors in one component
+❌ Never use neon or overly bright shades
+❌ Never use full saturation gold everywhere (accent only)
+❌ Never use pink as text color
+❌ Never skip white space (15-25% minimum)
+❌ Never heavy borders - use soft rgba() with low opacity
+❌ Never use harsh shadows - always soft, subtle
+❌ Never more than 4 colors in a single section
+❌ Never ignore the 60-70-15-5 ratio
+
+================================================================================
+
+✅ WHEN TO USE EACH COLOR
+================================================================================
+
+USE #10B981 (PRIMARY GREEN) FOR:
+  - Main headers
+  - Primary buttons
+  - Active states
+  - Primary icons
+  - Borders (soft)
+  - Focus states in forms
+
+USE #FFE4F5 (LIGHT PINK) FOR:
+  - Alternating row backgrounds
+  - Sidebar tints
+  - Soft card backgrounds
+  - Secondary section backgrounds
+
+USE #FFD9E8 (DARK PINK) FOR:
+  - Alert/warning boxes
+  - Emphasis sections
+  - Important notices
+  - Accent borders (with #F59E0B)
+
+USE #F59E0B (GOLD) FOR:
+  - Badge numbers/notifications
+  - Important icons only
+  - Alert indicators
+  - Accent borders
+  - Status highlights (sparingly)
+
+USE #FFFFFF (WHITE) FOR:
+  - Main page background
+  - Card backgrounds
+  - Form inputs
+  - Clean breathing space
+  - Text backgrounds
+
+================================================================================
+
+COPY THIS TO MEMORY & REFERENCE FOR ALL PAGES
+Make doctor, patient, admin dashboards using these exact colors
+Maintain consistency across all interfaces
+================================================================================
