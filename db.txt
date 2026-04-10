@@ -1,4 +1,4 @@
-﻿-- ================================================================================
+-- ================================================================================
 -- MedSync HMS - MYSQL DATABASE SCHEMA (COMPREHENSIVE)
 -- Hospital Management System with ADBMS Features for CS236
 -- 3NF Normalized | 9 Triggers | 4 Procedures | 6 Functions | 13 Views | AI Integration
@@ -24,20 +24,8 @@ CREATE TABLE roles (
     role_id INT AUTO_INCREMENT PRIMARY KEY,
     role VARCHAR(50) NOT NULL UNIQUE,
     description TEXT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- ================================================================================
--- INSERT INITIAL ROLES DATA
--- ================================================================================
-
-INSERT INTO roles (role_id, role, description) VALUES
-(1, 'ADMIN', 'System Administrator - Full access to all tables and system configuration'),
-(2, 'DOCTOR', 'Clinical Decision Maker - Access to assigned patients, encounters, SOAP notes, and prescriptions'),
-(3, 'NURSE', 'Clinical Support - Record vitals, assist patient care, limited patient data access'),
-(4, 'RECEPTIONIST', 'Front Desk Operations - Patient registration and appointment scheduling'),
-(5, 'PHARMACIST', 'Medication Management - Prescriptions and inventory management'),
-(6, 'FINANCE', 'Invoice & Payment Processing - Billing and payment management'),
-(7, 'PATIENT', 'End User - Personal health records READ-ONLY access');
 
 -- ================================================================================
 -- SECTION 2: USER & AUTHENTICATION TABLES
@@ -45,7 +33,7 @@ INSERT INTO roles (role_id, role, description) VALUES
 
 CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
-    clerk_user_id VARCHAR(255) NOT NULL UNIQUE,
+    clerk_user_id VARCHAR(255) UNIQUE DEFAULT NULL COMMENT 'Clerk ID - NULL if user created via patient registration',
     email VARCHAR(100) NOT NULL UNIQUE,
     username VARCHAR(50),
     role_id INT NOT NULL DEFAULT 7 COMMENT 'Default role is PATIENT (role_id=7)',
@@ -57,25 +45,50 @@ CREATE TABLE users (
     INDEX idx_clerk (clerk_user_id),
     INDEX idx_email (email),
     INDEX idx_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Users table - Does NOT have department_id (only staff table has department)';
+
+-- ================================================================================
+-- DEPARTMENTS TABLE - Organizational Structure
+-- ================================================================================
+
+CREATE TABLE departments (
+    department_id INT AUTO_INCREMENT PRIMARY KEY,
+    department_name VARCHAR(100) NOT NULL UNIQUE,
+    department_head_name VARCHAR(100),
+    contact_number VARCHAR(20),
+    email VARCHAR(100),
+    location VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_name (department_name),
+    INDEX idx_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Departments table - Separate organizational units';
+
+-- ================================================================================
+-- STAFF TABLE - Has department_id (Staff works in ONE department)
+-- ================================================================================
 
 CREATE TABLE staff (
     staff_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL UNIQUE,
+    department_id INT NOT NULL COMMENT 'Staff works in a specific department',
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
     employee_id VARCHAR(50) NOT NULL UNIQUE,
-    department VARCHAR(100),
     designation VARCHAR(100),
     hire_date DATE NOT NULL,
     phone_number VARCHAR(20),
     status ENUM('Active', 'On Leave', 'Terminated', 'Resigned') DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    INDEX idx_dept (department),
+    FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE RESTRICT,
+    INDEX idx_dept (department_id),
     INDEX idx_status (status),
+    INDEX idx_user (user_id),
     FULLTEXT INDEX ft_name (first_name, last_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Staff table - Has department_id, ADMIN users should NOT be in staff table';
 
 CREATE TABLE audit_logs (
     log_id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -94,7 +107,7 @@ CREATE TABLE audit_logs (
     INDEX idx_timestamp (timestamp),
     INDEX idx_action (action_type),
     INDEX idx_ip_address (ip_address)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Partitioned by timestamp for audit retention + compliance + forensic tracking';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Partitioned by timestamp for audit retention + compliance + forensic tracking';
 
 -- ================================================================================
 -- SECTION 3: PATIENT & MEDICAL DATA TABLES
@@ -115,6 +128,7 @@ CREATE TABLE patients (
     city VARCHAR(50),
     emergency_contact VARCHAR(100),
     emergency_phone VARCHAR(20),
+    department_id INT NOT NULL COMMENT 'Patient registered to specific department',
     is_active BOOLEAN DEFAULT TRUE,
     ai_readmission_risk DECIMAL(5,2) DEFAULT 0.00 COMMENT 'AI predicted readmission risk (0-100%)',
     ai_readmission_updated_at TIMESTAMP NULL COMMENT 'When AI readmission risk was last calculated',
@@ -127,12 +141,14 @@ CREATE TABLE patients (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
     FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
     FOREIGN KEY (updated_by) REFERENCES users(user_id) ON DELETE SET NULL,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE RESTRICT,
     INDEX idx_mrn (mrn),
     INDEX idx_name (last_name, first_name),
     INDEX idx_deleted (is_deleted),
+    INDEX idx_department (department_id),
     INDEX idx_ai_readmission (ai_readmission_risk),
     FULLTEXT INDEX ft_name (first_name, last_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE medical_history (
     history_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -145,7 +161,7 @@ CREATE TABLE medical_history (
     FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE CASCADE,
     INDEX idx_patient (patient_id),
     INDEX idx_type (condition_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ================================================================================
 -- SECTION 4: APPOINTMENTS & ENCOUNTERS
@@ -162,25 +178,31 @@ CREATE TABLE doctors (
     CHECK (consultation_fee >= 0),
     CHECK (max_appointments_per_day > 0),
     INDEX idx_specialization (specialization)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE doctor_availability (
     availability_id INT AUTO_INCREMENT PRIMARY KEY,
     doctor_id INT NOT NULL,
+    department_id INT NOT NULL COMMENT 'Doctor works in this department',
     day_of_week ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'),
     shift_start_time TIME NOT NULL,
     shift_end_time TIME NOT NULL,
     is_working BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id) ON DELETE CASCADE,
-    UNIQUE KEY unique_doctor_day (doctor_id, day_of_week),
-    INDEX idx_doctor (doctor_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE RESTRICT,
+    UNIQUE KEY unique_doctor_dept_day (doctor_id, department_id, day_of_week),
+    INDEX idx_doctor (doctor_id),
+    INDEX idx_department (department_id),
+    INDEX idx_day (day_of_week)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Doctor availability per department with shift times';
 
 CREATE TABLE appointments (
     appointment_id INT AUTO_INCREMENT PRIMARY KEY,
     patient_id INT NOT NULL,
     doctor_id INT NOT NULL,
+    department_id INT NOT NULL COMMENT 'Department where appointment takes place',
     appointment_date DATE NOT NULL,
     appointment_time TIME NOT NULL,
     duration_minutes INT DEFAULT 30,
@@ -195,16 +217,18 @@ CREATE TABLE appointments (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE RESTRICT,
     FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id) ON DELETE RESTRICT,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE RESTRICT,
     FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE RESTRICT,
     FOREIGN KEY (updated_by) REFERENCES users(user_id) ON DELETE SET NULL,
     UNIQUE KEY unique_doctor_slot (doctor_id, appointment_date, appointment_time),
     CHECK (duration_minutes > 0),
     INDEX idx_patient_appt (patient_id, appointment_date),
     INDEX idx_doctor_appt (doctor_id, appointment_date),
+    INDEX idx_dept_appt (department_id, appointment_date),
     INDEX idx_status (status),
     INDEX idx_deleted (is_deleted),
     INDEX idx_time_range (doctor_id, appointment_date, appointment_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Partitioned by date for large-scale hospitals';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Partitioned by date for large-scale hospitals - Now includes department_id';
 
 CREATE TABLE encounters (
     encounter_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -234,7 +258,7 @@ CREATE TABLE encounters (
     INDEX idx_appointment_id (appointment_id),
     INDEX idx_admission_date (admission_date),
     INDEX idx_patient_date (patient_id, admission_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Partitioned by admission_date for archive strategy';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Partitioned by admission_date for archive strategy';
 
 CREATE TABLE vitals (
     vital_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -256,7 +280,7 @@ CREATE TABLE vitals (
     INDEX idx_encounter (encounter_id),
     INDEX idx_recorded (recorded_at),
     INDEX idx_ai_risk (ai_risk_score)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ================================================================================
 -- SECTION 5: SOAP MODEL (Properly Separated Components)
@@ -276,7 +300,7 @@ CREATE TABLE subjective_notes (
     UNIQUE KEY unique_encounter_subjective (encounter_id),
     INDEX idx_encounter (encounter_id),
     FULLTEXT INDEX ft_complaint (patient_complaint)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE objective_notes (
     objective_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -292,7 +316,7 @@ CREATE TABLE objective_notes (
     UNIQUE KEY unique_encounter_objective (encounter_id),
     INDEX idx_encounter (encounter_id),
     FULLTEXT INDEX ft_examination (physical_examination)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE assessment_notes (
     assessment_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -315,7 +339,7 @@ CREATE TABLE assessment_notes (
     INDEX idx_icd10 (icd10_code),
     INDEX idx_ai_confidence (ai_confidence),
     FULLTEXT INDEX ft_diagnosis (primary_diagnosis)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE plan_notes (
     plan_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -335,7 +359,7 @@ CREATE TABLE plan_notes (
     UNIQUE KEY unique_encounter_plan (encounter_id),
     INDEX idx_encounter (encounter_id),
     FULLTEXT INDEX ft_treatment (treatment_plan)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ================================================================================
 -- SECTION 6: PHARMACY & INVENTORY TABLES
@@ -361,7 +385,7 @@ CREATE TABLE inventory_items (
     INDEX idx_stock (quantity_in_stock),
     INDEX idx_expiry (expiration_date),
     FULLTEXT INDEX ft_name (item_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE prescriptions (
     prescription_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -385,7 +409,7 @@ CREATE TABLE prescriptions (
     INDEX idx_status (status),
     INDEX idx_deleted (is_deleted),
     INDEX idx_ai_reviewed (ai_reviewed)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE prescription_details (
     detail_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -407,7 +431,7 @@ CREATE TABLE prescription_details (
     INDEX idx_prescription (prescription_id),
     INDEX idx_ai_confidence (ai_confidence),
     INDEX idx_item (item_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE inventory_transactions (
     transaction_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -425,7 +449,7 @@ CREATE TABLE inventory_transactions (
     INDEX idx_type (transaction_type),
     INDEX idx_date (transaction_date),
     INDEX idx_reference (reference_id, reference_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Partitioned by transaction_date for time-series analysis';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Partitioned by transaction_date for time-series analysis';
 
 -- ================================================================================
 -- SECTION 7: BILLING & PAYMENTS
@@ -466,7 +490,7 @@ CREATE TABLE invoices (
     INDEX idx_ai_fraud (ai_fraud_alert(100)),
     INDEX idx_encounter (encounter_id),
     INDEX idx_patient_status (patient_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Partitioned by invoice_date for archive + reporting';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Partitioned by invoice_date for archive + reporting';
 
 CREATE TABLE invoice_line_items (
     line_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -478,7 +502,7 @@ CREATE TABLE invoice_line_items (
     line_total DECIMAL(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
     FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
     INDEX idx_invoice (invoice_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE payments (
     payment_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -498,7 +522,7 @@ CREATE TABLE payments (
     INDEX idx_patient (patient_id),
     INDEX idx_date (payment_date),
     INDEX idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ================================================================================
 -- SECTION 2B: AI DECISION TRACKING (Placed After Encounters for FK Validity)
@@ -541,7 +565,7 @@ CREATE TABLE ai_logs (
     INDEX idx_approval_status (approval_status),
     INDEX idx_approved_by (approved_by),
     INDEX idx_ip_address (ip_address)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI decision audit trail with forensic tracking + governance approval';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='AI decision audit trail with forensic tracking + governance approval';
 
 -- ================================================================================
 -- SECTION 7B: ROW-LEVEL SECURITY VIEWS (Backend Filtering Support)
@@ -1300,40 +1324,40 @@ WHERE e.is_deleted = FALSE;
 -- AUDIT LOGGING:    Complete modification history with JSON + forensic tracking
 --
 -- CS236 ADBMS FEATURES DEMONSTRATED:
--- ✓ ACID Transactions (explicit START TRANSACTION/COMMIT/ROLLBACK)
--- ✓ Trigger Cascading (inventory, invoice, audit automations)
--- ✓ Referential Integrity (25+ foreign keys with constraints)
--- ✓ B-Tree Indexing (composite indexes on join paths)
--- ✓ Full-Text Search (medical notes, patient names)
--- ✓ Computed Columns (line_total using GENERATED ALWAYS AS)
--- ✓ Temporal Data (created_at, updated_at, deleted_at tracking)
--- ✓ Complex Query Logic (aggregations, subqueries, CASE statements)
--- ✓ View-Based Abstraction (13 views for various access patterns)
--- ✓ JSON Support (audit logs with before/after data)
--- ✓ Error Handling (SIGNAL SQLSTATE for validation)
--- ✓ Deterministic Functions (repeatable results for optimization)
--- ✓ Row-Level Locking (FOR UPDATE in procedures for ACID isolation)
--- ✓ Multi-Level Constraints (CHECK, UNIQUE, FOREIGN KEY, view-based)
+-- ? ACID Transactions (explicit START TRANSACTION/COMMIT/ROLLBACK)
+-- ? Trigger Cascading (inventory, invoice, audit automations)
+-- ? Referential Integrity (25+ foreign keys with constraints)
+-- ? B-Tree Indexing (composite indexes on join paths)
+-- ? Full-Text Search (medical notes, patient names)
+-- ? Computed Columns (line_total using GENERATED ALWAYS AS)
+-- ? Temporal Data (created_at, updated_at, deleted_at tracking)
+-- ? Complex Query Logic (aggregations, subqueries, CASE statements)
+-- ? View-Based Abstraction (13 views for various access patterns)
+-- ? JSON Support (audit logs with before/after data)
+-- ? Error Handling (SIGNAL SQLSTATE for validation)
+-- ? Deterministic Functions (repeatable results for optimization)
+-- ? Row-Level Locking (FOR UPDATE in procedures for ACID isolation)
+-- ? Multi-Level Constraints (CHECK, UNIQUE, FOREIGN KEY, view-based)
 --
 -- ADVANCED FEATURES (10/10 Polish):
--- ✓ Doctor Daily Appointment Limit Enforcement (trigger T1)
--- ✓ Invoice Total Calculation Integrity (trigger T9)
--- ✓ Inventory Race Condition Detection (trigger T3)
--- ✓ Soft-Delete Enforcement Views (5 views - patients_active, appointments_active, etc)
--- ✓ Dynamic Duration Availability Checking (FN4 updated)
--- ✓ Forensic IP + User Agent Tracking (ai_logs, audit_logs)
--- ✓ Clinical Governance Approval Workflow (ai_logs.approval_status)
+-- ? Doctor Daily Appointment Limit Enforcement (trigger T1)
+-- ? Invoice Total Calculation Integrity (trigger T9)
+-- ? Inventory Race Condition Detection (trigger T3)
+-- ? Soft-Delete Enforcement Views (5 views - patients_active, appointments_active, etc)
+-- ? Dynamic Duration Availability Checking (FN4 updated)
+-- ? Forensic IP + User Agent Tracking (ai_logs, audit_logs)
+-- ? Clinical Governance Approval Workflow (ai_logs.approval_status)
 --
 -- AI FEATURES MONITORING:
 --
 -- Database columns support AI integration:
--- ✓ assessment_notes.ai_suggestion & ai_confidence
--- ✓ prescription_details.ai_recommended_dosage & ai_alternative_drugs
--- ✓ prescriptions.ai_interaction_alerts
--- ✓ invoices.ai_billing_optimization
--- ✓ vitals.ai_risk_score
--- ✓ patients.ai_readmission_risk
--- ✓ ai_logs table for complete audit trail with compliance tracking + governance
+-- ? assessment_notes.ai_suggestion & ai_confidence
+-- ? prescription_details.ai_recommended_dosage & ai_alternative_drugs
+-- ? prescriptions.ai_interaction_alerts
+-- ? invoices.ai_billing_optimization
+-- ? vitals.ai_risk_score
+-- ? patients.ai_readmission_risk
+-- ? ai_logs table for complete audit trail with compliance tracking + governance
 --
 -- All AI suggestions tracked with confidence scores for compliance & analytics.
 --
@@ -1344,7 +1368,7 @@ WHERE e.is_deleted = FALSE;
 -- PARTITION BY DATE (Time-Series Data):
 -- Recommended for rapid growth and archive strategies:
 --
--- 1. appointments → PARTITION BY RANGE(YEAR(appointment_date))
+-- 1. appointments ? PARTITION BY RANGE(YEAR(appointment_date))
 --    Rationale: High-frequency inserts, quarterly analysis
 --    Archive Strategy: Move old partitions to cold storage after 2 years
 --    IMPLEMENTATION:
@@ -1356,7 +1380,7 @@ WHERE e.is_deleted = FALSE;
 --        PARTITION p_future VALUES LESS THAN MAXVALUE
 --    );
 --
--- 2. audit_logs → PARTITION BY RANGE(YEAR(timestamp))
+-- 2. audit_logs ? PARTITION BY RANGE(YEAR(timestamp))
 --    Rationale: Compliance keeps 7 years, audit requires fast date searches
 --    Storage: Old partitions read-only, compressed for cost
 --    IMPLEMENTATION:
@@ -1372,15 +1396,15 @@ WHERE e.is_deleted = FALSE;
 --        PARTITION p_future VALUES LESS THAN MAXVALUE
 --    );
 --
--- 3. ai_logs → PARTITION BY RANGE(YEAR(created_at))
+-- 3. ai_logs ? PARTITION BY RANGE(YEAR(created_at))
 --    Rationale: Training data for ML models, separates by year
 --    Usage: Historical analysis without impacting current operations
 --
--- 4. invoices → PARTITION BY RANGE(YEAR(invoice_date))
+-- 4. invoices ? PARTITION BY RANGE(YEAR(invoice_date))
 --    Rationale: Fiscal year archive, regulatory requirement
 --    Query Pattern: Reports filter by invoice_date year
 --
--- 5. inventory_transactions → PARTITION BY RANGE(YEAR(transaction_date))
+-- 5. inventory_transactions ? PARTITION BY RANGE(YEAR(transaction_date))
 --    Rationale: Stock history grows unbounded, need fast date range queries
 --    Archive: Move to compressed historical table after 1 year
 --

@@ -1,33 +1,83 @@
 'use client';
 
-import { Calendar, Clock, Users, Stethoscope, Phone, FileText, Bell, Settings, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, Clock, Users, Stethoscope, Phone, FileText, Bell, Settings, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function ReceptionistDashboard() {
+  const [stats, setStats] = useState(null);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/receptionist/dashboard');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          setStats(result.data.stats);
+          setAppointments(result.data.appointments);
+        } else {
+          setError(result.error || 'Failed to load dashboard data');
+        }
+      } catch (err) {
+        console.error('Dashboard fetch error:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboardData();
+  }, []);
+
+  // Loading skeleton
+  if (loading) {
+    return (
+      <div style={{ backgroundColor: '#FFFFFF', minHeight: '100vh' }} className="p-8">
+        <div className="space-y-6">
+          <div className="h-40 bg-gray-200 rounded-xl animate-pulse" />
+          <div className="grid grid-cols-4 gap-6 mb-12">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-32 bg-gray-200 rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div style={{ backgroundColor: '#FFFFFF', minHeight: '100vh' }} className="p-8">
+        <div
+          className="p-6 rounded-2xl flex gap-4"
+          style={{ backgroundColor: '#FFE4D6', borderLeftWidth: '4px', borderColor: '#E74C3C' }}
+        >
+          <AlertCircle size={24} color="#E74C3C" />
+          <div>
+            <p className="font-bold" style={{ color: '#C0392B' }}>
+              Error Loading Dashboard
+            </p>
+            <p style={{ color: '#922B21' }} className="text-sm mt-1">
+              {error}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div 
-      className="min-h-screen relative overflow-hidden"
-      style={{
-        backgroundColor: '#FFFFFF',
-      }}
-    >
-      {/* Decorative blurred shapes - Green, Pink, Gold */}
-      <div 
-        className="absolute top-20 -left-40 w-80 h-80 rounded-full mix-blend-multiply filter blur-3xl opacity-20 pointer-events-none"
-        style={{ backgroundColor: '#10B981' }}
-      />
-      <div 
-        className="absolute top-40 right-1/3 w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-15 pointer-events-none"
-        style={{ backgroundColor: '#F5DEB3' }}
-      />
-      <div 
-        className="absolute bottom-20 -right-40 w-80 h-80 rounded-full mix-blend-multiply filter blur-3xl opacity-15 pointer-events-none"
-        style={{ backgroundColor: '#FFD699' }}
-      />
-      <div 
-        className="absolute bottom-40 left-1/4 w-72 h-72 rounded-full mix-blend-multiply filter blur-3xl opacity-12 pointer-events-none"
-        style={{ backgroundColor: '#F59E0B' }}
-      />
-      {/* Gradient Header - Green dominant with gold accents */}
+    <div style={{ backgroundColor: '#FFFFFF', minHeight: '100vh' }}>
+      {/* Gradient Header */}
       <div 
         className="relative border-b backdrop-blur-md"
         style={{
@@ -51,19 +101,22 @@ export default function ReceptionistDashboard() {
               </h1>
               <p className="text-green-50 flex items-center gap-2">
                 <Clock size={16} />
-                Thursday, April 10, 2026 • 9:45 AM
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} • {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
             <div className="flex gap-3">
-              <button
+              <a
+                href="/receptionist/appointments/book"
                 className="px-7 py-3 rounded-xl font-semibold transition-all hover:shadow-lg hover:scale-105"
                 style={{ 
                   backgroundColor: '#F9D5A1',
                   color: '#065F46',
+                  textDecoration: 'none',
+                  display: 'inline-block',
                 }}
               >
                 + New Appointment
-              </button>
+              </a>
               <button
                 className="p-3 rounded-xl transition-all hover:shadow-lg"
                 style={{
@@ -71,6 +124,7 @@ export default function ReceptionistDashboard() {
                   color: '#FFFFFF',
                   backdropFilter: 'blur(10px)',
                   border: '1px solid rgba(255, 255, 255, 0.2)',
+                  cursor: 'pointer',
                 }}
               >
                 <Settings size={20} />
@@ -82,6 +136,7 @@ export default function ReceptionistDashboard() {
                   color: '#FFFFFF',
                   backdropFilter: 'blur(10px)',
                   border: '1px solid rgba(255, 255, 255, 0.2)',
+                  cursor: 'pointer',
                 }}
               >
                 <Bell size={20} />
@@ -98,16 +153,17 @@ export default function ReceptionistDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-8 py-12 relative z-20">
-        {/* Quick Stats - Premium Cards with Gold & Pink */}
+      <div className="max-w-7xl mx-auto px-8 py-12">
+        {/* Quick Stats - Live Data */}
         <div className="grid grid-cols-4 gap-6 mb-12">
-          {[
-            { label: "Today's Appointments", value: '12', icon: Calendar, color: '#10B981', bgColor: '#E8F8F5' },
-            { label: 'Checked In', value: '8', icon: CheckCircle2, color: '#059669', bgColor: '#FFE4F5' },
-            { label: 'In Progress', value: '3', icon: Clock, color: '#F59E0B', bgColor: '#FFD9E8' },
-            { label: 'Completed', value: '5', icon: Stethoscope, color: '#10B981', bgColor: '#FFE4D6' },
-          ].map((stat, idx) => {
-            const Icon = stat.icon;
+          {stats ? (
+            [
+              { label: "Today's Appointments", value: stats.todayAppointmentsCount || 0, icon: Calendar, color: '#10B981', bgColor: '#E8F8F5' },
+              { label: 'Total Active Patients', value: stats.totalPatientsCount || 0, icon: Users, color: '#059669', bgColor: '#FFE4F5' },
+              { label: 'Scheduled Appointments', value: stats.scheduledAppointmentsCount || 0, icon: Clock, color: '#F59E0B', bgColor: '#FFD9E8' },
+              { label: 'Completed Today', value: stats.completedTodayCount || 0, icon: CheckCircle2, color: '#10B981', bgColor: '#FFE4D6' },
+            ].map((stat, idx) => {
+              const Icon = stat.icon;
             return (
               <div
                 key={idx}
@@ -146,7 +202,16 @@ export default function ReceptionistDashboard() {
                 </div>
               </div>
             );
-          })}
+          })
+          ) : (
+            [1, 2, 3, 4].map(i => (
+              <div 
+                key={i} 
+                className="h-32 bg-gray-200 rounded-2xl animate-pulse"
+                style={{ backgroundColor: '#E5E7EB' }}
+              />
+            ))
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-6">
@@ -172,12 +237,14 @@ export default function ReceptionistDashboard() {
                   <h2 className="text-2xl font-bold" style={{ color: '#065F46' }}>
                     Today's Schedule
                   </h2>
-                  <p style={{ color: '#D97706' }} className="text-sm mt-1 font-semibold">4 appointments remaining</p>
+                  <p style={{ color: '#D97706' }} className="text-sm mt-1 font-semibold">
+                    {stats?.todayAppointmentsCount || 0} appointments scheduled
+                  </p>
                 </div>
                 <a
-                  href="#"
+                  href="/receptionist/appointments"
                   className="text-sm font-semibold flex items-center gap-1 hover:gap-2 transition-all px-4 py-2 rounded-lg"
-                  style={{ color: '#10B981', backgroundColor: 'rgba(245, 158, 11, 0.1)' }}
+                  style={{ color: '#10B981', backgroundColor: 'rgba(245, 158, 11, 0.1)', textDecoration: 'none' }}
                 >
                   View all <ArrowRight size={16} />
                 </a>
@@ -185,79 +252,52 @@ export default function ReceptionistDashboard() {
 
               {/* Appointment List */}
               <div className="space-y-3 relative z-10">
-                {[
-                  {
-                    time: '09:00 AM',
-                    patient: 'John Doe',
-                    doctor: 'Dr. Smith',
-                    status: 'Checked In',
-                    statusColor: '#10B981',
-                    bgColor: '#FFFFFF',
-                  },
-                  {
-                    time: '09:30 AM',
-                    patient: 'Jane Wilson',
-                    doctor: 'Dr. Johnson',
-                    status: 'In Progress',
-                    statusColor: '#059669',
-                    bgColor: '#FFE4F5',
-                  },
-                  {
-                    time: '10:00 AM',
-                    patient: 'Robert Brown',
-                    doctor: 'Dr. Williams',
-                    status: 'Waiting',
-                    statusColor: '#F59E0B',
-                    bgColor: '#FFD9E8',
-                  },
-                  {
-                    time: '10:30 AM',
-                    patient: 'Emily Davis',
-                    doctor: 'Dr. Martinez',
-                    status: 'Scheduled',
-                    statusColor: '#10B981',
-                    bgColor: '#FFFFFF',
-                  },
-                ].map((apt, idx) => (
-                  <div
-                    key={idx}
-                    className="p-5 rounded-xl border transition-all hover:shadow-lg group"
-                    style={{
-                      borderColor: apt.status === 'Waiting' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.15)',
-                      backgroundColor: apt.bgColor,
-                    }}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-4">
-                        <div
-                          className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-                          style={{
-                            backgroundColor: apt.status === 'Waiting' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+                {appointments && appointments.length > 0 ? (
+                  appointments.map((apt, idx) => (
+                    <div
+                      key={idx}
+                      className="p-5 rounded-xl border transition-all hover:shadow-lg group cursor-pointer"
+                      style={{
+                        borderColor: apt.status === 'Waiting' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.15)',
+                        backgroundColor: apt.status === 'Waiting' ? '#FFD9E8' : '#FFFFFF',
+                      }}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-4">
+                          <div
+                            className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{
+                              backgroundColor: apt.status === 'Waiting' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+                            }}
+                          >
+                            <Clock size={20} color={apt.status === 'Waiting' ? '#F59E0B' : '#10B981'} />
+                          </div>
+                          <div>
+                            <p className="font-bold" style={{ color: '#065F46' }}>
+                              {apt.patient_first_name} {apt.patient_last_name}
+                            </p>
+                            <p style={{ color: apt.status === 'Waiting' ? '#D97706' : '#10B981' }} className="text-sm">
+                              {apt.appointment_time} • Dr. {apt.doctor_last_name}
+                            </p>
+                          </div>
+                        </div>
+                        <span
+                          className="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap ml-4"
+                          style={{ 
+                            backgroundColor: apt.status === 'Scheduled' ? '#10B981' : apt.status === 'Completed' ? '#059669' : '#F59E0B',
+                            color: '#FFFFFF'
                           }}
                         >
-                          <Clock size={20} color={apt.status === 'Waiting' ? '#F59E0B' : '#10B981'} />
-                        </div>
-                        <div>
-                          <p className="font-bold" style={{ color: '#065F46' }}>
-                            {apt.patient}
-                          </p>
-                          <p style={{ color: apt.status === 'Waiting' ? '#D97706' : '#10B981' }} className="text-sm">
-                            {apt.time} • {apt.doctor}
-                          </p>
-                        </div>
+                          {apt.status}
+                        </span>
                       </div>
-                      <span
-                        className="px-4 py-2 rounded-full text-xs font-bold text-white whitespace-nowrap ml-4"
-                        style={{ 
-                          backgroundColor: apt.statusColor,
-                          color: apt.status === 'Waiting' ? '#065F46' : '#FFFFFF'
-                        }}
-                      >
-                        {apt.status}
-                      </span>
                     </div>
+                  ))
+                ) : (
+                  <div className="p-6 text-center" style={{ color: '#10B981' }}>
+                    <p className="font-semibold">No appointments scheduled for today</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -285,19 +325,21 @@ export default function ReceptionistDashboard() {
               </h3>
               <div className="space-y-3 relative z-10">
                 {[
-                  { label: 'Register Patient', icon: Users, color: '#10B981', bgBtn: '#FFFFFF' },
-                  { label: 'Schedule Visit', icon: Calendar, color: '#F59E0B', bgBtn: '#FFD9E8' },
-                  { label: 'Call Doctor', icon: Phone, color: '#059669', bgBtn: '#FFFFFF' },
-                  { label: 'View Documents', icon: FileText, color: '#F59E0B', bgBtn: '#FFE4D6' },
+                  { label: 'Register Patient', icon: Users, color: '#10B981', bgBtn: '#FFFFFF', href: '/receptionist/patients/register' },
+                  { label: 'Schedule Visit', icon: Calendar, color: '#F59E0B', bgBtn: '#FFD9E8', href: '/receptionist/appointments/book' },
+                  { label: 'View Patients', icon: Users, color: '#059669', bgBtn: '#FFFFFF', href: '/receptionist/patients' },
+                  { label: 'View Documents', icon: FileText, color: '#F59E0B', bgBtn: '#FFE4D6', href: '#' },
                 ].map((action, idx) => {
                   const Icon = action.icon;
                   return (
-                    <button
+                    <a
                       key={idx}
+                      href={action.href}
                       className="w-full p-4 rounded-xl flex items-center gap-3 transition-all hover:shadow-md border group"
                       style={{
                         backgroundColor: action.bgBtn,
                         borderColor: action.bgBtn === '#FFFFFF' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                        textDecoration: 'none',
                       }}
                     >
                       <div
@@ -310,7 +352,7 @@ export default function ReceptionistDashboard() {
                         {action.label}
                       </span>
                       <ArrowRight size={14} color={action.color} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
+                    </a>
                   );
                 })}
               </div>
@@ -341,10 +383,10 @@ export default function ReceptionistDashboard() {
                 </div>
                 <div>
                   <p className="font-bold text-sm" style={{ color: '#065F46' }}>
-                    Pending Verifications
+                    System Status
                   </p>
                   <p style={{ color: '#D97706' }} className="text-sm mt-1">
-                    2 patients need insurance approval
+                    All systems operational and ready
                   </p>
                 </div>
               </div>

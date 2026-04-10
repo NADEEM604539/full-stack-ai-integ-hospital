@@ -4,36 +4,50 @@ import db from '@/lib/db';
 /**
  * Get current user's ID from database
  * Uses Clerk currentUser's email to lookup in database
+ * @returns {Promise<number>} user_id from database
+ * @throws {Error} If user not authenticated or not in database
  */
 export async function getUserId() {
+  let user;
   try {
-    const user = await currentUser();
-    
-    if (!user || !user.emailAddresses[0]?.emailAddress) {
-      throw new Error('No authenticated user found');
+    user = await currentUser();
+  } catch (clerkError) {
+    // Handle ClerkAPIResponseError and other Clerk errors
+    const errorMsg = clerkError?.message || 
+                     clerkError?.errors?.[0]?.message || 
+                     String(clerkError) || 
+                     'Unknown Clerk error';
+    console.error('Clerk currentUser() error:', errorMsg);
+    throw new Error(`Clerk authentication error: ${errorMsg}`);
+  }
+  
+  if (!user) {
+    throw new Error('No authenticated user found - user is not logged in');
+  }
+
+  const email = user.emailAddresses?.[0]?.emailAddress;
+  if (!email) {
+    throw new Error('User authenticated but no email address found in Clerk profile');
+  }
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const [rows] = await connection.query(
+      'SELECT user_id FROM users WHERE email = ? LIMIT 1',
+      [email]
+    );
+
+    if (!rows || rows.length === 0) {
+      throw new Error(`User with email "${email}" not found in database. Admin must create user profile.`);
     }
 
-    const email = user.emailAddresses[0].emailAddress;
-    let connection;
-
-    try {
-      connection = await db.getConnection();
-      const [rows] = await connection.query(
-        'SELECT user_id FROM users WHERE email = ? LIMIT 1',
-        [email]
-      );
-
-      if (rows.length === 0) {
-        throw new Error(`User not found in database for email: ${email}`);
-      }
-
-      return rows[0].user_id;
-    } finally {
-      if (connection) connection.release();
-    }
-  } catch (error) {
-    console.error('Error in getUserId():', error.message);
-    throw error;
+    return rows[0].user_id;
+  } catch (dbError) {
+    console.error('Database error in getUserId():', dbError?.message || String(dbError));
+    throw dbError;
+  } finally {
+    if (connection) connection.release();
   }
 }
 

@@ -436,6 +436,459 @@ PHASE 5: Testing & Deployment (Week 9-10)
 └─ Production deployment & monitoring
 
 ================================================================================
+SECTION 5: DEPARTMENT-BASED WORKFLOWS (Independent Operations)
+================================================================================
+
+ARCHITECTURE: Each department operates INDEPENDENTLY from others
+
+🏥 DEPARTMENT STRUCTURE (8 Total Departments)
+
+DEPARTMENT 1: GENERAL MEDICINE
+├─ Staff:
+│  ├─ Dr. Ahmed Hassan (ID=1, General Medicine specialist)
+│  ├─ Dr. Maryam Saif (ID=6, General Medicine specialist)
+│  └─ Nurse Saira (ID=10, RN General Medicine)
+├─ Workflow:
+│  ├─ Book appointments via doctor_availability for General Medicine
+│  ├─ Appointments ONLY scheduled in department=1
+│  ├─ Vitals recorded specifically for dept=1 patients
+│  ├─ Prescriptions generated per-department rules
+│  └─ Billing tracked separately per-department
+├─ Doctor Availability:
+│  ├─ Dr. Ahmed: Mon/Wed/Fri (09:00-17:00)
+│  ├─ Dr. Maryam: Mon-Fri (08:00-16:00)
+│  └─ Both have separate slots in General Medicine (dept=1)
+└─ Status: ✅ INDEPENDENT OPERATIONS
+
+DEPARTMENT 2: CARDIOLOGY
+├─ Staff:
+│  ├─ Dr. Fatima Khan (ID=2, Cardiology specialist, MD Cardiology)
+│  └─ Nurse Amina (ID=11, RN Cardiac Specialization)
+├─ Workflow:
+│  ├─ High-risk patient monitoring (vitals recorded frequently)
+│  ├─ Cardiac tests ordering and tracking
+│  ├─ Medication management for heart conditions
+│  ├─ Referral handling from other departments
+│  └─ Department-specific billing codes
+├─ Doctor Availability:
+│  └─ Dr. Fatima: Tue/Thu/Sat (09:00-16:00, Sat 10:00-14:00)
+└─ Status: ✅ INDEPENDENT OPERATIONS
+
+DEPARTMENT 3: ORTHOPEDICS
+├─ Staff:
+│  └─ Dr. Ali Malik (ID=3, Orthopedics specialist, MD Orthopedics)
+├─ Workflow:
+│  ├─ Surgical scheduling and orthopedic procedures
+│  ├─ Physiotherapy integration
+│  ├─ Bone health monitoring
+│  └─ Post-operative patient management
+├─ Doctor Availability:
+│  └─ Dr. Ali: Mon-Thu (09:30-17:30)
+└─ Status: ✅ INDEPENDENT OPERATIONS
+
+DEPARTMENT 4: NEUROLOGY
+├─ Staff:
+│  └─ Dr. Sara Ahmed (ID=4, Neurology specialist, MD Neurology)
+├─ Workflow:
+│  ├─ Neurological disorder diagnosis and management
+│  ├─ EEG/neuro tests ordering
+│  ├─ Neurological medication management
+│  └─ Headache clinic operations
+├─ Doctor Availability:
+│  └─ Dr. Sara: Mon/Wed/Fri (10:00-18:00)
+└─ Status: ✅ INDEPENDENT OPERATIONS
+
+DEPARTMENT 5: PEDIATRICS
+├─ Staff:
+│  └─ Dr. Hassan Raza (ID=5, Pediatrics specialist, DCH Pediatrics)
+├─ Workflow:
+│  ├─ Child-specific appointment handling (guardians)
+│  ├─ Height/weight/vaccine tracking
+│  ├─ Pediatric medication dosage rules
+│  ├─ Parent education and counseling
+│  └─ School health notes
+├─ Doctor Availability:
+│  └─ Dr. Hassan: Tue/Thu/Sat (09:00-17:00, Sat 09:00-13:00)
+└─ Status: ✅ INDEPENDENT OPERATIONS
+
+DEPARTMENT 6: EMERGENCY
+├─ Staff:
+│  └─ Nurse Rizwan (ID=12, RN Emergency Training)
+├─ Workflow:
+│  ├─ Triage and rapid assessment
+│  ├─ STAT medication dispensing
+│  ├─ ICU admission coordination
+│  ├─ Emergency billing (different rates)
+│  └─ 24/7 operations
+└─ Status: ✅ INDEPENDENT OPERATIONS
+
+DEPARTMENT 7: PHARMACY
+├─ Staff:
+│  ├─ Pharmacist Hassan (ID=40, BPharm Licensed)
+│  └─ Pharmacist Zainab (ID=41, BPharm Licensed)
+├─ Workflow:
+│  ├─ Prescription dispensing from ALL departments
+│  ├─ Inventory management across hospital
+│  ├─ Drug interaction checking per prescription
+│  ├─ Medication counseling
+│  └─ Expiration date tracking
+├─ Integration:
+│  ├─ Receives prescriptions from all 6 clinical departments
+│  ├─ Dispenses medications per department request
+│  ├─ Records pharmacy transactions
+│  └─ Manages inventory for hospital-wide use
+└─ Status: ✅ CROSS-DEPARTMENT SUPPORT
+
+DEPARTMENT 8: ADMINISTRATION
+├─ Staff:
+│  ├─ Admin User (ID=1, ADMIN role)
+│  ├─ Receptionist Aisha (ID=20)
+│  ├─ Receptionist Hina (ID=21)
+│  ├─ Receptionist Ali (ID=22)
+│  ├─ Finance Officer Bilal (ID=50)
+│  └─ Finance Officer Rana (ID=51)
+├─ Workflow:
+│  ├─ ADMIN: Oversees all departments, system control
+│  ├─ RECEPTIONIST: Books appointments across ALL departments
+│  ├─ FINANCE: Processes billing from ALL departments
+│  └─ Manages cross-department resources
+└─ Status: ✅ CROSS-DEPARTMENT COORDINATION
+
+---
+
+## 🔗 DEPARTMENT WORKFLOW: Data Flow Example
+
+### SCENARIO: Receptionist Books Appointment for Patient in Cardiology (Dept=2)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ STEP 0: Verify patient is registered in department             │
+├─────────────────────────────────────────────────────────────────┤
+│ Query 0: SELECT department_id FROM patients WHERE patient_id=5 │
+│ Result: department_id = 2 (Cardiology) ✓ MATCH                │
+│                                                                 │
+│ → If patient department ≠ doctor department, return 400:      │
+│   "Patient not registered in this department"                  │
+└─────────────────────────────────────────────────────────────────┘
+                             │
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ STEP 1: Receptionist selects department                         │
+├─────────────────────────────────────────────────────────────────┤
+│ POST /api/receptionist/appointments                             │
+│ {                                                               │
+│   "patient_id": 5,                                              │
+│   "doctor_id": 2,          ← Dr. Fatima Khan                   │
+│   "department_id": 2,      ← CARDIOLOGY (NOT General Medicine)│
+│   "appointment_date": "2026-04-15",                            │
+│   "start_time": "09:00",                                        │
+│   "end_time": "09:30"                                           │
+│ }                                                               │
+└─────────────────────────────────────────────────────────────────┘
+                             │
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ STEP 2: Backend validates doctor-department alignment           │
+├─────────────────────────────────────────────────────────────────┤
+│ Query 1: SELECT from staff WHERE user_id=2                     │
+│ Result: staff_id=2, user_id=2, department_id=2 ✓ MATCH        │
+│                                                                 │
+│ → If department_id ≠ 2, return 400: "Doctor not in dept"      │
+└─────────────────────────────────────────────────────────────────┘
+                             │
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ STEP 3: Confirm patient-doctor department alignment             │
+├─────────────────────────────────────────────────────────────────┤
+│ Query 1b: SELECT department_id FROM patients WHERE patient_id=5│
+│ Result: department_id = 2 ✓ MATCH doctor's department         │
+│                                                                 │
+│ → If patient.department_id ≠ doctor.department_id, return 400:│
+│   "Patient and doctor in different departments"               │
+└─────────────────────────────────────────────────────────────────┘
+                             │
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ STEP 4: Check doctor availability for THAT DEPARTMENT          │
+├─────────────────────────────────────────────────────────────────┤
+│ Query 2: SELECT from doctor_availability                       │
+│ WHERE doctor_id=2 AND department_id=2 AND day_code='TUE'      │
+│ Result: 09:00-16:00 available ✓                               │
+│ Result: Slot 09:00-09:30 is WITHIN available hours ✓          │
+│                                                                 │
+│ → If day is not working day, return 400: "Not available"      │
+└─────────────────────────────────────────────────────────────────┘
+                             │
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ STEP 5: Check for overlapping appointments IN SAME DEPT        │
+├─────────────────────────────────────────────────────────────────┤
+│ Query 3: SELECT from appointments                              │
+│ WHERE doctor_id=2 AND department_id=2                          │
+│   AND appointment_date='2026-04-15'                            │
+│   AND status NOT IN ('Cancelled', 'NoShow')                    │
+│   AND (start_time < '09:30' AND end_time > '09:00')          │
+│ Result: 0 rows = NO CONFLICT ✓                                │
+│                                                                 │
+│ → If conflict found, return 409: "Slot already booked"        │
+└─────────────────────────────────────────────────────────────────┘
+                             │
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ STEP 6: Create appointment with department context             │
+├─────────────────────────────────────────────────────────────────┤
+│ START TRANSACTION                                               │
+│   INSERT INTO appointments                                     │
+│   (patient_id=5, doctor_id=2, department_id=2,                │
+│    appointment_date='2026-04-15',                              │
+│    start_time='09:00', end_time='09:30',                      │
+│    status='Scheduled', booked_by=20)                           │
+│   → appointment_id = 5 ✓                                       │
+│                                                                 │
+│   INSERT INTO audit_logs                                       │
+│   (user_id=20, action='CREATE', table_name='appointments',    │
+│    record_id=5, new_values={...}, ip_address='192.168.1.50')  │
+│                                                                 │
+│   INSERT INTO billing (automatic)                              │
+│   (patient_id=5, amount=2500, reason='Cardiology consultation',│
+│    department_id=2)                                             │
+│                                                                 │
+│ COMMIT ✓ ALL-OR-NOTHING                                        │
+└─────────────────────────────────────────────────────────────────┘
+                             │
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ STEP 7: Return success with appointment details                │
+├─────────────────────────────────────────────────────────────────┤
+│ Response 201 Created:                                          │
+│ {                                                              │
+│   "success": true,                                            │
+│   "appointment": {                                            │
+│     "id": 5,                                                  │
+│     "patient_dept": "Cardiology",    ← CONFIRMED MATCH       │
+│     "doctor": "Dr. Fatima Khan",                             │
+│     "department": "Cardiology",      ← CLEAR CONTEXT         │
+│     "date": "2026-04-15",                                     │
+│     "time": "09:00 - 09:30",                                 │
+│     "status": "Scheduled"                                     │
+│   }                                                           │
+│ }                                                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### KEY VALIDATION POINTS FOR INDEPENDENCE:
+
+1. **Patient Department Registration** (NEW - Phase 6)
+   ```sql
+   -- FAIL if patient not registered to requested department
+   SELECT department_id FROM patients WHERE patient_id = 5
+   -- Must return: department_id = 2 (Cardiology)
+   -- If returns 1 (General Medicine), appointment FAILS
+   -- Ensures patients get care in their assigned department
+   ```
+
+2. **Doctor-Department Alignment**
+   ```sql
+   -- FAIL if doctor not in requested department
+   SELECT department_id FROM staff WHERE user_id = 2
+   -- Must return: department_id = 2 (Cardiology)
+   -- If returns 1 (General Medicine), appointment FAILS
+   ```
+
+3. **Patient-Doctor Department Match** (NEW - Phase 6)
+   ```sql
+   -- FAIL if patient and doctor in different departments
+   SELECT p.department_id, s.department_id
+   FROM patients p, staff s
+   WHERE p.patient_id = 5 AND s.user_id = 2
+   -- Must return: both department_id = 2
+   -- If mismatch, return 400: "Patient and doctor in different departments"
+   ```
+
+4. **Availability Per-Department**
+   ```sql
+   -- FAIL if doctor not available in that department on that day
+   SELECT * FROM doctor_availability
+   WHERE doctor_id = 2 AND department_id = 2 AND day_code = 'TUE'
+   -- Must return: 09:00-16:00 available
+   -- Only check availability for requested department
+   ```
+
+5. **Conflict Detection Within Department**
+   ```sql
+   -- FAIL if another appointment exists in SAME department
+   SELECT * FROM appointments
+   WHERE doctor_id = 2 AND department_id = 2
+     AND appointment_date = '2026-04-15'
+     AND (start_time < '09:30' AND end_time > '09:00')
+   -- Must return: 0 rows (no conflicts)
+   ```
+
+6. **Billing Department-Specific**
+   ```sql
+   INSERT INTO billing
+   (patient_id=5, amount=2500, reason='Cardiology consultation', department_id=2)
+   -- Billing tracks which department generated the charge
+   -- Must match patient.department_id for traceability
+   ```
+
+---
+
+## 📊 DEPARTMENT INDEPENDENCE VERIFICATION
+
+| Aspect | General Medicine | Cardiology | Orthopedics | Result |
+|--------|---|---|---|---|
+| **Doctors** | Dr. Ahmed, Dr. Maryam | Dr. Fatima | Dr. Ali | ✅ No overlap |
+| **Nurse Staff** | Nurse Saira | Nurse Amina | N/A | ✅ Dedicated |
+| **Registered Patients** | Patients 1-4, 9, 12, 14 | Patients 2, 5-6, 10, 13, 15 | Patients 7-8, 11, 16 | ✅ Department-scoped |
+| **Availability** | Mon/Wed/Fri, Tue-Fri | Tue/Thu/Sat | Mon-Thu | ✅ Per-dept |
+| **Appointments** | dept=1 only (for dept=1 patients) | dept=2 only (for dept=2 patients) | dept=3 only (for dept=3 patients) | ✅ Isolated |
+| **Vitals Recording** | Linked to dept=1 patients | Linked to dept=2 patients | Linked to dept=3 patients | ✅ Separate |
+| **Prescriptions** | Dept=1 context | Dept=2 context | Dept=3 context | ✅ Tracked |
+| **Billing** | Dept=1 charges | Dept=2 charges | Dept=3 charges | ✅ By-dept |
+
+---
+
+## 🔐 DEPARTMENT ACCESS RULES
+
+### RECEPTIONIST (Role=4, Admin Department)
+```
+Can Register Patients To Departments:
+├─ Assigns new patients to specific department
+├─ department_id field in patients table
+├─ Links patient to department-specific care pathway
+└─ Example: Patient registered to "Cardiology" (dept=2)
+
+Can Book Appointments In:
+├─ ANY clinical department (1-6)
+├─ VALIDATES patient-department alignment before booking
+├─ Validates doctor-department alignment
+├─ Sees all available slots across departments
+└─ Books globally but slots are department-specific
+
+APPOINTMENT VALIDATION:
+├─ Step 1: Verify patient.department_id matches requested department
+├─ Step 2: Verify doctor.department_id matches requested department
+├─ Step 3: Verify patient.department_id == doctor.department_id
+├─ FAIL if any mismatch (400 error: department mismatch)
+└─ ONLY proceed if all three are consistent
+
+Cannot Access:
+├─ Clinical notes from other departments
+├─ Doctor schedules for other non-appointment purposes
+└─ Clinical decision-making
+```
+
+### DOCTOR (Role=2, e.g., General Medicine)
+```
+Restricted To Own Department:
+├─ View only own appointments (department=1)
+├─ View only own patients (referral to dept=1)
+├─ Record vitals for own department
+├─ Write prescriptions for own cases
+└─ Cannot view Cardiology patient data
+
+Access Model:
+SELECT * FROM appointments WHERE doctor_id=X AND department_id=1
+↑ department_id must match staff.department_id
+```
+
+### NURSE (Role=3, e.g., Cardiology)
+```
+Department-Based Patient Access:
+├─ View ONLY patients registered to own department
+├─ Query: SELECT * FROM patients WHERE department_id = (SELECT department_id FROM staff WHERE user_id = X)
+├─ Example: Nurse in Cardiology (dept=2) sees ONLY dept=2 patients
+├─ Cannot view General Medicine patients even with SELECT privilege
+└─ Department isolation enforced at both DB and backend
+
+Restricted To Own Department:
+├─ View only assigned patients in own department
+├─ Record vitals only for own department patients
+├─ See only appointments for own department
+└─ Cannot access other department data
+
+Access Model:
+SELECT * FROM vitals WHERE recorded_by=X AND department_id=2
+  ↑ department_id must match staff.department_id ONLY
+```
+
+### PHARMACIST (Role=5, Pharmacy Department)
+```
+Cross-Department Access:
+├─ Views prescriptions from ALL departments
+├─ Dispenses medications for ALL departments
+├─ Manages inventory for hospital-wide use
+└─ Records pharmacy transactions per-department
+
+Access Model:
+SELECT * FROM prescriptions ← No department filter
+  + Tracks destination_department for each prescription
+```
+
+### FINANCE (Role=6, Administration Department)
+```
+Cross-Department Access:
+├─ Views invoices from ALL departments
+├─ Processes payments for ALL departments
+├─ Generates reports by-department
+└─ Reconciles billing per-department
+
+Access Model:
+SELECT SUM(amount) FROM billing GROUP BY department_id
+  + Can filter by department for reconciliation
+```
+
+### ADMIN (Role=1, Administration Department)
+```
+Full Hospital Access:
+├─ Oversees ALL departments
+├─ Manages staff assignments per-department
+├─ Approves doctor availability changes
+├─ Views all audit logs and analytics
+└─ System configuration
+
+Access Model:
+SELECT * ← No department filtering, admin sees all
+```
+
+### PATIENT (Role=7, Department-Based Self-Service)
+```
+Personal Health Records - Department-Aware:
+├─ View only OWN medical records (row-level filtering)
+├─ Registered to ONE department (patients.department_id)
+├─ Access all own appointments in registered department
+├─ View own prescriptions from registered department
+├─ View own billing and payment history
+└─ READ-ONLY access (cannot modify any records)
+
+Department Registration Workflow:
+├─ Receptionist registers patient to department during intake
+├─ patient.department_id assigned at registration
+├─ Example: Patient John Doe registered to Cardiology (dept=2)
+├─ Patient can only book appointments in that department
+└─ All care records are department-specific
+
+Example Queries for Patient John Doe (patient_id=5, dept=2):
+├─ View own appointments:
+│  SELECT * FROM appointments WHERE patient_id=5 AND department_id=2
+├─ View own vitals:
+│  SELECT * FROM vitals WHERE patient_id=5 AND department_id=2
+├─ View own prescriptions:
+│  SELECT * FROM prescriptions WHERE patient_id=5 AND department_id=2
+└─ Cannot view:
+   ├─ Other patients' data
+   ├─ Appointments in other departments
+   └─ Administrative or staff data
+
+Access Model:
+WHERE patient_id = current_user AND department_id = 2
+  ↑ Enforced at backend for every query
+```
+
+---
+
+================================================================================
 SECTION 8: DATABASE SCHEMA SUMMARY (Complete ADBMS Features - 10/10 Polish)
 ================================================================================
 

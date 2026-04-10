@@ -1,0 +1,382 @@
+
+-- ==========================================
+-- MEDSYNC HMS - SEED DATA
+-- ONLY tables from db.txt - NO extra tables
+-- ==========================================
+
+-- ==========================================
+-- 1. ROLES (7 roles)
+-- ==========================================
+use MedSyncDB;
+INSERT INTO roles (role_id, role, description) VALUES
+(1, 'ADMIN', 'System Administrator - Full access to all tables and system configuration'),
+(2, 'DOCTOR', 'Clinical Decision Maker - Access to assigned patients and prescriptions'),
+(3, 'NURSE', 'Clinical Support - Record vitals and patient care'),
+(4, 'RECEPTIONIST', 'Front Desk Operations - Patient registration and appointment scheduling'),
+(5, 'PHARMACIST', 'Medication Management - Prescriptions and inventory management'),
+(6, 'FINANCE', 'Invoice & Payment Processing - Billing and payment management'),
+(7, 'PATIENT', 'End User - Personal health records READ-ONLY access');
+
+-- ==========================================
+-- 2. DEPARTMENTS (8 departments)
+-- ==========================================
+
+INSERT INTO departments (department_id, department_name, department_head_name, contact_number, email, location, is_active) VALUES
+(1, 'General Medicine', 'Dr. Ahmed Hassan', '051-123-4001', 'gm@hospital.com', 'Block A', TRUE),
+(2, 'Cardiology', 'Dr. Fatima Khan', '051-123-4002', 'cardio@hospital.com', 'Block B', TRUE),
+(3, 'Orthopedics', 'Dr. Ali Malik', '051-123-4003', 'ortho@hospital.com', 'Block C', TRUE),
+(4, 'Neurology', 'Dr. Sara Ahmed', '051-123-4004', 'neuro@hospital.com', 'Block D', TRUE),
+(5, 'Pediatrics', 'Dr. Hassan Raza', '051-123-4005', 'peds@hospital.com', 'Block E', TRUE),
+(6, 'Emergency', 'Dr. Maryam Saif', '051-123-4006', 'emergency@hospital.com', 'Block F', TRUE),
+(7, 'Pharmacy', 'Mr. Hassan Raza', '051-123-4007', 'pharmacy@hospital.com', 'Block G', TRUE),
+(8, 'Administration', 'Ms. Aisha Khan', '051-123-4008', 'admin@hospital.com', 'Block H', TRUE);
+
+-- ==========================================
+-- 3. USERS (No department_id - only staff has department)
+-- ==========================================
+
+INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) VALUES
+-- ADMIN USERS (2 admins - NO staff records)
+(1, 'admin', 'admin@gmail.com', 'Admin User', 1, TRUE),
+(2, 'clerk_admin_002', 'nadeem.admin@hospital.com', 'Nadeem Admin', 1, TRUE),
+
+-- DOCTOR USERS (6 doctors - Will have staff records with department_id)
+(10, 'nadeem', 'ullahasmut310gmail.com', 'Dr. Ahmed Hassan', 2, TRUE),
+(11, 'clerk_doctor_002', 'dr.fatima@hospital.com', 'Dr. Fatima Khan', 2, TRUE),
+(12, 'clerk_doctor_003', 'dr.ali@hospital.com', 'Dr. Ali Malik', 2, TRUE),
+(13, 'clerk_doctor_004', 'dr.sara@hospital.com', 'Dr. Sara Ahmed', 2, TRUE),
+(14, 'clerk_doctor_005', 'dr.hassan@hospital.com', 'Dr. Hassan Raza', 2, TRUE),
+(15, 'clerk_doctor_006', 'dr.maryam@hospital.com', 'Dr. Maryam Saif', 2, TRUE),
+
+-- RECEPTIONIST USERS (3 receptionists)
+(20, 'nadeem', 'nmushtaq.bscs24seecs@seecs.edu.pk', 'Receptionist Aisha', 4, TRUE),
+(21, 'clerk_receptionist_002', 'receptionist2@hospital.com', 'Receptionist Hina', 4, TRUE),
+(22, 'clerk_receptionist_003', 'receptionist3@hospital.com', 'Receptionist Ali', 4, TRUE),
+
+-- NURSE USERS (3 nurses)
+(30, 'nadeem', 'programmingworld360@hospital.com', 'Nurse Saira', 3, TRUE),
+(31, 'clerk_nurse_002', 'nurse2@hospital.com', 'Nurse Amina', 3, TRUE),
+(32, 'clerk_nurse_003', 'nurse3@hospital.com', 'Nurse Rizwan', 3, TRUE),
+
+-- PHARMACIST USERS (2 pharmacists)
+(40, 'clerk_pharmacist_001', 'pharmacist1@hospital.com', 'Pharmacist Hassan', 5, TRUE),
+(41, 'clerk_pharmacist_002', 'pharmacist2@hospital.com', 'Pharmacist Zainab', 5, TRUE),
+
+-- FINANCE USERS (2 finance officers)
+(50, 'clerk_finance_001', 'finance1@hospital.com', 'Finance Officer Bilal', 6, TRUE),
+(51, 'clerk_finance_002', 'finance2@hospital.com', 'Finance Officer Rana', 6, TRUE),
+
+-- PATIENT USERS (16 patients - NO staff records)
+(100, 'nadeem', 'ndm604539@gmail.com', 'John Doe', 7, TRUE),
+(101, 'clerk_patient_002', 'fatima.khan@email.com', 'Fatima Khan', 7, TRUE),
+(102, 'clerk_patient_003', 'ali.hassan@email.com', 'Ali Hassan', 7, TRUE),
+(103, 'clerk_patient_004', 'sara.ahmed@email.com', 'Sara Ahmed', 7, TRUE),
+(104, 'clerk_patient_005', 'maryam.saif@email.com', 'Maryam Saif', 7, TRUE),
+(105, 'clerk_patient_006', 'hassan.raza@email.com', 'Hassan Raza', 7, TRUE),
+(106, 'clerk_patient_007', 'zainab.malik@email.com', 'Zainab Malik', 7, TRUE),
+(107, 'clerk_patient_008', 'aisha.khan@email.com', 'Aisha Khan', 7, TRUE),
+(108, 'clerk_patient_009', 'bilal.ahmed@email.com', 'Bilal Ahmed', 7, TRUE),
+(109, 'clerk_patient_010', 'rana.hassan@email.com', 'Rana Hassan', 7, TRUE),
+(110, 'clerk_patient_011', 'amina.malik@email.com', 'Amina Malik', 7, TRUE),
+(111, 'clerk_patient_012', 'rizwan.ali@email.com', 'Rizwan Ali', 7, TRUE),
+(112, 'clerk_patient_013', 'hina.khan@email.com', 'Hina Khan', 7, TRUE),
+(113, 'clerk_patient_014', 'usman.ahmed@email.com', 'Usman Ahmed', 7, TRUE),
+(114, 'clerk_patient_015', 'nida.malik@email.com', 'Nida Malik', 7, TRUE),
+(115, 'clerk_patient_016', 'karim.hassan@email.com', 'Karim Hassan', 7, TRUE);
+
+-- ==========================================
+-- 4. STAFF (Staff with department_id FK)
+-- ==========================================
+
+INSERT INTO staff (staff_id, user_id, department_id, first_name, last_name, employee_id, designation, hire_date, status) VALUES
+-- DOCTORS (6 doctors in different departments)
+(1, 10, 1, 'Ahmed', 'Hassan', 'DOC001', 'Senior Doctor', '2020-01-15', 'Active'),
+(2, 11, 2, 'Fatima', 'Khan', 'DOC002', 'Consultant', '2019-06-20', 'Active'),
+(3, 12, 3, 'Ali', 'Malik', 'DOC003', 'Consultant', '2021-03-10', 'Active'),
+(4, 13, 4, 'Sara', 'Ahmed', 'DOC004', 'Senior Doctor', '2020-11-05', 'Active'),
+(5, 14, 5, 'Hassan', 'Raza', 'DOC005', 'Consultant', '2018-08-12', 'Active'),
+(6, 15, 1, 'Maryam', 'Saif', 'DOC006', 'Doctor', '2021-01-20', 'Active'),
+
+-- RECEPTIONISTS (3 receptionists in Administration)
+(7, 20, 8, 'Aisha', 'Khan', 'RCP001', 'Receptionist', '2020-02-01', 'Active'),
+(8, 21, 8, 'Hina', 'Ali', 'RCP002', 'Receptionist', '2020-02-01', 'Active'),
+(9, 22, 8, 'Ali', 'Malik', 'RCP003', 'Receptionist', '2020-02-01', 'Active'),
+
+-- NURSES (3 nurses in different departments)
+(10, 30, 1, 'Saira', 'Khan', 'NUR001', 'Nurse', '2019-05-15', 'Active'),
+(11, 31, 2, 'Amina', 'Ahmed', 'NUR002', 'Nurse', '2020-03-20', 'Active'),
+(12, 32, 6, 'Rizwan', 'Hassan', 'NUR003', 'Nurse', '2021-01-10', 'Active'),
+
+-- PHARMACISTS (2 pharmacists in Pharmacy)
+(13, 40, 7, 'Hassan', 'Raza', 'PHM001', 'Pharmacist', '2018-09-01', 'Active'),
+(14, 41, 7, 'Zainab', 'Malik', 'PHM002', 'Pharmacist', '2019-07-15', 'Active'),
+
+-- FINANCE OFFICERS (2 finance officers in Administration)
+(15, 50, 8, 'Bilal', 'Ahmed', 'FIN001', 'Finance Officer', '2020-06-01', 'Active'),
+(16, 51, 8, 'Rana', 'Hassan', 'FIN002', 'Finance Officer', '2021-01-15', 'Active');
+
+-- ==========================================
+-- 5. DOCTORS (Doctor-specific attributes)
+-- ==========================================
+
+INSERT INTO doctors (doctor_id, staff_id, specialization, consultation_fee, max_appointments_per_day) VALUES
+(1, 1, 'General Medicine', 1500.00, 10),
+(2, 2, 'Cardiology', 2500.00, 8),
+(3, 3, 'Orthopedics', 2000.00, 8),
+(4, 4, 'Neurology', 2200.00, 8),
+(5, 5, 'Pediatrics', 1800.00, 10),
+(6, 6, 'General Medicine', 1500.00, 10);
+
+-- ==========================================
+-- 6. DOCTOR AVAILABILITY (Per-department with shift times)
+-- ==========================================
+
+INSERT INTO doctor_availability (doctor_id, department_id, day_of_week, shift_start_time, shift_end_time, is_working) VALUES
+-- Dr. Ahmed Hassan (doctor_id=1, General Medicine dept=1) - Mon, Wed, Fri
+(1, 1, 'Monday', '09:00:00', '17:00:00', TRUE),
+(1, 1, 'Wednesday', '09:00:00', '17:00:00', TRUE),
+(1, 1, 'Friday', '09:00:00', '14:00:00', TRUE),
+
+-- Dr. Fatima Khan (doctor_id=2, Cardiology dept=2) - Tue, Thu, Sat
+(2, 2, 'Tuesday', '09:00:00', '16:00:00', TRUE),
+(2, 2, 'Thursday', '09:00:00', '16:00:00', TRUE),
+(2, 2, 'Saturday', '10:00:00', '14:00:00', TRUE),
+
+-- Dr. Ali Malik (doctor_id=3, Orthopedics dept=3) - Mon, Tue, Wed, Thu
+(3, 3, 'Monday', '09:30:00', '17:30:00', TRUE),
+(3, 3, 'Tuesday', '09:30:00', '17:30:00', TRUE),
+(3, 3, 'Wednesday', '09:30:00', '17:30:00', TRUE),
+(3, 3, 'Thursday', '09:30:00', '17:30:00', TRUE),
+
+-- Dr. Sara Ahmed (doctor_id=4, Neurology dept=4) - Mon, Wed, Fri
+(4, 4, 'Monday', '10:00:00', '18:00:00', TRUE),
+(4, 4, 'Wednesday', '10:00:00', '18:00:00', TRUE),
+(4, 4, 'Friday', '10:00:00', '18:00:00', TRUE),
+
+-- Dr. Hassan Raza (doctor_id=5, Pediatrics dept=5) - Tue, Thu, Sat
+(5, 5, 'Tuesday', '09:00:00', '17:00:00', TRUE),
+(5, 5, 'Thursday', '09:00:00', '17:00:00', TRUE),
+(5, 5, 'Saturday', '09:00:00', '13:00:00', TRUE),
+
+-- Dr. Maryam Saif (doctor_id=6, General Medicine dept=1) - Daily (Mon-Fri)
+(6, 1, 'Monday', '08:00:00', '16:00:00', TRUE),
+(6, 1, 'Tuesday', '08:00:00', '16:00:00', TRUE),
+(6, 1, 'Wednesday', '08:00:00', '16:00:00', TRUE),
+(6, 1, 'Thursday', '08:00:00', '16:00:00', TRUE),
+(6, 1, 'Friday', '08:00:00', '16:00:00', TRUE);
+
+-- ==========================================
+-- 7. PATIENTS (Patient-specific attributes with department_id)
+-- ==========================================
+INSERT INTO patients (patient_id, user_id, mrn, first_name, last_name, date_of_birth, gender, blood_type, phone_number, email, address, city, emergency_contact, emergency_phone, department_id, is_active) VALUES
+(1, 100, 'MRN001', 'John', 'Doe', '1985-05-15', 'Male', 'O+', '03001234567', 'john.doe@email.com', '123 Main St', 'Islamabad', 'Ayesha Doe', '03001234500', 1, TRUE),
+(2, 101, 'MRN002', 'Fatima', 'Khan', '1990-08-22', 'Female', 'A+', '03001234568', 'fatima.khan@email.com', '456 Hospital Rd', 'Islamabad', 'Muhammad Khan', '03001234501', 1, TRUE),
+(3, 102, 'MRN003', 'Ali', 'Hassan', '1978-12-03', 'Male', 'B+', '03001234569', 'ali.hassan@email.com', '789 Health Ave', 'Islamabad', 'Fatima Hassan', '03001234502', 1, TRUE),
+(4, 103, 'MRN004', 'Sara', 'Ahmed', '1992-06-18', 'Female', 'O-', '03001234570', 'sara.ahmed@email.com', '321 Medical Lane', 'Islamabad', 'Ahmed Ahmed', '03001234503', 1, TRUE),
+(5, 104, 'MRN005', 'Maryam', 'Saif', '1988-09-25', 'Female', 'AB+', '03001234571', 'maryam.saif@email.com', '654 Care St', 'Islamabad', 'Hassan Saif', '03001234504', 2, TRUE),
+(6, 105, 'MRN006', 'Hassan', 'Raza', '1980-11-10', 'Male', 'A-', '03001234572', 'hassan.raza@email.com', '987 Health Blvd', 'Islamabad', 'Aisha Raza', '03001234505', 2, TRUE),
+(7, 106, 'MRN007', 'Zainab', 'Malik', '1995-03-07', 'Female', 'B-', '03001234573', 'zainab.malik@email.com', '147 Hospital Ave', 'Islamabad', 'Ali Malik', '03001234506', 3, TRUE),
+(8, 107, 'MRN008', 'Aisha', 'Khan', '1982-07-14', 'Female', 'O+', '03001234574', 'aisha.khan@email.com', '258 Care Lane', 'Islamabad', 'Ibrahim Khan', '03001234507', 3, TRUE),
+(9, 108, 'MRN009', 'Bilal', 'Ahmed', '1987-04-20', 'Male', 'A+', '03001234575', 'bilal.ahmed@email.com', '369 Medical St', 'Islamabad', 'Zainab Ahmed', '03001234508', 1, TRUE),
+(10, 109, 'MRN010', 'Rana', 'Hassan', '1993-10-30', 'Female', 'B+', '03001234576', 'rana.hassan@email.com', '741 Hospital Rd', 'Islamabad', 'Karim Hassan', '03001234509', 2, TRUE),
+(11, 110, 'MRN011', 'Amina', 'Malik', '1989-02-14', 'Female', 'O-', '03001234577', 'amina.malik@email.com', '852 Health Ave', 'Islamabad', 'Rashid Malik', '03001234510', 3, TRUE),
+(12, 111, 'MRN012', 'Rizwan', 'Ali', '1981-06-05', 'Male', 'AB-', '03001234578', 'rizwan.ali@email.com', '963 Care Blvd', 'Islamabad', 'Hina Ali', '03001234511', 1, TRUE),
+(13, 112, 'MRN013', 'Hina', 'Khan', '1994-09-12', 'Female', 'A+', '03001234579', 'hina.khan@email.com', '654 Medical Lane', 'Islamabad', 'Salim Khan', '03001234512', 2, TRUE),
+(14, 113, 'MRN014', 'Usman', 'Ahmed', '1986-01-25', 'Male', 'B+', '03001234580', 'usman.ahmed@email.com', '789 Health St', 'Islamabad', 'Noor Ahmed', '03001234513', 1, TRUE),
+(15, 114, 'MRN015', 'Nida', 'Malik', '1991-08-19', 'Female', 'O+', '03001234581', 'nida.malik@email.com', '147 Hospital Blvd', 'Islamabad', 'Farooq Hassan', '03001234514', 2, TRUE),
+(16, 115, 'MRN016', 'Karim', 'Hassan', '1983-11-28', 'Male', 'A-', '03001234582', 'karim.hassan@email.com', '258 Care Ave', 'Islamabad', 'Amira Malik', '03001234515', 3, TRUE);
+
+-- ==========================================
+-- 9. APPOINTMENTS (Department-aware scheduling)
+-- ==========================================
+
+INSERT INTO appointments (patient_id, doctor_id, department_id, appointment_date, appointment_time, duration_minutes, status, reason_for_visit, created_by) VALUES
+-- April 6, 2026 (Monday) - Doctors confirmed available: Ahmed (Mon 09:00-17:00), Ali (Mon 09:30-17:30), Sara (Mon 10:00-18:00)
+(1, 1, 1, '2026-04-06', '12:00:00', 30, 'Scheduled', 'General checkup', 1),
+(2, 1, 1, '2026-04-06', '12:30:00', 30, 'Scheduled', 'Follow-up consultation', 1),
+(3, 3, 3, '2026-04-06', '14:00:00', 30, 'Scheduled', 'Routine visit', 1),
+(4, 3, 3, '2026-04-06', '14:30:00', 30, 'Scheduled', 'Urgent consultation', 1),
+(5, 4, 4, '2026-04-06', '15:00:00', 30, 'Scheduled', 'Cardiac checkup', 1),
+(6, 4, 4, '2026-04-06', '15:30:00', 30, 'Scheduled', 'Post-surgery follow-up', 1),
+(7, 1, 1, '2026-04-06', '13:00:00', 30, 'Scheduled', 'Orthopedic consultation', 1),
+(8, 3, 3, '2026-04-06', '15:00:00', 30, 'Scheduled', 'Follow-up for previous injury', 1),
+
+-- April 7, 2026 (Tuesday) - Doctors confirmed available: Ali (Tue 09:30-17:30), Fatima (Tue 09:00-16:00), Hassan (Tue 09:00-17:00)
+(9, 2, 2, '2026-04-07', '11:00:00', 30, 'Scheduled', 'General checkup', 1),
+(10, 5, 5, '2026-04-07', '13:00:00', 30, 'Scheduled', 'Neurology consultation', 1),
+(11, 3, 3, '2026-04-07', '12:00:00', 30, 'Scheduled', 'Follow-up visit', 1),
+(12, 2, 2, '2026-04-07', '11:30:00', 30, 'Scheduled', 'Patient consultation', 1),
+(13, 5, 5, '2026-04-07', '13:30:00', 30, 'Scheduled', 'Heart condition review', 1),
+
+-- Cancelled appointments (April 7)
+(14, 1, 1, '2026-04-06', '16:00:00', 30, 'Cancelled', 'Patient cancelled', 1),
+(15, 3, 3, '2026-04-06', '16:30:00', 30, 'No Show', 'Patient no-show', 1),
+
+-- Completed appointments (March 31 is a Tuesday - past)
+(16, 2, 2, '2026-03-31', '12:00:00', 30, 'Completed', 'Completed consultation', 1);
+
+-- ==========================================
+-- 10. AUDIT_LOGS (Operation tracking)
+-- ==========================================
+INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_data, ip_address, user_agent) VALUES
+(1, 'CREATE', 'users', 1, JSON_OBJECT('email', 'admin1@hospital.com', 'role_id', 1), '192.168.1.1', 'Mozilla/5.0'),
+(1, 'CREATE', 'users', 100, JSON_OBJECT('email', 'john.doe@email.com', 'role_id', 7), '192.168.1.1', 'Mozilla/5.0'),
+(1, 'CREATE', 'staff', 1, JSON_OBJECT('user_id', 10, 'department_id', 1), '192.168.1.1', 'Mozilla/5.0'),
+(1, 'CREATE', 'patients', 1, JSON_OBJECT('mrn', 'MRN001', 'first_name', 'John'), '192.168.1.1', 'Mozilla/5.0'),
+(1, 'CREATE', 'appointments', 1, JSON_OBJECT('doctor_id', 1, 'patient_id', 1, 'department_id', 1), '192.168.1.50', 'Mozilla/5.0'),
+(1, 'CREATE', 'encounters', 1, JSON_OBJECT('patient_id', 1, 'doctor_id', 1), '192.168.1.1', 'Mozilla/5.0'),
+(1, 'CREATE', 'vitals', 1, JSON_OBJECT('encounter_id', 1, 'temperature_c', 37.2), '192.168.1.51', 'Mozilla/5.0'),
+(1, 'CREATE', 'prescriptions', 1, JSON_OBJECT('encounter_id', 1, 'doctor_id', 1), '192.168.1.51', 'Mozilla/5.0');
+
+-- ==========================================
+-- ==========================================
+-- 11. ENCOUNTERS (Patient encounters)
+-- ==========================================
+
+INSERT INTO encounters (patient_id, doctor_id, appointment_id, encounter_type, admission_date, chief_complaint, status, created_by) VALUES
+(1, 1, 1, 'Outpatient', '2026-04-06 12:00:00', 'General checkup', 'Active', 1),
+(2, 1, 2, 'Outpatient', '2026-04-06 12:30:00', 'Follow-up', 'Active', 1),
+(5, 4, 5, 'Outpatient', '2026-04-06 15:00:00', 'Cardiac evaluation', 'Active', 1),
+(7, 1, 7, 'Outpatient', '2026-04-06 13:00:00', 'Joint pain', 'Active', 1);
+
+-- ==========================================
+-- 12. VITALS (Patient vital signs)
+-- ==========================================
+
+INSERT INTO vitals (encounter_id, recorded_by, temperature_c, blood_pressure_systolic, blood_pressure_diastolic, heart_rate, oxygen_saturation) VALUES
+(1, 10, 37.2, 120, 80, 72, 98),
+(2, 10, 36.8, 118, 78, 70, 99),
+(3, 11, 36.5, 125, 82, 75, 98),
+(4, 12, 37.0, 122, 81, 73, 99);
+
+-- ==========================================
+-- 13. SUBJECTIVE_NOTES (Patient complaints)
+-- ==========================================
+
+INSERT INTO subjective_notes (encounter_id, patient_complaint, symptom_duration, severity_level, affecting_daily_activities, created_by) VALUES
+(1, 'General fatigue and mild headache', '3 days', 3, TRUE, 10),
+(2, 'Chronic back pain', '6 months', 5, TRUE, 10),
+(3, 'Shortness of breath', '2 weeks', 6, TRUE, 11),
+(4, 'Knee pain and stiffness', '1 month', 4, TRUE, 12);
+
+-- ==========================================
+-- 14. OBJECTIVE_NOTES (Physical examination findings)
+-- ==========================================
+
+INSERT INTO objective_notes (encounter_id, physical_examination, lab_findings, imaging_results, created_by) VALUES
+(1, 'Patient appears fatigued, no abnormal findings', 'CBC normal', 'N/A', 10),
+(2, 'Limited range of motion in lumbar spine', 'ESR elevated', 'X-ray normal', 10),
+(3, 'Auscultation reveals crackles in bilateral lungs', 'BNP elevated', 'Chest X-ray shows infiltrates', 11),
+(4, 'Swelling and tenderness in right knee', 'Normal inflammatory markers', 'MRI shows meniscus tear', 12);
+
+-- ==========================================
+-- 15. ASSESSMENT_NOTES (Diagnoses)
+-- ==========================================
+
+INSERT INTO assessment_notes (encounter_id, primary_diagnosis, differential_diagnoses, clinical_reasoning, icd10_code, severity_level, created_by) VALUES
+(1, 'Viral infection', 'Common cold, Influenza', 'Typical viral presentation with fatigue and headache', 'J00', 'Mild', 10),
+(2, 'Chronic lower back pain', 'Lumbar spondylosis, Muscle strain', 'Long-standing pain with imaging changes', 'M54.5', 'Moderate', 10),
+(3, 'Congestive heart failure', 'Pneumonia, Pulmonary edema', 'Elevated BNP and imaging findings', 'I50', 'Severe', 11),
+(4, 'Meniscus tear with arthritis', 'ACL injury, Patellofemoral pain', 'MRI confirmed meniscus involvement', 'M17', 'Moderate', 12);
+
+-- ==========================================
+-- 16. PLAN_NOTES (Treatment plans)
+-- ==========================================
+
+INSERT INTO plan_notes (encounter_id, treatment_plan, medication_plan, follow_up_plan, patient_education, created_by) VALUES
+(1, 'Rest and supportive care', 'Paracetamol 500mg twice daily', 'Return if symptoms worsen in 3 days', 'Increase hydration, rest adequately', 10),
+(2, 'Physical therapy recommended', 'Ibuprofen 200mg as needed, Muscle relaxant', 'Physiotherapy 3x weekly, follow-up in 4 weeks', 'Proper posture, stretching exercises', 10),
+(3, 'Diuretic therapy initiation', 'Lisinopril 10mg daily, Furosemide as needed', 'Cardiology consult, repeat echo in 1 week', 'Sodium restriction, daily weight monitoring', 11),
+(4, 'Orthopedic surgery consultation', 'Paracetamol and ice therapy', 'Surgical evaluation, ortho follow-up', 'Activity restriction, brace use', 12);
+
+-- ==========================================
+-- 17. INVENTORY_ITEMS (Pharmacy inventory)
+-- ==========================================
+
+INSERT INTO inventory_items (item_id, item_name, item_type, sku, manufacturer, unit_price, quantity_in_stock, reorder_level, expiration_date) VALUES
+(1, 'Paracetamol 500mg', 'Medication', 'PARA-500', 'Pharma Solutions', 5.00, 500, 100, '2027-05-15'),
+(2, 'Ibuprofen 200mg', 'Medication', 'IBU-200', 'Global Medicines', 8.50, 300, 100, '2027-08-20'),
+(3, 'Amoxicillin 500mg', 'Medication', 'AMX-500', 'Pharma Solutions', 12.00, 200, 50, '2027-03-10'),
+(4, 'Metformin 500mg', 'Medication', 'MET-500', 'Global Medicines', 15.00, 400, 100, '2027-12-25'),
+(5, 'Aspirin 100mg', 'Medication', 'ASP-100', 'Pharma Solutions', 6.00, 600, 150, '2027-10-30'),
+(6, 'Lisinopril 10mg', 'Medication', 'LIS-10', 'Local Drug Distributors', 18.00, 250, 75, '2027-06-15'),
+(7, 'Atorvastatin 20mg', 'Medication', 'ATO-20', 'Global Medicines', 22.00, 180, 50, '2027-09-05'),
+(8, 'Omeprazole 20mg', 'Medication', 'OME-20', 'Intl Health Products', 14.00, 350, 100, '2027-11-20'),
+(9, 'Cephalexin 500mg', 'Medication', 'CEP-500', 'Local Drug Distributors', 16.00, 150, 50, '2027-04-12'),
+(10, 'Vitamin C 250mg', 'Medication', 'VIT-C-250', 'Premium Pharmaceuticals', 4.50, 800, 200, '2027-07-18');
+
+-- ==========================================
+-- 18. PRESCRIPTIONS (Medication prescriptions)
+-- ==========================================
+
+INSERT INTO prescriptions (encounter_id, doctor_id, patient_id, status, created_by) VALUES
+(1, 1, 1, 'Pending', 1),
+(2, 1, 2, 'Pending', 1),
+(3, 4, 5, 'Pending', 1),
+(4, 1, 7, 'Pending', 1);
+
+-- ==========================================
+-- 19. PRESCRIPTION_DETAILS (Individual medications per prescription)
+-- ==========================================
+
+INSERT INTO prescription_details (prescription_id, item_id, dosage, frequency, duration_days, quantity) VALUES
+(1, 1, '500mg', 'Twice daily', 5, 10),
+(2, 2, '200mg', 'As needed', 10, 20),
+(3, 6, '10mg', 'Once daily', 30, 30),
+(4, 1, '500mg', 'Twice daily', 7, 14);
+
+-- ==========================================
+-- 20. INVENTORY_TRANSACTIONS (Medicine stock movements)
+-- ==========================================
+
+INSERT INTO inventory_transactions (item_id, transaction_type, quantity, reference_id, reference_type, performed_by, notes) VALUES
+(1, 'In', 1000, 1, 'Purchase', 1, 'Initial stock - Paracetamol'),
+(2, 'In', 500, 2, 'Purchase', 1, 'Initial stock - Ibuprofen'),
+(1, 'Out', 10, 1, 'Prescription', 1, 'Dispensed from Prescription'),
+(2, 'Out', 20, 2, 'Prescription', 1, 'Dispensed from Prescription');
+
+-- ==========================================
+-- 21. INVOICES (Billing)
+-- ==========================================
+
+INSERT INTO invoices (encounter_id, patient_id, invoice_date, due_date, subtotal, tax_amount, total_amount, status, created_by) VALUES
+(1, 1, '2026-04-06', '2026-05-07', 1500.00, 150.00, 1650.00, 'Unpaid', 1),
+(2, 2, '2026-04-06', '2026-05-07', 1500.00, 150.00, 1650.00, 'Unpaid', 1),
+(3, 5, '2026-04-06', '2026-05-07', 2200.00, 220.00, 2420.00, 'Unpaid', 1),
+(4, 7, '2026-04-06', '2026-05-07', 1500.00, 150.00, 1650.00, 'Unpaid', 1);
+
+-- ==========================================
+-- 22. INVOICE_LINE_ITEMS (Line items per invoice)
+-- ==========================================
+
+INSERT INTO invoice_line_items (invoice_id, description, item_type, quantity, unit_price) VALUES
+(1, 'Doctor Consultation - Dr. Ahmed Hassan', 'Consultation', 1.00, 1500.00),
+(2, 'Doctor Consultation - Dr. Ahmed Hassan', 'Consultation', 1.00, 1500.00),
+(3, 'Doctor Consultation - Dr. Sara Ahmed', 'Consultation', 1.00, 2200.00),
+(4, 'Doctor Consultation - Dr. Ahmed Hassan', 'Consultation', 1.00, 1500.00);
+
+-- ==========================================
+-- 23. PAYMENTS (Payment records)
+-- ==========================================
+
+INSERT INTO payments (invoice_id, patient_id, amount, payment_method, status, processed_by, payment_date) VALUES
+(1, 1, 1650.00, 'Cash', 'Completed', 50, '2026-04-06 15:30:00'),
+(3, 5, 2420.00, 'Bank Transfer', 'Completed', 50, '2026-04-06 14:00:00');
+
+-- ==========================================
+-- 24. AI_LOGS (AI decision tracking)
+-- ==========================================
+
+INSERT INTO ai_logs (ai_model_name, ai_feature, patient_id, encounter_id, user_id_doctor, ai_suggestion, ai_confidence) VALUES
+('GPT-4', 'DIAGNOSIS_SUPPORT', 1, 1, 10, JSON_OBJECT('condition', 'Viral infection', 'confidence', 85), 85.0),
+('GPT-4', 'DIAGNOSIS_SUPPORT', 2, 2, 10, JSON_OBJECT('condition', 'Chronic pain syndrome', 'confidence', 72), 72.0),
+('GPT-4', 'MEDICATION_RECOMMENDATION', 5, 3, 13, JSON_OBJECT('drug', 'ACE inhibitor first-line', 'confidence', 90), 90.0),
+('GPT-4', 'DIAGNOSIS_SUPPORT', 7, 4, 10, JSON_OBJECT('condition', 'Meniscus tear', 'confidence', 95), 95.0);
+
+-- ==========================================
+-- ✅ SEED DATA COMPLETE
+-- ==========================================
+-- Only tables from db.txt have been populated
+-- NO extra tables (session_logs, suppliers, medications removed)
+-- All column names and data types match db.txt schema exactly
+
