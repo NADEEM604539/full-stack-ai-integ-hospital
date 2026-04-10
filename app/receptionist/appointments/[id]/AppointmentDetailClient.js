@@ -28,6 +28,11 @@ export default function AppointmentDetailClient({ appointmentId }) {
 
   // Fetch appointment details
   useEffect(() => {
+    if (!appointmentId) {
+      setError('No appointment ID provided');
+      setLoading(false);
+      return;
+    }
     fetchAppointmentDetail();
   }, [appointmentId]);
 
@@ -35,17 +40,27 @@ export default function AppointmentDetailClient({ appointmentId }) {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/receptionist/appointments/${appointmentId}`);
+      
+      const url = `/api/receptionist/appointments/${appointmentId}`;
+      console.log('Fetching from:', url);
+      
+      const response = await fetch(url);
+      
+      console.log('Response status:', response.status);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch appointment');
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch appointment`);
       }
 
       const result = await response.json();
+      console.log('API Response:', result);
+      
       const apt = result.appointment || result.data;
       
       if (!apt) {
-        throw new Error('Appointment not found');
+        throw new Error('Appointment not found in response');
       }
 
       setAppointment(apt);
@@ -71,8 +86,13 @@ export default function AppointmentDetailClient({ appointmentId }) {
 
   const fetchDoctorsForDepartment = async (departmentId) => {
     try {
-      const response = await fetch(`/api/receptionist/doctors?department_id=${departmentId}`);
+      const url = `/api/receptionist/doctors?department_id=${departmentId}`;
+      console.log('Fetching doctors from:', url);
+      
+      const response = await fetch(url);
       const data = await response.json();
+      console.log('Doctors response:', data);
+      
       setDoctors(data.data || []);
     } catch (err) {
       console.error('Failed to fetch doctors:', err);
@@ -186,6 +206,17 @@ export default function AppointmentDetailClient({ appointmentId }) {
       case 'No Show': return { color: '#F59E0B', bgColor: '#FEF3C7', icon: '⏭' };
       default: return { color: '#6B7280', bgColor: '#F3F4F6', icon: '?' };
     }
+  };
+
+  const calculateEndTime = (startTime, durationMinutes) => {
+    if (!startTime || !durationMinutes) return null;
+    
+    const [hours, minutes, seconds] = startTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + durationMinutes;
+    const endHours = Math.floor(totalMinutes / 60) % 24;
+    const endMinutes = totalMinutes % 60;
+    
+    return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
   };
 
   const statusConfig = getStatusColor(appointment.status);
@@ -453,7 +484,10 @@ export default function AppointmentDetailClient({ appointmentId }) {
                   <p className="text-sm font-semibold" style={{ color: '#6B7280' }}>Date & Time</p>
                   <p className="text-lg font-bold mt-1 flex items-center gap-2" style={{ color: '#065F46' }}>
                     <Calendar size={18} />
-                    {new Date(appointment.appointment_date).toLocaleDateString()} {appointment.appointment_time}
+                    {new Date(appointment.appointment_date).toLocaleDateString()} {appointment.appointment_time} - {calculateEndTime(appointment.appointment_time, appointment.duration_minutes)}
+                  </p>
+                  <p className="text-sm mt-1" style={{ color: '#6B7280' }}>
+                    Duration: {appointment.duration_minutes} minutes
                   </p>
                 </div>
                 <div>

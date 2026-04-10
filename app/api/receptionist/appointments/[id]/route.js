@@ -24,12 +24,13 @@ import { NextResponse } from 'next/server';
 export async function PUT(request, { params }) {
   let connection;
   try {
-    const appointmentId = parseInt(params.id);
+    const { id } = await params;
+    const appointmentId = parseInt(id);
     const body = await request.json();
     const clientIp = request.headers.get('x-forwarded-for') || 'unknown';
 
     // ========== VALIDATION ==========
-    if (!appointmentId) {
+    if (!appointmentId || isNaN(appointmentId)) {
       return NextResponse.json(
         { error: 'Invalid appointment ID' },
         { status: 400 }
@@ -158,8 +159,8 @@ export async function PUT(request, { params }) {
 
     // Step 5: Audit log
     await connection.query(
-      `INSERT INTO audit_logs (user_id, action, table_name, record_id, old_values, new_values, ip_address, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, old_data, new_data, ip_address)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         1, // Updated by receptionist user
         'UPDATE',
@@ -202,13 +203,13 @@ export async function PUT(request, { params }) {
         a.updated_at,
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
-        p.patient_phone,
+        p.phone_number as patient_phone,
         p.mrn,
         d.doctor_id as doc_id,
         s.first_name as doctor_first_name,
         s.last_name as doctor_last_name,
-        doc.specialization,
-        doc.consultation_fee,
+        d.specialization,
+        d.consultation_fee,
         dept.department_name
        FROM appointments a
        JOIN patients p ON a.patient_id = p.patient_id
@@ -277,9 +278,17 @@ export async function PUT(request, { params }) {
  */
 export async function GET(request, { params }) {
   try {
-    const appointmentId = parseInt(params.id);
+    const { id } = await params;
+    const appointmentId = parseInt(id);
 
-    if (!appointmentId) {
+    console.log('[GET /api/receptionist/appointments/[id]]', {
+      id,
+      appointmentId,
+      isNaN: isNaN(appointmentId),
+    });
+
+    if (!appointmentId || isNaN(appointmentId)) {
+      console.error('[INVALID_ID]', { id, appointmentId });
       return NextResponse.json(
         { error: 'Invalid appointment ID' },
         { status: 400 }
@@ -305,12 +314,12 @@ export async function GET(request, { params }) {
           a.updated_at,
           p.first_name as patient_first_name,
           p.last_name as patient_last_name,
-          p.patient_phone,
+          p.phone_number as patient_phone,
           p.mrn,
           s.first_name as doctor_first_name,
           s.last_name as doctor_last_name,
-          doc.specialization,
-          doc.consultation_fee,
+          d.specialization,
+          d.consultation_fee,
           dept.department_name
          FROM appointments a
          JOIN patients p ON a.patient_id = p.patient_id

@@ -1,9 +1,12 @@
 import React from 'react'
+import DoctorDashboardClient from './DoctorDashboardClient'
 
-const page = () => {
+const DoctorDashboard = () => {
   return (
-    <div>Doctor Dashboard</div>
+    <div>
+      <DoctorDashboardClient/>
+    </div>
   )
 }
 
-export default page 
+export default DoctorDashboard

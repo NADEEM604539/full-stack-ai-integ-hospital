@@ -1,6 +1,6 @@
 'use client';
 
-import { Home, Users, Calendar, Clock, Menu, X } from 'lucide-react';
+import { Home, Users, Calendar, Clock, Menu, X, User, Users2 } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -17,6 +17,8 @@ export default function ReceptionistNavbar() {
     { href: '/receptionist/patients', label: 'Patients', icon: Users },
     { href: '/receptionist/appointments', label: 'Appointments', icon: Calendar },
     { href: '/receptionist/schedule', label: 'Schedule', icon: Clock },
+    { href: '/receptionist/profile', label: 'My Profile', icon: User },
+    { href: '/receptionist/staff', label: 'Staff Directory', icon: Users2 },
   ];
 
   const isActive = (href) => pathname === href;
