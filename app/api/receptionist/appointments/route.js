@@ -1,6 +1,6 @@
 import db from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { scheduleAppointment, getTodayAppointments } from '@/services/receptionist';
+import { scheduleAppointment, getTodayAppointments, getAllAppointments } from '@/services/receptionist';
 
 /**
  * Receptionist Appointment Management API
@@ -30,8 +30,8 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const appointmentId = searchParams.get('id');
 
-    // Use receptionist service to get appointments with proper filtering
-    const appointments = await getTodayAppointments();
+    // Use receptionist service to get all appointments (not just today)
+    const appointments = await getAllAppointments();
 
     // If specific appointment requested, filter results
     if (appointmentId) {
@@ -51,7 +51,7 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       count: appointments.length,
-      appointments: appointments,
+      data: appointments,
       timestamp: new Date().toISOString()
     }, { status: 200 });
 

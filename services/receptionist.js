@@ -228,6 +228,54 @@ export async function getTodayAppointments() {
   }
 }
 
+/**
+ * Get all appointments (not just today) for receptionist's departments
+ * Used by appointments page for full list with date/status filtering
+ */
+export async function getAllAppointments() {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const { userId } = await checkReceptionistAccess(connection);
+    const departmentIds = await getReceptionistDepartments(userId, connection);
+    const deptPlaceholders = departmentIds.map(() => '?').join(',');
+
+    const [appointments] = await connection.query(
+      `SELECT 
+          a.appointment_id,
+          a.appointment_date,
+          a.appointment_time,
+          a.status,
+          a.reason_for_visit,
+          p.patient_id,
+          p.mrn,
+          p.first_name as patient_first_name,
+          p.last_name as patient_last_name,
+          p.phone_number as patient_phone,
+          CONCAT(p.first_name, ' ', p.last_name) as patient_name,
+          s.first_name as doctor_first_name,
+          s.last_name as doctor_last_name,
+          CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
+          d.specialization,
+          d.consultation_fee,
+          a.department_id
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.patient_id
+        JOIN doctors d ON a.doctor_id = d.doctor_id
+        JOIN staff s ON d.staff_id = s.staff_id
+        WHERE a.department_id IN (${deptPlaceholders})
+        ORDER BY a.appointment_date DESC, a.appointment_time ASC`,
+      [...departmentIds]
+    );
+
+    return appointments || [];
+  } catch (error) {
+    throw new Error(`Failed to fetch all appointments: ${error.message}`);
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
 export async function getPatientsList(limit = 50, offset = 0) {
   let connection;
   try {
@@ -662,6 +710,8 @@ export async function getAvailableTimeSlots(doctorId, appointmentDate) {
     if (connection) connection.release();
   }
 }
+
+export async function scheduleAppointment(appointmentData) {
   let connection;
   try {
     connection = await db.getConnection();
@@ -727,3 +777,4 @@ export async function getAvailableTimeSlots(doctorId, appointmentDate) {
   } finally {
     if (connection) connection.release();
   }
+}
