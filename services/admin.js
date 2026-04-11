@@ -229,6 +229,8 @@ export async function getAllPatients() {
         p.created_at
        FROM patients p
        LEFT JOIN departments d ON p.department_id = d.department_id
+       LEFT JOIN users u ON p.user_id = u.user_id
+       WHERE (u.user_id IS NOT NULL AND u.role_id = 7) OR p.user_id IS NULL
        ORDER BY p.first_name, p.last_name`
     );
 
@@ -1857,9 +1859,9 @@ export async function deletePatient(patientId) {
         [patientId]
       );
 
-      // 6. Soft delete the patient
+      // 6. Permanently delete the patient
       const [result] = await connection.query(
-        'UPDATE patients SET is_deleted = TRUE, deleted_at = NOW() WHERE patient_id = ?',
+        'DELETE FROM patients WHERE patient_id = ?',
         [patientId]
       );
 
@@ -1871,7 +1873,7 @@ export async function deletePatient(patientId) {
 
       return { 
         success: true, 
-        message: 'Patient soft-deleted successfully. All associated records (appointments, encounters, prescriptions, invoices, payments) have been orphaned with NULL references.' 
+        message: 'Patient permanently deleted from database. All associated records (appointments, encounters, prescriptions, invoices, payments) have been orphaned with NULL references.' 
       };
     } catch (txError) {
       await connection.rollback();
@@ -1901,9 +1903,9 @@ export async function patientToStaff(userId, patientId, firstName, lastName, dep
       throw new Error('Missing required fields');
     }
 
-    // Verify patient exists
+    // Verify patient exists and get email
     const [patient] = await connection.query(
-      'SELECT user_id FROM patients WHERE patient_id = ?',
+      'SELECT user_id, email FROM patients WHERE patient_id = ?',
       [patientId]
     );
 
@@ -1911,33 +1913,69 @@ export async function patientToStaff(userId, patientId, firstName, lastName, dep
       throw new Error('Patient not found');
     }
 
-    // Verify user is patient
+    // Use the user_id from the patient record
+    const actualUserId = patient[0].user_id;
+    const patientEmail = patient[0].email;
+
+    // Get user email and username
     const [user] = await connection.query(
-      'SELECT role_id FROM users WHERE user_id = ?',
-      [userId]
+      'SELECT email, username FROM users WHERE user_id = ?',
+      [actualUserId]
     );
 
     if (!user || user.length === 0) {
       throw new Error('User not found');
     }
 
-    if (user[0].role_id !== 7) {
-      throw new Error('User is not a patient');
-    }
+    const userEmail = user[0].email;
 
     await connection.beginTransaction();
 
     try {
-      // 1. Update user role
+      // 1. SET NULL on all patient-related records (appointments, encounters, prescriptions, invoices, payments)
       await connection.query(
-        'UPDATE users SET role_id = ? WHERE user_id = ?',
-        [roleId, userId]
+        'UPDATE appointments SET patient_id = NULL WHERE patient_id = ?',
+        [patientId]
+      );
+      await connection.query(
+        'UPDATE encounters SET patient_id = NULL WHERE patient_id = ?',
+        [patientId]
+      );
+      await connection.query(
+        'UPDATE prescriptions SET patient_id = NULL WHERE patient_id = ?',
+        [patientId]
+      );
+      await connection.query(
+        'UPDATE invoices SET patient_id = NULL WHERE patient_id = ?',
+        [patientId]
+      );
+      await connection.query(
+        'UPDATE payments SET patient_id = NULL WHERE patient_id = ?',
+        [patientId]
       );
 
-      // 2. Create or update staff record
+      // 2. DELETE from patients table using patient_id
+      await connection.query(
+        'DELETE FROM patients WHERE patient_id = ?',
+        [patientId]
+      );
+
+      // 3. DELETE from users table using user_id
+      await connection.query(
+        'DELETE FROM users WHERE user_id = ?',
+        [actualUserId]
+      );
+
+      // 4. RE-INSERT user with new staff role
+      await connection.query(
+        'INSERT INTO users (user_id, email, username, role_id, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, 1, NOW(), NOW())',
+        [actualUserId, userEmail, user[0].username, roleId]
+      );
+
+      // 5. Create or update staff record
       const [staffRecord] = await connection.query(
         'SELECT staff_id FROM staff WHERE user_id = ?',
-        [userId]
+        [actualUserId]
       );
 
       // Generate employee_id: EMP + timestamp + random number
@@ -1957,17 +1995,17 @@ export async function patientToStaff(userId, patientId, firstName, lastName, dep
         await connection.query(
           `INSERT INTO staff (user_id, department_id, employee_id, designation, hire_date, first_name, last_name, created_at)
            VALUES (?, ?, ?, ?, CURDATE(), ?, ?, NOW())`,
-          [userId, departmentId, employeeId, designation, firstName, lastName]
+          [actualUserId, departmentId, employeeId, designation, firstName, lastName]
         );
       } else {
         await connection.query(
           'UPDATE staff SET department_id = ?, employee_id = ?, designation = ?, hire_date = CURDATE() WHERE user_id = ?',
-          [departmentId, employeeId, designation, userId]
+          [departmentId, employeeId, designation, actualUserId]
         );
       }
 
       await connection.commit();
-      return { success: true, message: 'Patient converted to staff successfully' };
+      return { success: true, message: 'Patient data cleared and successfully converted to staff member' };
     } catch (txError) {
       await connection.rollback();
       throw txError;
