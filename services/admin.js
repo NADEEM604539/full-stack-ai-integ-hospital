@@ -127,6 +127,7 @@ export async function createAdmin(email, username) {
 /**
  * Delete admin by ID
  * Prevents self-deletion
+ * Database FK constraints now handle CASCADE/SET NULL automatically
  */
 export async function deleteAdmin(adminIdToDelete) {
   let connection;
@@ -153,17 +154,39 @@ export async function deleteAdmin(adminIdToDelete) {
       throw new Error('User is not an admin');
     }
 
-    // Delete the admin
-    const [result] = await connection.query(
-      `DELETE FROM users WHERE user_id = ?`,
-      [adminIdToDelete]
-    );
+    await connection.beginTransaction();
 
-    if (result.affectedRows === 0) {
-      throw new Error('Failed to delete admin');
+    try {
+      // Delete the admin user
+      // FK constraints will automatically SET NULL on:
+      // - appointments.created_by, appointments.updated_by
+      // - encounters.created_by, encounters.updated_by
+      // - subjective_notes.created_by
+      // - objective_notes.created_by
+      // - assessment_notes.created_by
+      // - plan_notes.created_by
+      // - prescriptions.created_by
+      // - audit_logs.user_id (already SET NULL)
+      
+      const [result] = await connection.query(
+        `DELETE FROM users WHERE user_id = ?`,
+        [adminIdToDelete]
+      );
+
+      if (result.affectedRows === 0) {
+        throw new Error('Failed to delete admin');
+      }
+
+      await connection.commit();
+
+      return { 
+        success: true, 
+        message: 'Admin deleted successfully. All associated audit records have been orphaned.' 
+      };
+    } catch (txError) {
+      await connection.rollback();
+      throw txError;
     }
-
-    return { success: true, message: 'Admin deleted successfully' };
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
     console.error('Error deleting admin:', errorMsg);
@@ -279,6 +302,20 @@ export async function convertPatientToStaff(userId, email, firstName, lastName, 
       throw new Error('Missing required fields: user_id, department_id, role_id');
     }
 
+    // Map roleId to designation
+    const roleDesignationMap = {
+      2: 'Doctor',
+      3: 'Nurse',
+      4: 'Receptionist',
+      5: 'Pharmacist',
+      6: 'Finance Officer'
+    };
+
+    const designation = roleDesignationMap[roleId];
+    if (!designation) {
+      throw new Error('Invalid role ID');
+    }
+
     // Verify user exists and is a patient
     const [user] = await connection.query(
       `SELECT role_id FROM users WHERE user_id = ?`,
@@ -292,6 +329,15 @@ export async function convertPatientToStaff(userId, email, firstName, lastName, 
     if (user[0].role_id !== 7) {
       throw new Error('User is not a patient');
     }
+
+    // Generate employee_id (EMP + timestamp + random)
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    const employeeId = `EMP${timestamp}${random}`;
+
+    // Today's date for hire_date
+    const today = new Date();
+    const hireDate = today.toISOString().split('T')[0];
 
     // Start transaction
     await connection.beginTransaction();
@@ -310,17 +356,17 @@ export async function convertPatientToStaff(userId, email, firstName, lastName, 
       );
 
       if (!staffRecord || staffRecord.length === 0) {
-        // Create new staff record
+        // Create new staff record with all required fields
         await connection.query(
-          `INSERT INTO staff (user_id, department_id, first_name, last_name, email, created_at)
-           VALUES (?, ?, ?, ?, ?, NOW())`,
-          [userId, departmentId, firstName, lastName, email]
+          `INSERT INTO staff (user_id, department_id, first_name, last_name, employee_id, designation, hire_date, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+          [userId, departmentId, firstName, lastName, employeeId, designation, hireDate]
         );
       } else {
         // Update existing staff record
         await connection.query(
-          `UPDATE staff SET department_id = ? WHERE user_id = ?`,
-          [departmentId, userId]
+          `UPDATE staff SET department_id = ?, designation = ?, first_name = ?, last_name = ? WHERE user_id = ?`,
+          [departmentId, designation, firstName, lastName, userId]
         );
       }
 
@@ -461,21 +507,66 @@ export async function getAllInvoices() {
         i.invoice_id,
         i.patient_id,
         i.invoice_date,
+        i.due_date,
         i.total_amount,
         i.status,
-        COALESCE(SUM(p.amount_paid), 0) as amount_paid,
-        (i.total_amount - COALESCE(SUM(p.amount_paid), 0)) as balance_due,
+        COALESCE(SUM(p.amount), 0) as amount_paid,
+        (i.total_amount - COALESCE(SUM(p.amount), 0)) as balance_due,
         pa.first_name,
         pa.last_name,
         pa.mrn
        FROM invoices i
        LEFT JOIN patients pa ON i.patient_id = pa.patient_id
        LEFT JOIN payments p ON i.invoice_id = p.invoice_id
+       WHERE i.is_deleted = FALSE
        GROUP BY i.invoice_id
        ORDER BY i.invoice_date DESC`
     );
 
-    return invoices || [];
+    // Calculate actual status based on due_date and balance
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const processedInvoices = invoices.map(inv => {
+      const balance = Number(inv.balance_due) || 0;
+      const amountPaid = Number(inv.amount_paid) || 0;
+      const dueDate = new Date(inv.due_date);
+      dueDate.setHours(0, 0, 0, 0);
+
+      let computedStatus;
+
+      // Priority 1: If Cancelled, keep Cancelled
+      if (inv.status === 'Cancelled') {
+        computedStatus = 'Cancelled';
+      }
+      // Priority 2: If fully paid (balance <= 0), mark as Paid
+      else if (balance <= 0) {
+        computedStatus = 'Paid';
+      }
+      // Priority 3: If balance > 0 AND past due date, mark as Overdue (HIGHEST priority for unpaid)
+      else if (balance > 0 && dueDate < today) {
+        computedStatus = 'Overdue';
+      }
+      // Priority 4: If balance > 0 AND has partial payment, mark as Partial
+      else if (balance > 0 && amountPaid > 0) {
+        computedStatus = 'Partial';
+      }
+      // Priority 5: If balance > 0 AND no payment, mark as Unpaid
+      else if (balance > 0 && amountPaid === 0) {
+        computedStatus = 'Unpaid';
+      }
+      // Fallback
+      else {
+        computedStatus = inv.status || 'Draft';
+      }
+
+      return {
+        ...inv,
+        status: computedStatus
+      };
+    });
+
+    return processedInvoices || [];
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
     console.error('Error fetching invoices:', errorMsg);
@@ -662,6 +753,158 @@ export async function getStaffById(staffId) {
  * Create new staff member
  * Creates or updates user record, creates staff record
  */
+
+/**
+ * Delete all related data for a staff member's doctor record
+ * Sets appointment/encounter/prescription doctor_id to NULL
+ */
+async function deleteStaffRelatedData(connection, doctorId) {
+  try {
+    // Set appointments doctor_id to NULL (instead of deleting)
+    await connection.query(
+      'UPDATE appointments SET doctor_id = NULL WHERE doctor_id = ?',
+      [doctorId]
+    );
+
+    // Set encounters doctor_id to NULL
+    await connection.query(
+      'UPDATE encounters SET doctor_id = NULL WHERE doctor_id = ?',
+      [doctorId]
+    );
+
+    // Set prescriptions doctor_id to NULL
+    await connection.query(
+      'UPDATE prescriptions SET doctor_id = NULL WHERE doctor_id = ?',
+      [doctorId]
+    );
+
+    // Delete doctor_availability records
+    await connection.query(
+      'DELETE FROM doctor_availability WHERE doctor_id = ?',
+      [doctorId]
+    );
+
+    // Delete doctors record itself
+    await connection.query(
+      'DELETE FROM doctors WHERE doctor_id = ?',
+      [doctorId]
+    );
+  } catch (error) {
+    console.error('Error deleting related data:', error);
+    throw new Error(`Failed to clean up related data: ${error?.message}`);
+  }
+}
+
+/**
+ * Recreate staff member with new role/department
+ * This is used when admin changes a staff member's role or department
+ * It deletes the old user and creates a new one to maintain data integrity
+ */
+export async function recreateStaffWithRoleChange(oldStaffId, email, firstName, lastName, employeeId, designation, departmentId, hireDate, phoneNumber, roleId, confirmDeletion = false) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    
+    await checkAdminAccess(connection);
+
+    if (!confirmDeletion) {
+      // Return warning message instead of proceeding
+      throw new Error('CONFIRMATION_REQUIRED::Changing staff role or department will remove this staff member from their current position and create a new record. All related appointments, encounters, and medical records will be orphaned (set to no assigned doctor). Continue?');
+    }
+
+    // Get old staff info
+    const [oldStaff] = await connection.query(
+      'SELECT user_id FROM staff WHERE staff_id = ?',
+      [oldStaffId]
+    );
+
+    if (!oldStaff || oldStaff.length === 0) {
+      throw new Error('Staff member not found');
+    }
+
+    const oldUserId = oldStaff[0].user_id;
+
+    // Check if old user is a doctor and delete related data
+    const [doctorRecord] = await connection.query(
+      'SELECT doctor_id FROM doctors WHERE staff_id = ?',
+      [oldStaffId]
+    );
+
+    await connection.beginTransaction();
+
+    try {
+      // Delete doctor-related data if they were a doctor
+      if (doctorRecord && doctorRecord.length > 0) {
+        await deleteStaffRelatedData(connection, doctorRecord[0].doctor_id);
+      }
+
+      // Delete old staff record (will cascade from user)
+      await connection.query(
+        'DELETE FROM staff WHERE staff_id = ?',
+        [oldStaffId]
+      );
+
+      // Delete old user record
+      await connection.query(
+        'DELETE FROM users WHERE user_id = ?',
+        [oldUserId]
+      );
+
+      // Create new user with new role
+      const roleIdNum = parseInt(roleId) || 3;
+      const [newUserResult] = await connection.query(
+        'INSERT INTO users (email, role_id, is_active, created_at) VALUES (?, ?, 1, NOW())',
+        [email, roleIdNum]
+      );
+      const newUserId = newUserResult.insertId;
+
+      // Create new staff record
+      const deptId = parseInt(departmentId);
+      const [newStaffResult] = await connection.query(
+        `INSERT INTO staff 
+         (user_id, department_id, first_name, last_name, employee_id, designation, hire_date, phone_number, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [newUserId, deptId, firstName, lastName, employeeId, designation || null, hireDate || null, phoneNumber || null]
+      );
+      const newStaffId = newStaffResult.insertId;
+
+      // If new role is doctor (role_id = 2), create doctor record
+      if (roleIdNum === 2) {
+        await connection.query(
+          `INSERT INTO doctors (staff_id, specialization, consultation_fee, max_appointments_per_day, created_at)
+           VALUES (?, 'General', 0, 10, NOW())`,
+          [newStaffId]
+        );
+      }
+
+      await connection.commit();
+
+      return {
+        success: true,
+        message: 'Staff member role/department changed successfully. Old record deleted, new record created.',
+        staff_id: newStaffId,
+        user_id: newUserId,
+        email: email,
+        first_name: firstName,
+        last_name: lastName
+      };
+    } catch (txError) {
+      await connection.rollback();
+      throw txError;
+    }
+  } catch (error) {
+    const errorMsg = error?.message || String(error) || 'Unknown error';
+    console.error('Error recreating staff:', errorMsg);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Create new staff member
+ * Creates or updates user record, creates staff record
+ */
 export async function createStaff(email, firstName, lastName, employeeId, designation, departmentId, hireDate, phoneNumber, roleId) {
   let connection;
   try {
@@ -812,16 +1055,99 @@ export async function deleteStaff(staffId) {
       throw new Error('Staff ID is required');
     }
 
-    const [result] = await connection.query(
-      'DELETE FROM staff WHERE staff_id = ?',
+    // 1. Verify staff member exists
+    const [staffExists] = await connection.query(
+      'SELECT staff_id, user_id FROM staff WHERE staff_id = ?',
       [staffId]
     );
 
-    if (result.affectedRows === 0) {
+    if (!staffExists || staffExists.length === 0) {
       throw new Error('Staff member not found');
     }
 
-    return { success: true, message: 'Staff member deleted successfully' };
+    const userId = staffExists[0].user_id;
+
+    await connection.beginTransaction();
+
+    try {
+      // 2. Check if this staff member is a doctor
+      const [doctorRecord] = await connection.query(
+        'SELECT doctor_id FROM doctors WHERE staff_id = ?',
+        [staffId]
+      );
+
+      // 3. If they are a doctor, SET NULL on all doctor references
+      if (doctorRecord && doctorRecord.length > 0) {
+        const doctorId = doctorRecord[0].doctor_id;
+        
+        // SET NULL on appointments.doctor_id, encounters.doctor_id, prescriptions.doctor_id
+        await connection.query(
+          'UPDATE appointments SET doctor_id = NULL WHERE doctor_id = ?',
+          [doctorId]
+        );
+        await connection.query(
+          'UPDATE encounters SET doctor_id = NULL WHERE doctor_id = ?',
+          [doctorId]
+        );
+        await connection.query(
+          'UPDATE prescriptions SET doctor_id = NULL WHERE doctor_id = ?',
+          [doctorId]
+        );
+
+        // Delete doctor_availability (cascade will handle)
+        await connection.query(
+          'DELETE FROM doctor_availability WHERE doctor_id = ?',
+          [doctorId]
+        );
+
+        // Delete doctors record (will cascade properly)
+        await connection.query(
+          'DELETE FROM doctors WHERE doctor_id = ?',
+          [doctorId]
+        );
+      }
+
+      // 4. SET NULL on vitals.recorded_by (staff recorded vitals)
+      await connection.query(
+        'UPDATE vitals SET recorded_by = NULL WHERE recorded_by = ?',
+        [staffId]
+      );
+
+      // 5. Delete the staff member (will cascade via user_id FK)
+      // Database FK constraints will automatically SET NULL on:
+      // - appointments.created_by, appointments.updated_by
+      // - encounters.created_by, encounters.updated_by  
+      // - subjective_notes.created_by
+      // - objective_notes.created_by
+      // - assessment_notes.created_by
+      // - plan_notes.created_by
+      // - prescriptions.created_by
+      
+      const [result] = await connection.query(
+        'DELETE FROM staff WHERE staff_id = ?',
+        [staffId]
+      );
+
+      // 6. Delete the user (CASCADE from staff deletion via user_id)
+      await connection.query(
+        'DELETE FROM users WHERE user_id = ?',
+        [userId]
+      );
+
+      if (result.affectedRows === 0) {
+        throw new Error('Failed to delete staff member');
+      }
+
+      await connection.commit();
+
+      return { 
+        success: true, 
+        message: 'Staff member deleted successfully. All related medical records have been orphaned (set to NULL).' 
+      };
+    } catch (txError) {
+      await connection.rollback();
+      throw txError;
+    }
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
     console.error('Error deleting staff:', errorMsg);
@@ -996,26 +1322,66 @@ export async function deleteDepartment(deptId) {
       throw new Error('Department ID is required');
     }
 
-    // Check if any staff exist in this department
-    const [staff] = await connection.query(
-      'SELECT COUNT(*) as count FROM staff WHERE department_id = ?',
-      [deptId]
-    );
+    await connection.beginTransaction();
 
-    if (staff[0].count > 0) {
-      throw new Error(`Cannot delete department with ${staff[0].count} staff members. Reassign staff first.`);
+    try {
+      // 1. Check if any staff exist in this department
+      const [staffRows] = await connection.query(
+        'SELECT COUNT(*) as count FROM staff WHERE department_id = ?',
+        [deptId]
+      );
+
+      let staffCount = 0;
+      if (staffRows && staffRows.length > 0) {
+        staffCount = staffRows[0].count;
+      }
+
+      // 2. SET NULL on staff department_id (FK constraint will handle this automatically, but we do it explicitly for clarity)
+      if (staffCount > 0) {
+        await connection.query(
+          'UPDATE staff SET department_id = NULL WHERE department_id = ?',
+          [deptId]
+        );
+      }
+
+      // 3. SET NULL on patients department_id
+      await connection.query(
+        'UPDATE patients SET department_id = NULL WHERE department_id = ?',
+        [deptId]
+      );
+
+      // 4. SET NULL on appointments associated with this department
+      await connection.query(
+        'UPDATE appointments SET department_id = NULL WHERE department_id = ?',
+        [deptId]
+      );
+
+      // 5. DELETE doctor_availability for this department
+      await connection.query(
+        'DELETE FROM doctor_availability WHERE department_id = ?',
+        [deptId]
+      );
+
+      // 6. DELETE the department
+      const [result] = await connection.query(
+        'DELETE FROM departments WHERE department_id = ?',
+        [deptId]
+      );
+
+      if (result.affectedRows === 0) {
+        throw new Error('Department not found');
+      }
+
+      await connection.commit();
+
+      return { 
+        success: true, 
+        message: `Department deleted successfully. ${staffCount} staff members have been unassigned from department (orphaned). All related appointments have been updated.` 
+      };
+    } catch (txError) {
+      await connection.rollback();
+      throw txError;
     }
-
-    const [result] = await connection.query(
-      'DELETE FROM departments WHERE department_id = ?',
-      [deptId]
-    );
-
-    if (result.affectedRows === 0) {
-      throw new Error('Department not found');
-    }
-
-    return { success: true, message: 'Department deleted successfully' };
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
     console.error('Error deleting department:', errorMsg);
@@ -1458,16 +1824,47 @@ export async function deletePatient(patientId) {
       throw new Error('Patient ID is required');
     }
 
-    const [result] = await connection.query(
-      'UPDATE patients SET is_deleted = TRUE, deleted_at = NOW() WHERE patient_id = ?',
-      [patientId]
-    );
+    await connection.beginTransaction();
 
-    if (result.affectedRows === 0) {
-      throw new Error('Patient not found');
+    try {
+      // 1. SET NULL on appointments.patient_id
+      await connection.query(
+        'UPDATE appointments SET patient_id = NULL WHERE patient_id = ?',
+        [patientId]
+      );
+
+      // 2. SET NULL on encounters.patient_id
+      await connection.query(
+        'UPDATE encounters SET patient_id = NULL WHERE patient_id = ?',
+        [patientId]
+      );
+
+      // 3. SET NULL on prescriptions.patient_id
+      await connection.query(
+        'UPDATE prescriptions SET patient_id = NULL WHERE patient_id = ?',
+        [patientId]
+      );
+
+      // 4. Soft delete the patient
+      const [result] = await connection.query(
+        'UPDATE patients SET is_deleted = TRUE, deleted_at = NOW() WHERE patient_id = ?',
+        [patientId]
+      );
+
+      if (result.affectedRows === 0) {
+        throw new Error('Patient not found');
+      }
+
+      await connection.commit();
+
+      return { 
+        success: true, 
+        message: 'Patient deleted successfully. All associated medical records have been orphaned.' 
+      };
+    } catch (txError) {
+      await connection.rollback();
+      throw txError;
     }
-
-    return { success: true, message: 'Patient deleted successfully' };
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
     console.error('Error deleting patient:', errorMsg);
@@ -1531,16 +1928,29 @@ export async function patientToStaff(userId, patientId, firstName, lastName, dep
         [userId]
       );
 
+      // Generate employee_id: EMP + timestamp + random number
+      const employeeId = `EMP${Date.now()}${Math.floor(Math.random() * 10000)}`;
+      
+      // Map role_id to designation
+      const roleDesignationMap = {
+        2: 'Doctor',
+        3: 'Nurse',
+        4: 'Receptionist',
+        5: 'Pharmacist',
+        6: 'Finance Officer'
+      };
+      const designation = roleDesignationMap[roleId] || 'Staff';
+
       if (!staffRecord || staffRecord.length === 0) {
         await connection.query(
-          `INSERT INTO staff (user_id, department_id, first_name, last_name, created_at)
-           VALUES (?, ?, ?, ?, NOW())`,
-          [userId, departmentId, firstName, lastName]
+          `INSERT INTO staff (user_id, department_id, employee_id, designation, hire_date, first_name, last_name, created_at)
+           VALUES (?, ?, ?, ?, CURDATE(), ?, ?, NOW())`,
+          [userId, departmentId, employeeId, designation, firstName, lastName]
         );
       } else {
         await connection.query(
-          'UPDATE staff SET department_id = ? WHERE user_id = ?',
-          [departmentId, userId]
+          'UPDATE staff SET department_id = ?, employee_id = ?, designation = ?, hire_date = CURDATE() WHERE user_id = ?',
+          [departmentId, employeeId, designation, userId]
         );
       }
 

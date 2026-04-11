@@ -3,10 +3,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { UserButton } from '@clerk/nextjs';
 import styles from '@/app/globals.css';
 
 export default function AdminLayout({ children }) {
   const router = useRouter();
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
 
@@ -51,32 +54,34 @@ export default function AdminLayout({ children }) {
       {/* Sidebar Navigation */}
       <aside style={{
         width: '250px',
-        backgroundColor: '#1a3a52',
-        color: '#fff',
+        backgroundColor: '#047857',
+        color: '#FFFFFF',
         padding: '2rem 0',
         position: 'fixed',
         height: '100vh',
-        overflowY: 'auto'
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         <div style={{ padding: '0 1.5rem', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>MedSync Admin</h1>
-          <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Hospital Management</p>
+          <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#FFFFFF' }}>MedSync Admin</h1>
+          <p style={{ fontSize: '0.9rem', color: '#E8F8F5' }}>Hospital Management</p>
         </div>
 
-        <nav>
+        <nav style={{ flex: 1 }}>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             <li>
               <Link href="/admin/dashboard" style={{
                 display: 'block',
                 padding: '1rem 1.5rem',
-                color: '#fff',
+                color: '#FFFFFF',
                 textDecoration: 'none',
                 borderLeft: '4px solid transparent',
                 transition: 'all 0.3s ease',
                 fontSize: '0.95rem'
               }} onMouseEnter={(e) => {
-                e.currentTarget.style.borderLeftColor = '#4CAF50';
-                e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                e.currentTarget.style.borderLeftColor = '#F59E0B';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
               }} onMouseLeave={(e) => {
                 e.currentTarget.style.borderLeftColor = 'transparent';
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -88,14 +93,14 @@ export default function AdminLayout({ children }) {
               <Link href="/admin/departments" style={{
                 display: 'block',
                 padding: '1rem 1.5rem',
-                color: '#fff',
+                color: '#FFFFFF',
                 textDecoration: 'none',
                 borderLeft: '4px solid transparent',
                 transition: 'all 0.3s ease',
                 fontSize: '0.95rem'
               }} onMouseEnter={(e) => {
-                e.currentTarget.style.borderLeftColor = '#4CAF50';
-                e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                e.currentTarget.style.borderLeftColor = '#F59E0B';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
               }} onMouseLeave={(e) => {
                 e.currentTarget.style.borderLeftColor = 'transparent';
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -107,14 +112,14 @@ export default function AdminLayout({ children }) {
               <Link href="/admin/staff" style={{
                 display: 'block',
                 padding: '1rem 1.5rem',
-                color: '#fff',
+                color: '#FFFFFF',
                 textDecoration: 'none',
                 borderLeft: '4px solid transparent',
                 transition: 'all 0.3s ease',
                 fontSize: '0.95rem'
               }} onMouseEnter={(e) => {
-                e.currentTarget.style.borderLeftColor = '#4CAF50';
-                e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                e.currentTarget.style.borderLeftColor = '#F59E0B';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
               }} onMouseLeave={(e) => {
                 e.currentTarget.style.borderLeftColor = 'transparent';
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -123,36 +128,36 @@ export default function AdminLayout({ children }) {
               </Link>
             </li>
             <li>
-              <Link href="/admin/users" style={{
+              <Link href="/admin/admins" style={{
                 display: 'block',
                 padding: '1rem 1.5rem',
-                color: '#fff',
+                color: '#FFFFFF',
                 textDecoration: 'none',
                 borderLeft: '4px solid transparent',
                 transition: 'all 0.3s ease',
                 fontSize: '0.95rem'
               }} onMouseEnter={(e) => {
-                e.currentTarget.style.borderLeftColor = '#4CAF50';
-                e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                e.currentTarget.style.borderLeftColor = '#F59E0B';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
               }} onMouseLeave={(e) => {
                 e.currentTarget.style.borderLeftColor = 'transparent';
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}>
-                🔐 Users & Roles
+                🔐 Admins
               </Link>
             </li>
             <li>
               <Link href="/admin/patients" style={{
                 display: 'block',
                 padding: '1rem 1.5rem',
-                color: '#fff',
+                color: '#FFFFFF',
                 textDecoration: 'none',
                 borderLeft: '4px solid transparent',
                 transition: 'all 0.3s ease',
                 fontSize: '0.95rem'
               }} onMouseEnter={(e) => {
-                e.currentTarget.style.borderLeftColor = '#4CAF50';
-                e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                e.currentTarget.style.borderLeftColor = '#F59E0B';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
               }} onMouseLeave={(e) => {
                 e.currentTarget.style.borderLeftColor = 'transparent';
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -164,14 +169,14 @@ export default function AdminLayout({ children }) {
               <Link href="/admin/encounters" style={{
                 display: 'block',
                 padding: '1rem 1.5rem',
-                color: '#fff',
+                color: '#FFFFFF',
                 textDecoration: 'none',
                 borderLeft: '4px solid transparent',
                 transition: 'all 0.3s ease',
                 fontSize: '0.95rem'
               }} onMouseEnter={(e) => {
-                e.currentTarget.style.borderLeftColor = '#4CAF50';
-                e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                e.currentTarget.style.borderLeftColor = '#F59E0B';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
               }} onMouseLeave={(e) => {
                 e.currentTarget.style.borderLeftColor = 'transparent';
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -183,14 +188,14 @@ export default function AdminLayout({ children }) {
               <Link href="/admin/payments" style={{
                 display: 'block',
                 padding: '1rem 1.5rem',
-                color: '#fff',
+                color: '#FFFFFF',
                 textDecoration: 'none',
                 borderLeft: '4px solid transparent',
                 transition: 'all 0.3s ease',
                 fontSize: '0.95rem'
               }} onMouseEnter={(e) => {
-                e.currentTarget.style.borderLeftColor = '#4CAF50';
-                e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                e.currentTarget.style.borderLeftColor = '#F59E0B';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
               }} onMouseLeave={(e) => {
                 e.currentTarget.style.borderLeftColor = 'transparent';
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -202,14 +207,14 @@ export default function AdminLayout({ children }) {
               <Link href="/admin/profile" style={{
                 display: 'block',
                 padding: '1rem 1.5rem',
-                color: '#fff',
+                color: '#FFFFFF',
                 textDecoration: 'none',
                 borderLeft: '4px solid transparent',
                 transition: 'all 0.3s ease',
                 fontSize: '0.95rem'
               }} onMouseEnter={(e) => {
-                e.currentTarget.style.borderLeftColor = '#4CAF50';
-                e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                e.currentTarget.style.borderLeftColor = '#F59E0B';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
               }} onMouseLeave={(e) => {
                 e.currentTarget.style.borderLeftColor = 'transparent';
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -221,14 +226,14 @@ export default function AdminLayout({ children }) {
               <Link href="/admin/audit-logs" style={{
                 display: 'block',
                 padding: '1rem 1.5rem',
-                color: '#fff',
+                color: '#FFFFFF',
                 textDecoration: 'none',
                 borderLeft: '4px solid transparent',
                 transition: 'all 0.3s ease',
                 fontSize: '0.95rem'
               }} onMouseEnter={(e) => {
-                e.currentTarget.style.borderLeftColor = '#4CAF50';
-                e.currentTarget.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+                e.currentTarget.style.borderLeftColor = '#F59E0B';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
               }} onMouseLeave={(e) => {
                 e.currentTarget.style.borderLeftColor = 'transparent';
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -238,6 +243,37 @@ export default function AdminLayout({ children }) {
             </li>
           </ul>
         </nav>
+
+        {/* User Section */}
+        <div style={{
+          marginTop: 'auto',
+          padding: '1.5rem',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)'
+        }}>
+          <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: 'rgba(245, 158, 11, 0.15)', borderRadius: '6px' }}>
+            <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem', fontWeight: 'bold', color: '#FFFFFF' }}>
+              {user?.firstName && user?.lastName 
+                ? `${user.firstName} ${user.lastName}` 
+                : user?.emailAddresses?.[0]?.emailAddress 
+                ? user.emailAddresses[0].emailAddress.split('@')[0]
+                : 'Admin'}
+            </p>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#E8F8F5' }}>
+              Administrator
+            </p>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <UserButton 
+              appearance={{
+                elements: {
+                  userButtonBox: 'w-full',
+                  userButtonAvatarBox: 'w-auto',
+                },
+              }}
+            />
+          </div>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -245,7 +281,7 @@ export default function AdminLayout({ children }) {
         marginLeft: '250px',
         flex: 1,
         padding: '2rem',
-        backgroundColor: '#f5f5f5'
+        backgroundColor: '#FFFFFF'
       }}>
         {children}
       </main>

@@ -75,6 +75,8 @@ export async function DELETE(request, { params }) {
       error?.message?.includes('Authentication failed') ? 401 :
       error?.message?.includes('Access Denied') ? 403 :
       error?.message?.includes('not found') ? 404 :
+      error?.message?.includes('active appointment') ? 409 :
+      error?.message?.includes('Cannot delete') ? 409 :
       500;
 
     return NextResponse.json(

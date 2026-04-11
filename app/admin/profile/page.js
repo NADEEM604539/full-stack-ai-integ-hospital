@@ -58,13 +58,13 @@ export default function AdminProfilePage() {
     }
   };
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading profile...</div>;
+  if (loading) return <div style={{ padding: '2rem', color: '#065F46' }}>Loading profile...</div>;
 
   return (
     <div>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ margin: '0 0 0.5rem 0' }}>My Profile</h1>
-        <p style={{ margin: 0, color: '#666' }}>Manage your admin account settings</p>
+        <h1 style={{ margin: '0 0 0.5rem 0', color: '#065F46' }}>My Profile</h1>
+        <p style={{ margin: 0, color: '#6B7280' }}>Manage your admin account settings</p>
       </div>
 
       {error && (
@@ -115,13 +115,13 @@ export default function AdminProfilePage() {
         maxWidth: '600px'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ margin: 0 }}>Profile Information</h2>
+          <h2 style={{ margin: 0, color: '#065F46' }}>Profile Information</h2>
           {!editMode && (
             <button
               onClick={() => setEditMode(true)}
               style={{
                 padding: '0.5rem 1rem',
-                backgroundColor: '#2196F3',
+                backgroundColor: '#10B981',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '4px',
@@ -137,7 +137,7 @@ export default function AdminProfilePage() {
         {editMode ? (
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Email</label>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#065F46' }}>Email</label>
               <input
                 type="email"
                 name="email"
@@ -150,13 +150,14 @@ export default function AdminProfilePage() {
                   border: '1px solid #ddd',
                   borderRadius: '4px',
                   fontSize: '1rem',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  color: '#000'
                 }}
               />
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Username</label>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#065F46' }}>Username</label>
               <input
                 type="text"
                 name="username"
@@ -168,7 +169,8 @@ export default function AdminProfilePage() {
                   border: '1px solid #ddd',
                   borderRadius: '4px',
                   fontSize: '1rem',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  color: '#000'
                 }}
               />
             </div>
@@ -178,7 +180,7 @@ export default function AdminProfilePage() {
                 type="submit"
                 style={{
                   padding: '0.75rem 1.5rem',
-                  backgroundColor: '#4CAF50',
+                  backgroundColor: '#10B981',
                   color: '#fff',
                   border: 'none',
                   borderRadius: '4px',
@@ -214,14 +216,14 @@ export default function AdminProfilePage() {
               <label style={{ display: 'block', fontSize: '0.85rem', color: '#666', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                 EMAIL
               </label>
-              <div style={{ fontSize: '1.1rem', fontWeight: '500' }}>{profile?.email}</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: '500', color: '#000' }}>{profile?.email}</div>
             </div>
 
             <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid #eee' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', color: '#666', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                 USERNAME
               </label>
-              <div style={{ fontSize: '1.1rem', fontWeight: '500' }}>{profile?.username || '-'}</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: '500', color: '#000' }}>{profile?.username || '-'}</div>
             </div>
 
             <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid #eee' }}>
@@ -272,7 +274,7 @@ export default function AdminProfilePage() {
         maxWidth: '600px',
         marginTop: '2rem'
       }}>
-        <h3 style={{ marginTop: 0 }}>Account Actions</h3>
+        <h3 style={{ marginTop: 0, color: '#065F46' }}>Account Actions</h3>
         <p style={{ color: '#666', marginBottom: '1rem' }}>
           Additional security features and account management options are available through your authentication provider.
         </p>

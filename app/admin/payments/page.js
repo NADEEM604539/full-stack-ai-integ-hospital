@@ -28,34 +28,49 @@ export default function PaymentsPage() {
 
   const filteredInvoices = filterStatus === 'all' 
     ? invoices 
-    : invoices.filter(inv => inv.status === filterStatus);
+    : invoices.filter(inv => inv.status?.toLowerCase() === filterStatus.toLowerCase());
 
-  const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
-  const totalOutstanding = invoices.reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
-  const paidCount = invoices.filter(inv => inv.status === 'paid').length;
-  const pendingCount = invoices.filter(inv => inv.status === 'pending').length;
-  const overdueCount = invoices.filter(inv => inv.status === 'overdue').length;
+  const totalRevenue = invoices.reduce((sum, inv) => {
+    const amount = Number(inv.amount_paid) || 0;
+    return sum + amount;
+  }, 0);
+
+  const totalOutstanding = invoices.reduce((sum, inv) => {
+    const balance = Number(inv.balance_due) || 0;
+    return sum + balance;
+  }, 0);
+
+  const paidCount = invoices.filter(inv => inv.status === 'Paid').length;
+  const unpaidCount = invoices.filter(inv => inv.status === 'Unpaid').length;
+  const partialCount = invoices.filter(inv => inv.status === 'Partial').length;
+  const overdueCount = invoices.filter(inv => inv.status === 'Overdue').length;
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
       case 'paid':
         return { bg: '#E8F5E9', color: '#2E7D32' };
-      case 'pending':
+      case 'unpaid':
         return { bg: '#FFF3E0', color: '#E65100' };
+      case 'partial':
+        return { bg: '#FFF9C4', color: '#F57F17' };
       case 'overdue':
         return { bg: '#FFCDD2', color: '#C62828' };
+      case 'draft':
+        return { bg: '#E0E0E0', color: '#424242' };
+      case 'cancelled':
+        return { bg: '#F5F5F5', color: '#757575' };
       default:
         return { bg: '#E0E0E0', color: '#424242' };
     }
   };
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading invoices...</div>;
+  if (loading) return <div style={{ padding: '2rem', color: '#065F46' }}>Loading invoices...</div>;
 
   return (
     <div>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ margin: '0 0 0.5rem 0' }}>Invoices & Payments</h1>
-        <p style={{ margin: 0, color: '#666' }}>View and track patient invoices and payments</p>
+        <h1 style={{ margin: '0 0 0.5rem 0', color: '#065F46' }}>Invoices & Payments</h1>
+        <p style={{ margin: 0, color: '#6B7280' }}>View and track patient invoices and payments</p>
       </div>
 
       {error && (
@@ -94,12 +109,12 @@ export default function PaymentsPage() {
           borderRadius: '8px',
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
         }}>
-          <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Pending</div>
+          <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Unpaid/Partial</div>
           <div style={{ fontSize: '2rem', fontWeight: 'bold', marginTop: '0.5rem' }}>
-            ${invoices.filter(i => i.status === 'pending').reduce((s, i) => s + (i.balance_due || 0), 0).toFixed(2)}
+            ${invoices.filter(i => i.status === 'Unpaid' || i.status === 'Partial').reduce((s, i) => s + (Number(i.balance_due) || 0), 0).toFixed(2)}
           </div>
           <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
-            {pendingCount} invoices pending
+            {unpaidCount + partialCount} invoices pending/partial
           </div>
         </div>
 
@@ -112,7 +127,7 @@ export default function PaymentsPage() {
         }}>
           <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Overdue</div>
           <div style={{ fontSize: '2rem', fontWeight: 'bold', marginTop: '0.5rem' }}>
-            ${invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + (i.balance_due || 0), 0).toFixed(2)}
+            ${invoices.filter(i => i.status === 'Overdue').reduce((s, i) => s + (Number(i.balance_due) || 0), 0).toFixed(2)}
           </div>
           <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
             {overdueCount} invoices overdue
@@ -146,7 +161,7 @@ export default function PaymentsPage() {
         gap: '1rem',
         alignItems: 'center'
       }}>
-        <label style={{ fontWeight: 'bold' }}>Filter by Status:</label>
+        <label style={{ fontWeight: 'bold', color: '#065F46' }}>Filter by Status:</label>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
@@ -154,13 +169,17 @@ export default function PaymentsPage() {
             padding: '0.5rem 1rem',
             border: '1px solid #ddd',
             borderRadius: '4px',
-            fontSize: '1rem'
+            fontSize: '1rem',
+            color: '#065F46'
           }}
         >
           <option value="all">All Invoices</option>
+          <option value="draft">Draft</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="partial">Partial</option>
           <option value="paid">Paid</option>
-          <option value="pending">Pending</option>
           <option value="overdue">Overdue</option>
+          <option value="cancelled">Cancelled</option>
         </select>
       </div>
 
@@ -173,14 +192,15 @@ export default function PaymentsPage() {
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Invoice #</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Patient</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Date</th>
-              <th style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold' }}>Total</th>
-              <th style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold' }}>Paid</th>
-              <th style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold' }}>Balance</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Status</th>
+            <tr style={{ backgroundColor: '#F0FDF4', borderBottom: '2px solid rgba(16, 185, 129, 0.15)' }}>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Invoice #</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Patient</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Invoice Date</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Due Date</th>
+              <th style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold', color: '#065F46' }}>Total</th>
+              <th style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold', color: '#065F46' }}>Paid</th>
+              <th style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold', color: '#065F46' }}>Balance</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -188,24 +208,25 @@ export default function PaymentsPage() {
               const statusColor = getStatusColor(invoice.status);
               return (
                 <tr key={invoice.invoice_id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '1rem', fontWeight: '500' }}>INV-{String(invoice.invoice_id).padStart(5, '0')}</td>
-                  <td style={{ padding: '1rem' }}>
+                  <td style={{ padding: '1rem', fontWeight: '500', color: '#065F46' }}>INV-{String(invoice.invoice_id).padStart(5, '0')}</td>
+                  <td style={{ padding: '1rem', color: '#065F46' }}>
                     <div style={{ fontWeight: '500' }}>{invoice.first_name} {invoice.last_name}</div>
-                    <div style={{ fontSize: '0.85rem', color: '#666' }}>MRN: {invoice.mrn}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#6B7280' }}>MRN: {invoice.mrn}</div>
                   </td>
-                  <td style={{ padding: '1rem', fontSize: '0.9rem' }}>
+                  <td style={{ padding: '1rem', fontSize: '0.9rem', color: '#065F46' }}>
                     {new Date(invoice.invoice_date).toLocaleDateString()}
                   </td>
-                  <td style={{ padding: '1rem', textAlign: 'right', fontWeight: '500' }}>
+                  <td style={{ padding: '1rem', fontSize: '0.9rem', color: '#065F46' }}>
+                    {new Date(invoice.due_date).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding: '1rem', textAlign: 'right', fontWeight: '500', color: '#065F46' }}>
                     ${Number(invoice.total_amount || 0).toFixed(2)}
                   </td>
                   <td style={{ padding: '1rem', textAlign: 'right', color: '#2E7D32', fontWeight: '500' }}>
                     ${Number(invoice.amount_paid || 0).toFixed(2)}
                   </td>
-                  <td style={{ padding: '1rem', textAlign: 'right', fontWeight: '500' }}>
-                    <span style={{ color: invoice.balance_due > 0 ? '#C62828' : '#2E7D32' }}>
-                      ${Number(invoice.balance_due || 0).toFixed(2)}
-                    </span>
+                  <td style={{ padding: '1rem', textAlign: 'right', fontWeight: '500', color: invoice.balance_due > 0 ? '#C62828' : '#2E7D32' }}>
+                    ${Number(invoice.balance_due || 0).toFixed(2)}
                   </td>
                   <td style={{ padding: '1rem' }}>
                     <span style={{
@@ -226,7 +247,7 @@ export default function PaymentsPage() {
           </tbody>
         </table>
         {filteredInvoices.length === 0 && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#6B7280' }}>
             No invoices found
           </div>
         )}

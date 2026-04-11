@@ -60,8 +60,8 @@ export default function AuditLogsPage() {
   return (
     <div>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ margin: '0 0 0.5rem 0' }}>Audit Logs</h1>
-        <p style={{ margin: 0, color: '#666' }}>System activity & change tracking</p>
+        <h1 style={{ margin: '0 0 0.5rem 0', color: '#065F46' }}>Audit Logs</h1>
+        <p style={{ margin: 0, color: '#6B7280' }}>System activity & change tracking</p>
       </div>
 
       {error && <div style={{ padding: '1rem', backgroundColor: '#FFEBEE', color: '#C62828', borderRadius: '4px', marginBottom: '1rem' }}>{error}</div>}
@@ -74,10 +74,10 @@ export default function AuditLogsPage() {
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
         marginBottom: '1.5rem'
       }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Filters</h3>
+        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#065F46' }}>Filters</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Table Name</label>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#065F46' }}>Table Name</label>
             <input
               type="text"
               name="table_name"
@@ -89,12 +89,13 @@ export default function AuditLogsPage() {
                 padding: '0.75rem',
                 border: '1px solid #ddd',
                 borderRadius: '4px',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                color: '#065F46'
               }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Action Type</label>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#065F46' }}>Action Type</label>
             <select
               name="action_type"
               value={filters.action_type}
@@ -104,7 +105,8 @@ export default function AuditLogsPage() {
                 padding: '0.75rem',
                 border: '1px solid #ddd',
                 borderRadius: '4px',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                color: '#065F46'
               }}
             >
               <option value="">All Actions</option>
@@ -129,21 +131,21 @@ export default function AuditLogsPage() {
           fontSize: '0.9rem'
         }}>
           <thead>
-            <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', minWidth: '150px' }}>Timestamp</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>User</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Action</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Table</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Record ID</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>IP Address</th>
+            <tr style={{ backgroundColor: '#F0FDF4', borderBottom: '2px solid rgba(16, 185, 129, 0.15)' }}>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', minWidth: '150px', color: '#065F46' }}>Timestamp</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>User</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Action</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Table</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Record ID</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>IP Address</th>
             </tr>
           </thead>
           <tbody>
             {logs.map((log, idx) => (
               <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '1rem' }}>{formatDate(log.timestamp)}</td>
-                <td style={{ padding: '1rem' }}>{log.email || `User #${log.user_id}`}</td>
-                <td style={{ padding: '1rem' }}>
+                <td style={{ padding: '1rem', color: '#065F46' }}>{formatDate(log.timestamp)}</td>
+                <td style={{ padding: '1rem', color: '#065F46' }}>{log.email || `User #${log.user_id}`}</td>
+                <td style={{ padding: '1rem', color: '#065F46' }}>
                   <span style={{
                     padding: '0.25rem 0.75rem',
                     borderRadius: '4px',
@@ -161,9 +163,9 @@ export default function AuditLogsPage() {
                     {log.action_type}
                   </span>
                 </td>
-                <td style={{ padding: '1rem' }}>{log.table_name}</td>
-                <td style={{ padding: '1rem' }}>{log.record_id || '-'}</td>
-                <td style={{ padding: '1rem', fontSize: '0.85rem' }}>{log.ip_address || '-'}</td>
+                <td style={{ padding: '1rem', color: '#065F46' }}>{log.table_name}</td>
+                <td style={{ padding: '1rem', color: '#065F46' }}>{log.record_id || '-'}</td>
+                <td style={{ padding: '1rem', fontSize: '0.85rem', color: '#065F46' }}>{log.ip_address || '-'}</td>
               </tr>
             ))}
           </tbody>

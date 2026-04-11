@@ -96,13 +96,30 @@ async function findOrCreateUserByEmail(email, connection) {
 
     // Check if user exists with this email
     const [existingUsers] = await connection.query(
-      `SELECT user_id FROM users WHERE email = ?`,
+      `SELECT user_id, role_id FROM users WHERE email = ?`,
       [email]
     );
 
     if (existingUsers && existingUsers.length > 0) {
-      console.log(`User found with email: ${email}, user_id: ${existingUsers[0].user_id}`);
-      return existingUsers[0].user_id;
+      const user = existingUsers[0];
+      
+      // Verify the user has patient role (role_id = 7)
+      if (user.role_id !== 7) {
+        const roleNames = {
+          1: 'Admin',
+          2: 'Doctor',
+          3: 'Nurse',
+          4: 'Receptionist',
+          5: 'Pharmacist',
+          6: 'Finance Officer',
+          7: 'Patient'
+        };
+        const roleName = roleNames[user.role_id] || 'Unknown Role';
+        throw new Error(`This email belongs to a ${roleName}. Only patient emails can be used for patient registration.`);
+      }
+      
+      console.log(`Patient user found with email: ${email}, user_id: ${user.user_id}`);
+      return user.user_id;
     }
 
     // User doesn't exist, create new one with PATIENT role (role_id=7)
@@ -114,7 +131,7 @@ async function findOrCreateUserByEmail(email, connection) {
     );
 
     const newUserId = insertResult.insertId;
-    console.log(`New user created with email: ${email}, user_id: ${newUserId}`);
+    console.log(`New patient user created with email: ${email}, user_id: ${newUserId}`);
 
     return newUserId;
   } catch (error) {

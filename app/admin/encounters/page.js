@@ -47,13 +47,13 @@ export default function EncountersPage() {
     }
   };
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading encounters...</div>;
+  if (loading) return <div style={{ padding: '2rem', color: '#065F46' }}>Loading encounters...</div>;
 
   return (
     <div>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ margin: '0 0 0.5rem 0' }}>Patient Encounters</h1>
-        <p style={{ margin: 0, color: '#666' }}>View all encounters and medical notes (read-only)</p>
+        <h1 style={{ margin: '0 0 0.5rem 0', color: '#065F46' }}>Patient Encounters</h1>
+        <p style={{ margin: 0, color: '#6B7280' }}>View all encounters and medical notes (read-only)</p>
       </div>
 
       {error && (
@@ -70,28 +70,28 @@ export default function EncountersPage() {
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Patient</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Doctor</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Date</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Type</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Status</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Actions</th>
+            <tr style={{ backgroundColor: '#F0FDF4', borderBottom: '2px solid rgba(16, 185, 129, 0.15)' }}>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Patient</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Doctor</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Date</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Type</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Status</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {encounters.map(encounter => (
               <React.Fragment key={encounter.encounter_id}>
                 <tr style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '1rem' }}>
-                    <div style={{ fontWeight: '500' }}>{encounter.patient_first_name} {encounter.patient_last_name}</div>
-                    <div style={{ fontSize: '0.85rem', color: '#666' }}>MRN: {encounter.mrn}</div>
+                  <td style={{ padding: '1rem', color: '#065F46' }}>
+                    <div style={{ fontWeight: '500', color: '#065F46' }}>{encounter.patient_first_name} {encounter.patient_last_name}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#6B7280' }}>MRN: {encounter.mrn}</div>
                   </td>
-                  <td style={{ padding: '1rem' }}>
-                    <div style={{ fontWeight: '500' }}>{encounter.doctor_first_name || '-'} {encounter.doctor_last_name || '-'}</div>
-                    <div style={{ fontSize: '0.85rem', color: '#666' }}>{encounter.doctor_email || '-'}</div>
+                  <td style={{ padding: '1rem', color: '#065F46' }}>
+                    <div style={{ fontWeight: '500', color: '#065F46' }}>{encounter.doctor_first_name || '-'} {encounter.doctor_last_name || '-'}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#6B7280' }}>{encounter.doctor_email || '-'}</div>
                   </td>
-                  <td style={{ padding: '1rem', fontSize: '0.9rem' }}>
+                  <td style={{ padding: '1rem', fontSize: '0.9rem', color: '#065F46' }}>
                     {new Date(encounter.admission_date).toLocaleDateString()}
                   </td>
                   <td style={{ padding: '1rem' }}>
@@ -146,7 +146,7 @@ export default function EncountersPage() {
           </tbody>
         </table>
         {encounters.length === 0 && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#6B7280' }}>
             No encounters found
           </div>
         )}
@@ -188,17 +188,17 @@ function EncounterDetails({ encounterId, soapData: initialSoapData }) {
     }
   };
 
-  if (loading) return <div style={{ padding: '1rem', color: '#666' }}>Loading SOAP notes...</div>;
+  if (loading) return <div style={{ padding: '1rem', color: '#065F46' }}>Loading SOAP notes...</div>;
   if (error) return <div style={{ padding: '1rem', backgroundColor: '#FFEBEE', color: '#C62828', borderRadius: '4px' }}>Error: {error}</div>;
 
   return (
     <div>
-      <h4 style={{ marginTop: 0 }}>SOAP Notes</h4>
+      <h4 style={{ marginTop: 0, color: '#065F46' }}>SOAP Notes</h4>
       {soapData ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
           <div>
             <h5 style={{ margin: '0 0 0.5rem 0', color: '#1565C0' }}>Subjective</h5>
-            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem' }}>
+            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem', color: '#000' }}>
               {soapData.subjective ? (
                 <>
                   <p><strong>Complaint:</strong> {soapData.subjective.patient_complaint || 'N/A'}</p>
@@ -210,7 +210,7 @@ function EncounterDetails({ encounterId, soapData: initialSoapData }) {
           </div>
           <div>
             <h5 style={{ margin: '0 0 0.5rem 0', color: '#1565C0' }}>Objective</h5>
-            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem' }}>
+            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem', color: '#000' }}>
               {soapData.objective ? (
                 <>
                   <p><strong>Examination:</strong> {soapData.objective.physical_examination || 'N/A'}</p>
@@ -222,7 +222,7 @@ function EncounterDetails({ encounterId, soapData: initialSoapData }) {
           </div>
           <div>
             <h5 style={{ margin: '0 0 0.5rem 0', color: '#1565C0' }}>Assessment</h5>
-            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem' }}>
+            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem', color: '#000' }}>
               {soapData.assessment ? (
                 <>
                   <p><strong>Diagnosis:</strong> {soapData.assessment.primary_diagnosis || 'N/A'}</p>
@@ -234,7 +234,7 @@ function EncounterDetails({ encounterId, soapData: initialSoapData }) {
           </div>
           <div>
             <h5 style={{ margin: '0 0 0.5rem 0', color: '#1565C0' }}>Plan</h5>
-            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem' }}>
+            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem', color: '#000' }}>
               {soapData.plan ? (
                 <>
                   <p><strong>Treatment:</strong> {soapData.plan.treatment_plan || 'N/A'}</p>
@@ -246,7 +246,7 @@ function EncounterDetails({ encounterId, soapData: initialSoapData }) {
           </div>
         </div>
       ) : (
-        <p>No SOAP notes available</p>
+        <p style={{ color: '#065F46' }}>No SOAP notes available</p>
       )}
     </div>
   );

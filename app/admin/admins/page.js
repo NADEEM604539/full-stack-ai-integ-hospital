@@ -311,20 +311,20 @@ export default function AdminsPage() {
           borderCollapse: 'collapse'
         }}>
           <thead>
-            <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Email</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Username</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Status</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Created</th>
-              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Actions</th>
+            <tr style={{ backgroundColor: '#F0FDF4', borderBottom: '2px solid rgba(16, 185, 129, 0.15)' }}>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Email</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Username</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Status</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Created</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {admins.map(admin => (
               <tr key={admin.user_id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '1rem' }}>{admin.email}</td>
-                <td style={{ padding: '1rem' }}>{admin.username || '-'}</td>
-                <td style={{ padding: '1rem' }}>
+                <td style={{ padding: '1rem', color: '#065F46' }}>{admin.email}</td>
+                <td style={{ padding: '1rem', color: '#065F46' }}>{admin.username || '-'}</td>
+                <td style={{ padding: '1rem', color: '#065F46' }}>
                   <span style={{
                     padding: '0.25rem 0.75rem',
                     backgroundColor: admin.is_active ? '#E8F5E9' : '#FFEBEE',
@@ -335,7 +335,7 @@ export default function AdminsPage() {
                     {admin.is_active ? '✓ Active' : '✗ Inactive'}
                   </span>
                 </td>
-                <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{new Date(admin.created_at).toLocaleDateString()}</td>
+                <td style={{ padding: '1rem', fontSize: '0.9rem', color: '#065F46' }}>{new Date(admin.created_at).toLocaleDateString()}</td>
                 <td style={{ padding: '1rem' }}>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <button
@@ -417,7 +417,7 @@ export default function AdminsPage() {
             maxWidth: '500px'
           }}>
             <h2 style={{ marginTop: 0 }}>Convert to Staff</h2>
-            <p style={{ color: '#666' }}>
+            <p style={{ color: '#6B7280' }}>
               Moving <strong>{selectedAdmin.email}</strong> from Admin to Staff role with department assignment.
             </p>
             <form onSubmit={handleToStaffSubmit}>
