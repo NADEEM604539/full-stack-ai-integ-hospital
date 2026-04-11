@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export default function EncountersPage() {
   const [encounters, setEncounters] = useState([]);
@@ -81,7 +81,7 @@ export default function EncountersPage() {
           </thead>
           <tbody>
             {encounters.map(encounter => (
-              <tbody key={encounter.encounter_id}>
+              <React.Fragment key={encounter.encounter_id}>
                 <tr style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: '500' }}>{encounter.patient_first_name} {encounter.patient_last_name}</div>
@@ -92,7 +92,7 @@ export default function EncountersPage() {
                     <div style={{ fontSize: '0.85rem', color: '#666' }}>{encounter.doctor_email || '-'}</div>
                   </td>
                   <td style={{ padding: '1rem', fontSize: '0.9rem' }}>
-                    {new Date(encounter.encounter_date).toLocaleDateString()}
+                    {new Date(encounter.admission_date).toLocaleDateString()}
                   </td>
                   <td style={{ padding: '1rem' }}>
                     <span style={{
@@ -108,13 +108,13 @@ export default function EncountersPage() {
                   <td style={{ padding: '1rem' }}>
                     <span style={{
                       padding: '0.25rem 0.75rem',
-                      backgroundColor: encounter.status === 'completed' ? '#E8F5E9' : '#FFF3E0',
-                      color: encounter.status === 'completed' ? '#2E7D32' : '#E65100',
+                      backgroundColor: encounter.status === 'Completed' ? '#E8F5E9' : '#FFF3E0',
+                      color: encounter.status === 'Completed' ? '#2E7D32' : '#E65100',
                       borderRadius: '4px',
                       fontSize: '0.85rem',
                       fontWeight: 'bold'
                     }}>
-                      {encounter.status?.charAt(0).toUpperCase() + encounter.status?.slice(1) || 'Open'}
+                      {encounter.status || 'Active'}
                     </span>
                   </td>
                   <td style={{ padding: '1rem' }}>
@@ -141,7 +141,7 @@ export default function EncountersPage() {
                     </td>
                   </tr>
                 )}
-              </tbody>
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -155,27 +155,41 @@ export default function EncountersPage() {
   );
 }
 
-function EncounterDetails({ encounterId, soapData }) {
-  const [loading, setLoading] = useState(!soapData);
+function EncounterDetails({ encounterId, soapData: initialSoapData }) {
+  const [soapData, setSoapData] = useState(initialSoapData);
+  const [loading, setLoading] = useState(!initialSoapData);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!soapData && loading) {
+    // Only fetch if we don't have initial data
+    if (!initialSoapData) {
       fetchSOAP();
     }
-  }, []);
+  }, [encounterId, initialSoapData]);
 
   const fetchSOAP = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const response = await fetch(`/api/admin/encounters/${encounterId}/soap`);
-      if (!response.ok) throw new Error('Failed to fetch SOAP notes');
-      setLoading(false);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setSoapData(data);
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error fetching SOAP notes:', err);
+      setError(err.message);
+    } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div>Loading SOAP notes...</div>;
+  if (loading) return <div style={{ padding: '1rem', color: '#666' }}>Loading SOAP notes...</div>;
+  if (error) return <div style={{ padding: '1rem', backgroundColor: '#FFEBEE', color: '#C62828', borderRadius: '4px' }}>Error: {error}</div>;
 
   return (
     <div>
@@ -184,27 +198,51 @@ function EncounterDetails({ encounterId, soapData }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
           <div>
             <h5 style={{ margin: '0 0 0.5rem 0', color: '#1565C0' }}>Subjective</h5>
-            <p style={{ margin: 0, padding: '1rem', backgroundColor: '#fff', borderRadius: '4px' }}>
-              {soapData.subjective || 'N/A'}
-            </p>
+            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem' }}>
+              {soapData.subjective ? (
+                <>
+                  <p><strong>Complaint:</strong> {soapData.subjective.patient_complaint || 'N/A'}</p>
+                  <p><strong>Duration:</strong> {soapData.subjective.symptom_duration || 'N/A'}</p>
+                  <p><strong>Severity:</strong> {soapData.subjective.severity_level || 'N/A'}/10</p>
+                </>
+              ) : 'N/A'}
+            </div>
           </div>
           <div>
             <h5 style={{ margin: '0 0 0.5rem 0', color: '#1565C0' }}>Objective</h5>
-            <p style={{ margin: 0, padding: '1rem', backgroundColor: '#fff', borderRadius: '4px' }}>
-              {soapData.objective || 'N/A'}
-            </p>
+            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem' }}>
+              {soapData.objective ? (
+                <>
+                  <p><strong>Examination:</strong> {soapData.objective.physical_examination || 'N/A'}</p>
+                  <p><strong>Labs:</strong> {soapData.objective.lab_findings || 'N/A'}</p>
+                  <p><strong>Imaging:</strong> {soapData.objective.imaging_results || 'N/A'}</p>
+                </>
+              ) : 'N/A'}
+            </div>
           </div>
           <div>
             <h5 style={{ margin: '0 0 0.5rem 0', color: '#1565C0' }}>Assessment</h5>
-            <p style={{ margin: 0, padding: '1rem', backgroundColor: '#fff', borderRadius: '4px' }}>
-              {soapData.assessment || 'N/A'}
-            </p>
+            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem' }}>
+              {soapData.assessment ? (
+                <>
+                  <p><strong>Diagnosis:</strong> {soapData.assessment.primary_diagnosis || 'N/A'}</p>
+                  <p><strong>Differential:</strong> {soapData.assessment.differential_diagnoses || 'N/A'}</p>
+                  <p><strong>ICD-10:</strong> {soapData.assessment.icd10_code || 'N/A'}</p>
+                </>
+              ) : 'N/A'}
+            </div>
           </div>
           <div>
             <h5 style={{ margin: '0 0 0.5rem 0', color: '#1565C0' }}>Plan</h5>
-            <p style={{ margin: 0, padding: '1rem', backgroundColor: '#fff', borderRadius: '4px' }}>
-              {soapData.plan || 'N/A'}
-            </p>
+            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '4px', fontSize: '0.9rem' }}>
+              {soapData.plan ? (
+                <>
+                  <p><strong>Treatment:</strong> {soapData.plan.treatment_plan || 'N/A'}</p>
+                  <p><strong>Medication:</strong> {soapData.plan.medication_plan || 'N/A'}</p>
+                  <p><strong>Follow-up:</strong> {soapData.plan.follow_up_plan || 'N/A'}</p>
+                </>
+              ) : 'N/A'}
+            </div>
           </div>
         </div>
       ) : (

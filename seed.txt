@@ -7,7 +7,7 @@
 -- ==========================================
 -- 1. ROLES (7 roles)
 -- ==========================================
-use MedSyncDB;
+use medsyncdb;
 INSERT INTO roles (role_id, role, description) VALUES
 (1, 'ADMIN', 'System Administrator - Full access to all tables and system configuration'),
 (2, 'DOCTOR', 'Clinical Decision Maker - Access to assigned patients and prescriptions'),
@@ -37,11 +37,11 @@ INSERT INTO departments (department_id, department_name, department_head_name, c
 
 INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) VALUES
 -- ADMIN USERS (2 admins - NO staff records)
-(1, 'admin', 'admin@gmail.com', 'Admin User', 1, TRUE),
+(1, 'admin', 'programmingworld360@gmail.com', 'Admin User', 1, TRUE),
 (2, 'clerk_admin_002', 'nadeem.admin@hospital.com', 'Nadeem Admin', 1, TRUE),
 
 -- DOCTOR USERS (6 doctors - Will have staff records with department_id)
-(10, 'nadeem doc', 'ullahasmut310gmail.com', 'Dr. Ahmed Hassan', 2, TRUE),
+(10, 'nadeem doc', 'ullahasmut310@gmail.com', 'Dr. Ahmed Hassan', 2, TRUE),
 (11, 'clerk_doctor_002', 'dr.fatima@hospital.com', 'Dr. Fatima Khan', 2, TRUE),
 (12, 'clerk_doctor_003', 'dr.ali@hospital.com', 'Dr. Ali Malik', 2, TRUE),
 (13, 'clerk_doctor_004', 'dr.sara@hospital.com', 'Dr. Sara Ahmed', 2, TRUE),
@@ -54,7 +54,7 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (22, 'clerk_receptionist_003', 'receptionist3@hospital.com', 'Receptionist Ali', 4, TRUE),
 
 -- NURSE USERS (3 nurses)
-(30, 'nadeem nurse', 'programmingworld360@hospital.com', 'Nurse Saira', 3, TRUE),
+(30, 'nadeem nurse', 'programmingworld360@hospital.co', 'Nurse Saira', 3, TRUE),
 (31, 'clerk_nurse_002', 'nurse2@hospital.com', 'Nurse Amina', 3, TRUE),
 (32, 'clerk_nurse_003', 'nurse3@hospital.com', 'Nurse Rizwan', 3, TRUE),
 
@@ -90,10 +90,10 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 
 INSERT INTO staff (staff_id, user_id, department_id, first_name, last_name, employee_id, designation, hire_date, status) VALUES
 -- DOCTORS (6 doctors in different departments)
-(1, 10, 1, 'Ahmed', 'Hassan', 'DOC001', 'Senior Doctor', '2020-01-15', 'Active'),
-(2, 11, 2, 'Fatima', 'Khan', 'DOC002', 'Consultant', '2019-06-20', 'Active'),
-(3, 12, 3, 'Ali', 'Malik', 'DOC003', 'Consultant', '2021-03-10', 'Active'),
-(4, 13, 4, 'Sara', 'Ahmed', 'DOC004', 'Senior Doctor', '2020-11-05', 'Active'),
+(1, 10, 8, 'Ahmed', 'Hassan', 'DOC001', 'Senior Doctor', '2020-01-15', 'Active'),
+(2, 11, 8, 'Fatima', 'Khan', 'DOC002', 'Consultant', '2019-06-20', 'Active'),
+(3, 12, 8, 'Ali', 'Malik', 'DOC003', 'Consultant', '2021-03-10', 'Active'),
+(4, 13, 8, 'Sara', 'Ahmed', 'DOC004', 'Senior Doctor', '2020-11-05', 'Active'),
 (5, 14, 5, 'Hassan', 'Raza', 'DOC005', 'Consultant', '2018-08-12', 'Active'),
 (6, 15, 1, 'Maryam', 'Saif', 'DOC006', 'Doctor', '2021-01-20', 'Active'),
 
@@ -103,13 +103,13 @@ INSERT INTO staff (staff_id, user_id, department_id, first_name, last_name, empl
 (9, 22, 8, 'Ali', 'Malik', 'RCP003', 'Receptionist', '2020-02-01', 'Active'),
 
 -- NURSES (3 nurses in different departments)
-(10, 30, 1, 'Saira', 'Khan', 'NUR001', 'Nurse', '2019-05-15', 'Active'),
-(11, 31, 2, 'Amina', 'Ahmed', 'NUR002', 'Nurse', '2020-03-20', 'Active'),
-(12, 32, 6, 'Rizwan', 'Hassan', 'NUR003', 'Nurse', '2021-01-10', 'Active'),
+(10, 30, 8, 'Saira', 'Khan', 'NUR001', 'Nurse', '2019-05-15', 'Active'),
+(11, 31, 8, 'Amina', 'Ahmed', 'NUR002', 'Nurse', '2020-03-20', 'Active'),
+(12, 32, 8, 'Rizwan', 'Hassan', 'NUR003', 'Nurse', '2021-01-10', 'Active'),
 
 -- PHARMACISTS (2 pharmacists in Pharmacy)
-(13, 40, 7, 'Hassan', 'Raza', 'PHM001', 'Pharmacist', '2018-09-01', 'Active'),
-(14, 41, 7, 'Zainab', 'Malik', 'PHM002', 'Pharmacist', '2019-07-15', 'Active'),
+(13, 40, 8, 'Hassan', 'Raza', 'PHM001', 'Pharmacist', '2018-09-01', 'Active'),
+(14, 41, 8, 'Zainab', 'Malik', 'PHM002', 'Pharmacist', '2019-07-15', 'Active'),
 
 -- FINANCE OFFICERS (2 finance officers in Administration)
 (15, 50, 8, 'Bilal', 'Ahmed', 'FIN001', 'Finance Officer', '2020-06-01', 'Active'),

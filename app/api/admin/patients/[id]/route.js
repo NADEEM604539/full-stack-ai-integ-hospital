@@ -24,7 +24,8 @@ export const dynamic = 'force-dynamic';
  */
 export async function PUT(request, { params }) {
   try {
-    const patientId = parseInt(params.id);
+    const { id } = await params;
+    const patientId = parseInt(id);
     if (isNaN(patientId)) {
       return NextResponse.json(
         { error: 'Invalid patient ID' },
@@ -60,7 +61,8 @@ export async function PUT(request, { params }) {
  */
 export async function DELETE(request, { params }) {
   try {
-    const patientId = parseInt(params.id);
+    const { id } = await params;
+    const patientId = parseInt(id);
     if (isNaN(patientId)) {
       return NextResponse.json(
         { error: 'Invalid patient ID' },

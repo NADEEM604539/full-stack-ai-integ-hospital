@@ -20,7 +20,8 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request, { params }) {
   try {
-    const patientId = parseInt(params.id);
+    const { id } = await params;
+    const patientId = parseInt(id);
     if (isNaN(patientId)) {
       return NextResponse.json(
         { error: 'Invalid patient ID' },

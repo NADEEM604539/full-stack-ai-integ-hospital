@@ -10,7 +10,8 @@ export const dynamic = 'force-dynamic';
  */
 export async function PUT(request, { params }) {
   try {
-    const adminId = parseInt(params.id);
+    const { id } = await params;
+    const adminId = parseInt(id);
     if (isNaN(adminId)) {
       return NextResponse.json(
         { error: 'Invalid admin ID' },
@@ -55,7 +56,8 @@ export async function PUT(request, { params }) {
  */
 export async function DELETE(request, { params }) {
   try {
-    const adminId = parseInt(params.id);
+    const { id } = await params;
+    const adminId = parseInt(id);
     if (isNaN(adminId)) {
       return NextResponse.json(
         { error: 'Invalid admin ID' },

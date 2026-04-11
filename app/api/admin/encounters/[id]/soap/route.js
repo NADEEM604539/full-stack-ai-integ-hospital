@@ -10,7 +10,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request, { params }) {
   try {
-    const encounterId = parseInt(params.id);
+    // In Next.js 16.2.3, params is async
+    const { id } = await params;
+    const encounterId = parseInt(id);
     
     if (!encounterId || isNaN(encounterId)) {
       return NextResponse.json(
@@ -20,9 +22,21 @@ export async function GET(request, { params }) {
     }
 
     const soapNote = await getEncounterSOAP(encounterId);
-    return NextResponse.json(soapNote || {});
+    
+    return NextResponse.json(
+      soapNote || {
+        encounter_id: encounterId,
+        subjective: null,
+        objective: null,
+        assessment: null,
+        plan: null
+      },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error('Get SOAP note API Error:', error?.message);
+    console.error('Get SOAP note API Error:', error);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
     
     const statusCode =
       error?.message?.includes('Authentication failed') ? 401 :
@@ -30,7 +44,10 @@ export async function GET(request, { params }) {
       500;
 
     return NextResponse.json(
-      { error: error?.message || 'Failed to fetch SOAP notes' },
+      { 
+        error: error?.message || 'Failed to fetch SOAP notes',
+        details: error?.toString()
+      },
       { status: statusCode }
     );
   }

@@ -354,22 +354,24 @@ export async function getAllEncounters() {
         e.encounter_id,
         e.patient_id,
         e.doctor_id,
-        e.encounter_date,
+        e.admission_date,
+        e.appointment_id,
         e.encounter_type,
-        e.reason_for_visit,
+        e.chief_complaint,
         e.status,
-        e.notes,
+        e.created_by,
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
         p.mrn,
-        d_user.email as doctor_email,
-        d_staff.first_name as doctor_first_name,
-        d_staff.last_name as doctor_last_name
+        u.email as doctor_email,
+        s.first_name as doctor_first_name,
+        s.last_name as doctor_last_name
        FROM encounters e
        LEFT JOIN patients p ON e.patient_id = p.patient_id
-       LEFT JOIN users d_user ON e.doctor_id = d_user.user_id
-       LEFT JOIN staff d_staff ON e.doctor_id = d_staff.user_id
-       ORDER BY e.encounter_date DESC`
+       LEFT JOIN doctors d ON e.doctor_id = d.doctor_id
+       LEFT JOIN staff s ON d.staff_id = s.staff_id
+       LEFT JOIN users u ON s.user_id = u.user_id
+       ORDER BY e.admission_date DESC`
     );
 
     return encounters || [];
@@ -383,7 +385,7 @@ export async function getAllEncounters() {
 }
 
 /**
- * Get SOAP notes for an encounter
+ * Get SOAP notes for an encounter (from separate S/O/A/P tables)
  */
 export async function getEncounterSOAP(encounterId) {
   let connection;
@@ -392,22 +394,49 @@ export async function getEncounterSOAP(encounterId) {
     
     await checkAdminAccess(connection);
 
-    const [soapNotes] = await connection.query(
-      `SELECT 
-        soap_note_id,
-        encounter_id,
-        subjective,
-        objective,
-        assessment,
-        plan,
-        created_at
-       FROM soap_notes
+    // Get Subjective notes
+    const [subjective] = await connection.query(
+      `SELECT patient_complaint, symptom_duration, severity_level, affecting_daily_activities, created_by
+       FROM subjective_notes
        WHERE encounter_id = ?
        LIMIT 1`,
       [encounterId]
     );
 
-    return soapNotes && soapNotes.length > 0 ? soapNotes[0] : null;
+    // Get Objective notes
+    const [objective] = await connection.query(
+      `SELECT physical_examination, lab_findings, imaging_results, created_by
+       FROM objective_notes
+       WHERE encounter_id = ?
+       LIMIT 1`,
+      [encounterId]
+    );
+
+    // Get Assessment notes
+    const [assessment] = await connection.query(
+      `SELECT primary_diagnosis, differential_diagnoses, clinical_reasoning, icd10_code, severity_level, created_by
+       FROM assessment_notes
+       WHERE encounter_id = ?
+       LIMIT 1`,
+      [encounterId]
+    );
+
+    // Get Plan notes
+    const [plan] = await connection.query(
+      `SELECT treatment_plan, medication_plan, follow_up_plan, patient_education, created_by
+       FROM plan_notes
+       WHERE encounter_id = ?
+       LIMIT 1`,
+      [encounterId]
+    );
+
+    return {
+      encounter_id: encounterId,
+      subjective: subjective && subjective.length > 0 ? subjective[0] : null,
+      objective: objective && objective.length > 0 ? objective[0] : null,
+      assessment: assessment && assessment.length > 0 ? assessment[0] : null,
+      plan: plan && plan.length > 0 ? plan[0] : null
+    };
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
     console.error('Error fetching SOAP notes:', errorMsg);
@@ -668,18 +697,37 @@ export async function createStaff(email, firstName, lastName, employeeId, design
         userId = userResult.insertId;
       }
 
-      // Create staff record
-      const [staffResult] = await connection.query(
-        `INSERT INTO staff 
-         (user_id, department_id, first_name, last_name, employee_id, designation, hire_date, phone_number, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [userId, deptId, firstName, lastName, employeeId, designation || null, hireDate || null, phoneNumber || null]
+      // Check if staff record already exists for this user
+      const [existingStaff] = await connection.query(
+        'SELECT staff_id FROM staff WHERE user_id = ?',
+        [userId]
       );
+
+      let staffId;
+      if (existingStaff && existingStaff.length > 0) {
+        // Update existing staff record
+        staffId = existingStaff[0].staff_id;
+        await connection.query(
+          `UPDATE staff 
+           SET department_id = ?, first_name = ?, last_name = ?, employee_id = ?, designation = ?, hire_date = ?, phone_number = ?
+           WHERE staff_id = ?`,
+          [deptId, firstName, lastName, employeeId, designation || null, hireDate || null, phoneNumber || null, staffId]
+        );
+      } else {
+        // Create new staff record
+        const [staffResult] = await connection.query(
+          `INSERT INTO staff 
+           (user_id, department_id, first_name, last_name, employee_id, designation, hire_date, phone_number, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+          [userId, deptId, firstName, lastName, employeeId, designation || null, hireDate || null, phoneNumber || null]
+        );
+        staffId = staffResult.insertId;
+      }
 
       await connection.commit();
 
       return { 
-        staff_id: staffResult.insertId, 
+        staff_id: staffId, 
         user_id: userId, 
         email: email,
         first_name: firstName,
