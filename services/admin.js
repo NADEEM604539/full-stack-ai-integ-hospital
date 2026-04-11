@@ -1845,7 +1845,19 @@ export async function deletePatient(patientId) {
         [patientId]
       );
 
-      // 4. Soft delete the patient
+      // 4. SET NULL on invoices.patient_id
+      await connection.query(
+        'UPDATE invoices SET patient_id = NULL WHERE patient_id = ?',
+        [patientId]
+      );
+
+      // 5. SET NULL on payments.patient_id
+      await connection.query(
+        'UPDATE payments SET patient_id = NULL WHERE patient_id = ?',
+        [patientId]
+      );
+
+      // 6. Soft delete the patient
       const [result] = await connection.query(
         'UPDATE patients SET is_deleted = TRUE, deleted_at = NOW() WHERE patient_id = ?',
         [patientId]
@@ -1859,7 +1871,7 @@ export async function deletePatient(patientId) {
 
       return { 
         success: true, 
-        message: 'Patient deleted successfully. All associated medical records have been orphaned.' 
+        message: 'Patient soft-deleted successfully. All associated records (appointments, encounters, prescriptions, invoices, payments) have been orphaned with NULL references.' 
       };
     } catch (txError) {
       await connection.rollback();
