@@ -1,0 +1,236 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+
+export default function PaymentsPage() {
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    try {
+      const response = await fetch('/api/admin/payments');
+      if (!response.ok) throw new Error('Failed to fetch invoices');
+      
+      const data = await response.json();
+      setInvoices(data.data || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredInvoices = filterStatus === 'all' 
+    ? invoices 
+    : invoices.filter(inv => inv.status === filterStatus);
+
+  const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
+  const totalOutstanding = invoices.reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+  const paidCount = invoices.filter(inv => inv.status === 'paid').length;
+  const pendingCount = invoices.filter(inv => inv.status === 'pending').length;
+  const overdueCount = invoices.filter(inv => inv.status === 'overdue').length;
+
+  const getStatusColor = (status) => {
+    switch (status.toLowerCase()) {
+      case 'paid':
+        return { bg: '#E8F5E9', color: '#2E7D32' };
+      case 'pending':
+        return { bg: '#FFF3E0', color: '#E65100' };
+      case 'overdue':
+        return { bg: '#FFCDD2', color: '#C62828' };
+      default:
+        return { bg: '#E0E0E0', color: '#424242' };
+    }
+  };
+
+  if (loading) return <div style={{ padding: '2rem' }}>Loading invoices...</div>;
+
+  return (
+    <div>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ margin: '0 0 0.5rem 0' }}>Invoices & Payments</h1>
+        <p style={{ margin: 0, color: '#666' }}>View and track patient invoices and payments</p>
+      </div>
+
+      {error && (
+        <div style={{ padding: '1rem', backgroundColor: '#FFEBEE', color: '#C62828', borderRadius: '4px', marginBottom: '1rem' }}>
+          {error}
+        </div>
+      )}
+
+      {/* Summary Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+        gap: '1rem',
+        marginBottom: '2rem'
+      }}>
+        <div style={{
+          backgroundColor: '#4CAF50',
+          color: '#fff',
+          padding: '1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Total Collected</div>
+          <div style={{ fontSize: '2rem', fontWeight: 'bold', marginTop: '0.5rem' }}>
+            ${totalRevenue.toFixed(2)}
+          </div>
+          <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
+            {paidCount} invoices paid
+          </div>
+        </div>
+
+        <div style={{
+          backgroundColor: '#FF9800',
+          color: '#fff',
+          padding: '1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Pending</div>
+          <div style={{ fontSize: '2rem', fontWeight: 'bold', marginTop: '0.5rem' }}>
+            ${invoices.filter(i => i.status === 'pending').reduce((s, i) => s + (i.balance_due || 0), 0).toFixed(2)}
+          </div>
+          <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
+            {pendingCount} invoices pending
+          </div>
+        </div>
+
+        <div style={{
+          backgroundColor: '#F44336',
+          color: '#fff',
+          padding: '1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Overdue</div>
+          <div style={{ fontSize: '2rem', fontWeight: 'bold', marginTop: '0.5rem' }}>
+            ${invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + (i.balance_due || 0), 0).toFixed(2)}
+          </div>
+          <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
+            {overdueCount} invoices overdue
+          </div>
+        </div>
+
+        <div style={{
+          backgroundColor: '#2196F3',
+          color: '#fff',
+          padding: '1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>Outstanding Balance</div>
+          <div style={{ fontSize: '2rem', fontWeight: 'bold', marginTop: '0.5rem' }}>
+            ${totalOutstanding.toFixed(2)}
+          </div>
+          <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.8 }}>
+            {invoices.length} total invoices
+          </div>
+        </div>
+      </div>
+
+      {/* Filter */}
+      <div style={{
+        backgroundColor: '#fff',
+        padding: '1rem',
+        borderRadius: '8px',
+        marginBottom: '1.5rem',
+        display: 'flex',
+        gap: '1rem',
+        alignItems: 'center'
+      }}>
+        <label style={{ fontWeight: 'bold' }}>Filter by Status:</label>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          style={{
+            padding: '0.5rem 1rem',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontSize: '1rem'
+          }}
+        >
+          <option value="all">All Invoices</option>
+          <option value="paid">Paid</option>
+          <option value="pending">Pending</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
+
+      {/* Invoices Table */}
+      <div style={{
+        backgroundColor: '#fff',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        overflowX: 'auto'
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Invoice #</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Patient</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Date</th>
+              <th style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold' }}>Total</th>
+              <th style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold' }}>Paid</th>
+              <th style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold' }}>Balance</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredInvoices.map(invoice => {
+              const statusColor = getStatusColor(invoice.status);
+              return (
+                <tr key={invoice.invoice_id} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '1rem', fontWeight: '500' }}>INV-{String(invoice.invoice_id).padStart(5, '0')}</td>
+                  <td style={{ padding: '1rem' }}>
+                    <div style={{ fontWeight: '500' }}>{invoice.first_name} {invoice.last_name}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#666' }}>MRN: {invoice.mrn}</div>
+                  </td>
+                  <td style={{ padding: '1rem', fontSize: '0.9rem' }}>
+                    {new Date(invoice.invoice_date).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding: '1rem', textAlign: 'right', fontWeight: '500' }}>
+                    ${Number(invoice.total_amount || 0).toFixed(2)}
+                  </td>
+                  <td style={{ padding: '1rem', textAlign: 'right', color: '#2E7D32', fontWeight: '500' }}>
+                    ${Number(invoice.amount_paid || 0).toFixed(2)}
+                  </td>
+                  <td style={{ padding: '1rem', textAlign: 'right', fontWeight: '500' }}>
+                    <span style={{ color: invoice.balance_due > 0 ? '#C62828' : '#2E7D32' }}>
+                      ${Number(invoice.balance_due || 0).toFixed(2)}
+                    </span>
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <span style={{
+                      padding: '0.35rem 0.75rem',
+                      backgroundColor: statusColor.bg,
+                      color: statusColor.color,
+                      borderRadius: '4px',
+                      fontSize: '0.85rem',
+                      fontWeight: 'bold',
+                      display: 'inline-block'
+                    }}>
+                      {invoice.status?.charAt(0).toUpperCase() + invoice.status?.slice(1) || 'Unknown'}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {filteredInvoices.length === 0 && (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
+            No invoices found
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
