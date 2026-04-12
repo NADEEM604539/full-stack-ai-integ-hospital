@@ -87,6 +87,12 @@ export default function PatientDetailLayout({ children }) {
       active: pathname?.includes('/vitals'),
     },
     {
+      label: 'Medical History',
+      href: `/patient/${patientId}/medical-history`,
+      icon: Stethoscope,
+      active: pathname?.includes('/medical-history'),
+    },
+    {
       label: 'Invoices',
       href: `/patient/${patientId}/invoices`,
       icon: FileText,

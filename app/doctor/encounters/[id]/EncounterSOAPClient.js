@@ -18,6 +18,7 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import Link from 'next/link';
+import DoctorMedicalHistorySection from '../DoctorMedicalHistorySection';
 
 export default function EncounterSOAPClient({ encounterId }) {
   const [encounter, setEncounter] = useState(null);
@@ -817,6 +818,15 @@ export default function EncounterSOAPClient({ encounterId }) {
               </div>
             </div>
           </div>
+
+          {/* Medical History Management Section */}
+          {encounter?.patient_id && (
+            <div className="rounded-2xl overflow-hidden shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>
+              <div className="p-6 border-b" style={{ borderColor: '#E5E7EB' }}>
+                <DoctorMedicalHistorySection patientId={encounter.patient_id} />
+              </div>
+            </div>
+          )}
 
           {/* SUBJECTIVE Section */}
           <div className="rounded-2xl overflow-hidden shadow-sm" style={{ backgroundColor: '#FFFFFF' }}>

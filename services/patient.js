@@ -827,3 +827,247 @@ export async function bookAppointment(patientId, appointmentData) {
     if (connection) connection.release();
   }
 }
+
+/**
+ * Get medical history for a patient
+ * RBAC: Patient can only access their own medical history
+ * @param {number} patientId - The patient whose medical history to fetch
+ * @returns {Promise<Array>} List of medical history records
+ */
+export async function getPatientMedicalHistory(patientId) {
+  const { userId } = await checkPatientAccess();
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Verify patient ownership
+    const [patients] = await connection.query(
+      `SELECT patient_id FROM patients 
+       WHERE patient_id = ? AND user_id = ? AND is_deleted = FALSE`,
+      [patientId, userId]
+    );
+
+    if (!patients.length) {
+      throw new Error('Patient not found or access denied');
+    }
+
+    const [history] = await connection.query(
+      `SELECT 
+        history_id,
+        patient_id,
+        condition_type,
+        description,
+        severity,
+        status,
+        documented_at
+       FROM medical_history
+       WHERE patient_id = ? AND status != 'Archived'
+       ORDER BY documented_at DESC`,
+      [patientId]
+    );
+
+    return history;
+  } catch (error) {
+    console.error('Error fetching patient medical history:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Add medical history for a patient
+ * RBAC: Patient can only add to their own medical history
+ * @param {number} patientId - The patient to add history to
+ * @param {Object} historyData - Medical history details
+ * @returns {Promise<Object>} Created medical history record
+ */
+export async function addPatientMedicalHistory(patientId, historyData) {
+  const { userId } = await checkPatientAccess();
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Verify patient ownership
+    const [patients] = await connection.query(
+      `SELECT patient_id FROM patients 
+       WHERE patient_id = ? AND user_id = ? AND is_deleted = FALSE`,
+      [patientId, userId]
+    );
+
+    if (!patients.length) {
+      throw new Error('Patient not found or access denied');
+    }
+
+    // Insert medical history
+    const [result] = await connection.query(
+      `INSERT INTO medical_history (
+        patient_id,
+        condition_type,
+        description,
+        severity,
+        status
+      ) VALUES (?, ?, ?, ?, ?)`,
+      [
+        patientId,
+        historyData.condition_type,
+        historyData.description,
+        historyData.severity || 'Mild',
+        'Active'
+      ]
+    );
+
+    // Return the created record
+    const [newRecord] = await connection.query(
+      `SELECT 
+        history_id,
+        patient_id,
+        condition_type,
+        description,
+        severity,
+        status,
+        documented_at
+       FROM medical_history
+       WHERE history_id = ?`,
+      [result.insertId]
+    );
+
+    return newRecord[0];
+  } catch (error) {
+    console.error('Error adding medical history:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Update medical history record
+ * RBAC: Patient can only update their own history
+ * @param {number} patientId - The patient who owns the history
+ * @param {number} historyId - The history record to update
+ * @param {Object} updateData - Fields to update
+ * @returns {Promise<Object>} Updated medical history record
+ */
+export async function updatePatientMedicalHistory(patientId, historyId, updateData) {
+  const { userId } = await checkPatientAccess();
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Verify patient ownership
+    const [patients] = await connection.query(
+      `SELECT patient_id FROM patients 
+       WHERE patient_id = ? AND user_id = ? AND is_deleted = FALSE`,
+      [patientId, userId]
+    );
+
+    if (!patients.length) {
+      throw new Error('Patient not found or access denied');
+    }
+
+    // Verify history belongs to this patient
+    const [historyCheck] = await connection.query(
+      `SELECT history_id FROM medical_history 
+       WHERE history_id = ? AND patient_id = ?`,
+      [historyId, patientId]
+    );
+
+    if (!historyCheck.length) {
+      throw new Error('Medical history not found');
+    }
+
+    // Update the record
+    await connection.query(
+      `UPDATE medical_history SET
+        condition_type = ?,
+        description = ?,
+        severity = ?,
+        status = ?
+       WHERE history_id = ?`,
+      [
+        updateData.condition_type,
+        updateData.description,
+        updateData.severity,
+        updateData.status,
+        historyId
+      ]
+    );
+
+    // Return updated record
+    const [updated] = await connection.query(
+      `SELECT 
+        history_id,
+        patient_id,
+        condition_type,
+        description,
+        severity,
+        status,
+        documented_at
+       FROM medical_history
+       WHERE history_id = ?`,
+      [historyId]
+    );
+
+    return updated[0];
+  } catch (error) {
+    console.error('Error updating medical history:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Delete medical history record
+ * RBAC: Patient can only delete their own history
+ * @param {number} patientId - The patient who owns the history
+ * @param {number} historyId - The history record to delete
+ * @returns {Promise<Object>} Success response
+ */
+export async function deletePatientMedicalHistory(patientId, historyId) {
+  const { userId } = await checkPatientAccess();
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Verify patient ownership
+    const [patients] = await connection.query(
+      `SELECT patient_id FROM patients 
+       WHERE patient_id = ? AND user_id = ? AND is_deleted = FALSE`,
+      [patientId, userId]
+    );
+
+    if (!patients.length) {
+      throw new Error('Patient not found or access denied');
+    }
+
+    // Verify history belongs to this patient
+    const [historyCheck] = await connection.query(
+      `SELECT history_id FROM medical_history 
+       WHERE history_id = ? AND patient_id = ?`,
+      [historyId, patientId]
+    );
+
+    if (!historyCheck.length) {
+      throw new Error('Medical history not found');
+    }
+
+    // Delete the record
+    await connection.query(
+      `DELETE FROM medical_history WHERE history_id = ?`,
+      [historyId]
+    );
+
+    return { success: true, message: 'Medical history deleted successfully' };
+  } catch (error) {
+    console.error('Error deleting medical history:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}

@@ -521,3 +521,184 @@ export async function getDoctorDashboardStats() {
     throw new Error(`Dashboard stats failed: ${errorMsg}`);
   }
 }
+
+/**
+ * Get patient medical history (Doctor view)
+ * RBAC: Doctor can only view medical history for their own patients
+ * @param {number} patientId - The patient whose history to fetch
+ * @returns {Promise<Array>} List of medical history records
+ */
+export async function getPatientMedicalHistoryForDoctor(patientId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const { doctorId } = await checkDoctorAccess(connection);
+
+    // Verify patient is in doctor's list of patients
+    const [doctorPatients] = await connection.query(
+      `SELECT DISTINCT p.patient_id FROM patients p
+       JOIN appointments a ON p.patient_id = a.patient_id
+       JOIN doctors d ON a.doctor_id = d.doctor_id
+       WHERE d.doctor_id = ? AND p.patient_id = ? AND p.is_deleted = FALSE`,
+      [doctorId, patientId]
+    );
+
+    if (!doctorPatients.length) {
+      throw new Error('Patient not found in your patient list');
+    }
+
+    // Get medical history
+    const [history] = await connection.query(
+      `SELECT 
+        history_id,
+        patient_id,
+        condition_type,
+        description,
+        severity,
+        status,
+        documented_at
+       FROM medical_history
+       WHERE patient_id = ? AND status != 'Archived'
+       ORDER BY documented_at DESC`,
+      [patientId]
+    );
+
+    return history;
+  } catch (error) {
+    console.error('Error fetching patient medical history:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Update patient medical history (Doctor view)
+ * RBAC: Doctor can only update medical history for their own patients
+ * @param {number} patientId - The patient who owns the history
+ * @param {number} historyId - The history record to update
+ * @param {Object} updateData - Fields to update
+ * @returns {Promise<Object>} Updated medical history record
+ */
+export async function updatePatientMedicalHistoryForDoctor(patientId, historyId, updateData) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const { doctorId } = await checkDoctorAccess(connection);
+
+    // Verify patient is in doctor's list of patients
+    const [doctorPatients] = await connection.query(
+      `SELECT DISTINCT p.patient_id FROM patients p
+       JOIN appointments a ON p.patient_id = a.patient_id
+       JOIN doctors d ON a.doctor_id = d.doctor_id
+       WHERE d.doctor_id = ? AND p.patient_id = ? AND p.is_deleted = FALSE`,
+      [doctorId, patientId]
+    );
+
+    if (!doctorPatients.length) {
+      throw new Error('Patient not found in your patient list');
+    }
+
+    // Verify history belongs to this patient
+    const [historyCheck] = await connection.query(
+      `SELECT history_id FROM medical_history 
+       WHERE history_id = ? AND patient_id = ?`,
+      [historyId, patientId]
+    );
+
+    if (!historyCheck.length) {
+      throw new Error('Medical history not found');
+    }
+
+    // Update the record
+    await connection.query(
+      `UPDATE medical_history SET
+        condition_type = ?,
+        description = ?,
+        severity = ?,
+        status = ?
+       WHERE history_id = ?`,
+      [
+        updateData.condition_type,
+        updateData.description,
+        updateData.severity,
+        updateData.status,
+        historyId
+      ]
+    );
+
+    // Return updated record
+    const [updated] = await connection.query(
+      `SELECT 
+        history_id,
+        patient_id,
+        condition_type,
+        description,
+        severity,
+        status,
+        documented_at
+       FROM medical_history
+       WHERE history_id = ?`,
+      [historyId]
+    );
+
+    return updated[0];
+  } catch (error) {
+    console.error('Error updating medical history:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Delete patient medical history (Doctor view)
+ * RBAC: Doctor can only delete medical history for their own patients
+ * @param {number} patientId - The patient who owns the history
+ * @param {number} historyId - The history record to delete
+ * @returns {Promise<Object>} Success response
+ */
+export async function deletePatientMedicalHistoryForDoctor(patientId, historyId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const { doctorId } = await checkDoctorAccess(connection);
+
+    // Verify patient is in doctor's list of patients
+    const [doctorPatients] = await connection.query(
+      `SELECT DISTINCT p.patient_id FROM patients p
+       JOIN appointments a ON p.patient_id = a.patient_id
+       JOIN doctors d ON a.doctor_id = d.doctor_id
+       WHERE d.doctor_id = ? AND p.patient_id = ? AND p.is_deleted = FALSE`,
+      [doctorId, patientId]
+    );
+
+    if (!doctorPatients.length) {
+      throw new Error('Patient not found in your patient list');
+    }
+
+    // Verify history belongs to this patient
+    const [historyCheck] = await connection.query(
+      `SELECT history_id FROM medical_history 
+       WHERE history_id = ? AND patient_id = ?`,
+      [historyId, patientId]
+    );
+
+    if (!historyCheck.length) {
+      throw new Error('Medical history not found');
+    }
+
+    // Delete the record
+    await connection.query(
+      `DELETE FROM medical_history WHERE history_id = ?`,
+      [historyId]
+    );
+
+    return { success: true, message: 'Medical history deleted successfully' };
+  } catch (error) {
+    console.error('Error deleting medical history:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
