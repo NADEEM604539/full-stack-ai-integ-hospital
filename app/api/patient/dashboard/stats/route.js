@@ -120,6 +120,6 @@ export async function GET(request) {
       { status: statusCode }
     );
   } finally {
-    if (connection) await connection.release();
+    if (connection) connection.release();
   }
 }

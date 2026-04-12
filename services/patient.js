@@ -110,45 +110,62 @@ export async function getManagedPatients() {
  * @returns {Promise<Object>} Full patient profile with department info
  */
 export async function getPatientProfile(patientId) {
-  const { userId } = await checkPatientAccess();
+  console.log(`getPatientProfile() called for patientId: ${patientId}`);
+  
+  let authUserId;
+  try {
+    const { userId } = await checkPatientAccess();
+    authUserId = userId;
+    console.log(`getPatientProfile() - Auth successful, userId: ${userId}`);
+  } catch (authError) {
+    console.error(`getPatientProfile() - Auth failed:`, authError?.message);
+    throw authError;
+  }
 
   let connection;
   try {
     connection = await db.getConnection();
+    console.log(`getPatientProfile() - Database connected`);
 
     // Single efficient query with access verification and department info
-    const [patients] = await connection.query(
-      `SELECT 
-        p.patient_id,
-        p.user_id,
-        p.mrn,
-        p.first_name,
-        p.last_name,
-        p.date_of_birth,
-        p.gender,
-        p.blood_type,
-        p.phone_number,
-        p.email,
-        p.address,
-        p.city,
-        p.emergency_contact,
-        p.emergency_phone,
-        p.department_id,
-        d.department_name,
-        p.created_at
-       FROM patients p
-       LEFT JOIN departments d ON p.department_id = d.department_id
-       WHERE p.patient_id = ? AND p.user_id = ? AND p.is_deleted = FALSE`,
-      [patientId, userId]
-    );
+    const query = `SELECT 
+      p.patient_id,
+      p.user_id,
+      p.mrn,
+      p.first_name,
+      p.last_name,
+      p.date_of_birth,
+      p.gender,
+      p.blood_type,
+      p.phone_number,
+      p.email,
+      p.address,
+      p.city,
+      p.emergency_contact,
+      p.emergency_phone,
+      p.department_id,
+      d.department_name,
+      p.created_at
+     FROM patients p
+     LEFT JOIN departments d ON p.department_id = d.department_id
+     WHERE p.patient_id = ? AND p.user_id = ? AND p.is_deleted = FALSE`;
+    
+    console.log(`getPatientProfile() - Executing query for patientId: ${patientId}, userId: ${authUserId}`);
+    const [patients] = await connection.query(query, [patientId, authUserId]);
+    console.log(`getPatientProfile() - Query executed, found ${patients?.length || 0} records`);
 
     if (!patients.length) {
       throw new Error(`Access Denied: Patient ${patientId} not found or does not belong to you.`);
     }
 
+    console.log(`getPatientProfile() - Success, returning patient data`);
     return patients[0];
   } catch (error) {
-    console.error('Error fetching patient profile:', error.message);
+    console.error(`getPatientProfile() - Error:`, {
+      message: error?.message,
+      patientId,
+      authUserId,
+    });
     throw error;
   } finally {
     if (connection) connection.release();

@@ -3,13 +3,15 @@
 import { useState, useEffect } from 'react';
 import {
   Users, Calendar, Clock, CheckCircle2, AlertCircle, Loader,
-  TrendingUp, Activity, Zap, Award, ChevronRight, BookOpen,
+  TrendingUp, Activity, Zap, Award, ChevronRight, BookOpen, Star
 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DoctorDashboardClient() {
   const [stats, setStats] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [insights, setInsights] = useState(null);
+  const [satisfactionRating, setSatisfactionRating] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -22,17 +24,23 @@ export default function DoctorDashboardClient() {
       setLoading(true);
       setError(null);
 
-      const [statsRes, appointmentsRes] = await Promise.all([
+      const [statsRes, appointmentsRes, insightsRes, satisfactionRes] = await Promise.all([
         fetch('/api/doctor/dashboard'),
-        fetch('/api/doctor/appointments')
+        fetch('/api/doctor/appointments'),
+        fetch('/api/doctor/insights'),
+        fetch('/api/doctor/satisfaction-rating')
       ]);
 
-      if (!statsRes.ok || !appointmentsRes.ok) {
-        throw new Error(`Failed: Dashboard ${statsRes.status}, Appointments ${appointmentsRes.status}`);
+      if (!statsRes.ok || !appointmentsRes.ok || !insightsRes.ok) {
+        throw new Error(`Failed: Dashboard ${statsRes.status}, Appointments ${appointmentsRes.status}, Insights ${insightsRes.status}`);
       }
 
       const statsData = await statsRes.json();
       const appointmentsData = await appointmentsRes.json();
+      const insightsData = await insightsRes.json();
+      const satisfactionData = satisfactionRes.ok ? await satisfactionRes.json() : null;
+
+      console.log('Satisfaction Rating Data:', satisfactionData);
 
       setStats(statsData.stats);
       const today = new Date().toISOString().split('T')[0];
@@ -41,6 +49,16 @@ export default function DoctorDashboardClient() {
         .sort((a, b) => a.appointment_time?.localeCompare(b.appointment_time))
         .slice(0, 5);
       setAppointments(todayAppointments);
+      setInsights(insightsData.insights);
+      
+      // Set satisfaction rating with proper data
+      if (satisfactionData?.success && satisfactionData?.data) {
+        console.log('Setting satisfaction rating:', satisfactionData.data);
+        setSatisfactionRating(satisfactionData.data);
+      } else {
+        console.log('No satisfaction data:', satisfactionData);
+        setSatisfactionRating(null);
+      }
     } catch (err) {
       console.error('Dashboard Error:', err);
       setError(err.message);
@@ -293,8 +311,71 @@ export default function DoctorDashboardClient() {
         </div>
       </div>
 
-      {/* Bottom Stats: Insights + Events */}
+      {/* Bottom Stats: Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Patient Satisfaction Rating */}
+        <div
+          className="p-6 rounded-2xl border-2"
+          style={{
+            backgroundColor: '#FEF3C7',
+            borderColor: 'rgba(251, 191, 36, 0.3)',
+          }}
+        >
+          <h3 className="text-xl font-bold mb-4" style={{ color: '#065F46' }}>Patient Satisfaction</h3>
+          {satisfactionRating && satisfactionRating.avg_rating !== null && satisfactionRating.avg_rating !== undefined ? (
+            <div className="space-y-4">
+              <div className="text-center">
+                <div className="flex justify-center gap-2 mb-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Star
+                      key={i}
+                      size={32}
+                      fill={i <= parseFloat(satisfactionRating.avg_rating) ? '#FBBF24' : '#E5E7EB'}
+                      color={i <= parseFloat(satisfactionRating.avg_rating) ? '#FBBF24' : '#D1D5DB'}
+                    />
+                  ))}
+                </div>
+                <p className="text-4xl font-bold" style={{ color: '#D97706' }}>
+                  {satisfactionRating.avg_rating}
+                </p>
+                <p style={{ color: '#065F46' }} className="mt-2">
+                  Based on {satisfactionRating.total_ratings} ratings
+                </p>
+              </div>
+              <div className="pt-4 border-t border-yellow-300 space-y-2">
+                <p style={{ color: '#6B7280' }} className="text-sm">Rating Breakdown:</p>
+                {satisfactionRating.rating_breakdown && Object.entries(satisfactionRating.rating_breakdown).map(([rating, count]) => (
+                  <div key={rating} className="flex items-center justify-between">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star
+                          key={i}
+                          size={14}
+                          fill={i <= parseInt(rating) ? '#FBBF24' : '#E5E7EB'}
+                          color={i <= parseInt(rating) ? '#FBBF24' : '#D1D5DB'}
+                        />
+                      ))}
+                    </div>
+                    <span style={{ color: '#065F46' }} className="text-sm font-medium">
+                      {count} {count === 1 ? 'rating' : 'ratings'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Star size={40} color="#D1D5DB" className="mx-auto mb-3" />
+              <p style={{ color: '#6B7280' }} className="text-lg font-medium">
+                No ratings yet
+              </p>
+              <p style={{ color: '#9CA3AF' }} className="text-sm mt-2">
+                Patient ratings will appear here once appointments are completed
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Clinical Insights */}
         <div
           className="p-6 rounded-2xl border-2"
@@ -305,48 +386,24 @@ export default function DoctorDashboardClient() {
         >
           <h3 className="text-xl font-bold mb-4" style={{ color: '#065F46' }}>Clinical Insights</h3>
           <div className="space-y-3">
-            {[
-              { label: 'Consultation Rate', value: '92%', color: '#10B981' },
-              { label: 'Patient Satisfaction', value: '4.8/5', color: '#F59E0B' },
-              { label: 'Follow-up Rate', value: '87%', color: '#10B981' },
-            ].map((insight, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: '#E8F8F5' }}>
-                <div className="flex items-center gap-2">
-                  {idx === 1 ? <TrendingUp size={18} color={insight.color} /> : <Activity size={18} color={insight.color} />}
-                  <p style={{ color: '#065F46', fontWeight: '600' }}>{insight.label}</p>
+            {insights ? (
+              [
+                { label: 'Consultation Rate', value: insights.consultation_rate, color: '#10B981' },
+                { label: 'Follow-up Rate', value: insights.follow_up_rate, color: '#10B981' },
+              ].map((insight, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: '#E8F8F5' }}>
+                  <div className="flex items-center gap-2">
+                    {idx === 1 ? <TrendingUp size={18} color={insight.color} /> : <Activity size={18} color={insight.color} />}
+                    <p style={{ color: '#065F46', fontWeight: '600' }}>{insight.label}</p>
+                  </div>
+                  <p className="font-bold text-lg" style={{ color: insight.color }}>
+                    {insight.value}
+                  </p>
                 </div>
-                <p className="font-bold text-lg" style={{ color: insight.color }}>
-                  {insight.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Upcoming Events */}
-        <div
-          className="p-6 rounded-2xl border-2"
-          style={{
-            backgroundColor: '#FFE4D6',
-            borderColor: 'rgba(239, 68, 68, 0.2)',
-          }}
-        >
-          <h3 className="text-xl font-bold mb-4" style={{ color: '#065F46' }}>Upcoming Events</h3>
-          <div className="space-y-3">
-            {[
-              { event: 'Department Meeting', time: 'Tomorrow 2:00 PM' },
-              { event: 'Grand Rounds', time: 'Friday 10:00 AM' },
-              { event: 'Continuing Education', time: 'Next week' },
-            ].map((item, idx) => (
-              <div key={idx} className="p-3 rounded-lg border-l-4" style={{ backgroundColor: '#FFFFFF', borderColor: '#F59E0B' }}>
-                <p style={{ color: '#065F46', fontWeight: '600' }} className="text-sm">
-                  {item.event}
-                </p>
-                <p style={{ color: '#6B7280' }} className="text-xs mt-1">
-                  {item.time}
-                </p>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ color: '#6B7280' }}>Loading insights...</p>
+            )}
           </div>
         </div>
       </div>

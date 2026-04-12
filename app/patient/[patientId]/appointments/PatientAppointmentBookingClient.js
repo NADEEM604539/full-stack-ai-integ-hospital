@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Calendar, Clock, User, Stethoscope, CheckCircle2, AlertCircle, Loader, X } from 'lucide-react';
+import { Search, Calendar, Clock, User, Stethoscope, CheckCircle2, AlertCircle, Loader, X, Star } from 'lucide-react';
 
 export default function PatientAppointmentBookingClient({ patientId, patientInfo, onClose, onSuccess }) {
   // Doctor and time selection
   const [doctors, setDoctors] = useState([]);
+  const [doctorRatings, setDoctorRatings] = useState({});
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [timeSlots, setTimeSlots] = useState([]);
@@ -29,7 +30,12 @@ export default function PatientAppointmentBookingClient({ patientId, patientInfo
       const response = await fetch(`/api/patient/${patientId}/doctors`);
       const data = await response.json();
       if (response.ok) {
-        setDoctors(data.data || []);
+        const doctorsList = data.data || [];
+        setDoctors(doctorsList);
+        // Fetch satisfaction ratings for each doctor
+        doctorsList.forEach(doctor => {
+          fetchDoctorRating(doctor.doctor_id);
+        });
       } else {
         setError(data.error || 'Failed to load doctors');
       }
@@ -38,6 +44,21 @@ export default function PatientAppointmentBookingClient({ patientId, patientInfo
       setError('Failed to load doctors');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDoctorRating = async (doctorId) => {
+    try {
+      const response = await fetch(`/api/doctor/${doctorId}/average-satisfaction`);
+      const data = await response.json();
+      if (response.ok) {
+        setDoctorRatings(prev => ({
+          ...prev,
+          [doctorId]: data.data
+        }));
+      }
+    } catch (err) {
+      console.error(`Failed to fetch rating for doctor ${doctorId}:`, err);
     }
   };
 
@@ -126,7 +147,7 @@ export default function PatientAppointmentBookingClient({ patientId, patientInfo
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center z-50">
         <div className="bg-white rounded-2xl p-12 max-w-md">
           <div className="flex items-center justify-center gap-3">
             <Loader size={24} className="animate-spin" style={{ color: '#10B981' }} />
@@ -138,7 +159,7 @@ export default function PatientAppointmentBookingClient({ patientId, patientInfo
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center z-50 p-4">
       <div style={{ backgroundColor: '#FFFFFF' }} className="rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* Header */}
         <div
@@ -249,38 +270,72 @@ export default function PatientAppointmentBookingClient({ patientId, patientInfo
                     No doctors available in your department
                   </p>
                 ) : (
-                  doctors.map((doctor) => (
-                    <button
-                      key={doctor.doctor_id}
-                      onClick={() => handleSelectDoctor(doctor)}
-                      style={{
-                        backgroundColor: selectedDoctor?.doctor_id === doctor.doctor_id ? '#10B981' : '#F3F4F6',
-                        color: selectedDoctor?.doctor_id === doctor.doctor_id ? 'white' : '#065F46',
-                        borderColor: selectedDoctor?.doctor_id === doctor.doctor_id ? '#10B981' : '#E5E7EB',
-                      }}
-                      className="w-full text-left p-4 rounded-lg border-2 transition hover:shadow-md"
-                    >
-                      <p className="font-semibold">Dr. {getDoctorFullName(doctor)}</p>
-                      <p
+                  doctors.map((doctor) => {
+                    const rating = doctorRatings[doctor.doctor_id];
+                    const avgRating = rating?.avg_rating ? parseFloat(rating.avg_rating) : null;
+                    
+                    return (
+                      <button
+                        key={doctor.doctor_id}
+                        onClick={() => handleSelectDoctor(doctor)}
                         style={{
-                          color: selectedDoctor?.doctor_id === doctor.doctor_id ? '#D1FAE5' : '#6B7280',
+                          backgroundColor: selectedDoctor?.doctor_id === doctor.doctor_id ? '#10B981' : '#F3F4F6',
+                          color: selectedDoctor?.doctor_id === doctor.doctor_id ? 'white' : '#065F46',
+                          borderColor: selectedDoctor?.doctor_id === doctor.doctor_id ? '#10B981' : '#E5E7EB',
                         }}
-                        className="text-sm"
+                        className="w-full text-left p-4 rounded-lg border-2 transition hover:shadow-md"
                       >
-                        {doctor.specialization}
-                      </p>
-                      {doctor.consultation_fee && (
-                        <p
-                          style={{
-                            color: selectedDoctor?.doctor_id === doctor.doctor_id ? '#D1FAE5' : '#059669',
-                          }}
-                          className="text-sm font-medium mt-1"
-                        >
-                          Rs. {doctor.consultation_fee}
-                        </p>
-                      )}
-                    </button>
-                  ))
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-semibold">Dr. {getDoctorFullName(doctor)}</p>
+                            <p
+                              style={{
+                                color: selectedDoctor?.doctor_id === doctor.doctor_id ? '#D1FAE5' : '#6B7280',
+                              }}
+                              className="text-sm"
+                            >
+                              {doctor.specialization}
+                            </p>
+                            {doctor.consultation_fee && (
+                              <p
+                                style={{
+                                  color: selectedDoctor?.doctor_id === doctor.doctor_id ? '#D1FAE5' : '#059669',
+                                }}
+                                className="text-sm font-medium mt-1"
+                              >
+                                Rs. {doctor.consultation_fee}
+                              </p>
+                            )}
+                          </div>
+                          {avgRating && (
+                            <div className="flex items-center gap-1 ml-4 flex-shrink-0">
+                              <Star 
+                                size={16} 
+                                style={{ color: '#FBBF24' }} 
+                                fill="#FBBF24"
+                              />
+                              <span
+                                style={{
+                                  color: selectedDoctor?.doctor_id === doctor.doctor_id ? '#D1FAE5' : '#065F46',
+                                }}
+                                className="text-sm font-medium"
+                              >
+                                {avgRating}
+                              </span>
+                              <span
+                                style={{
+                                  color: selectedDoctor?.doctor_id === doctor.doctor_id ? '#D1FAE5' : '#6B7280',
+                                }}
+                                className="text-xs"
+                              >
+                                ({rating.total_ratings})
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </div>

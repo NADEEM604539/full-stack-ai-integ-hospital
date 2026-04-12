@@ -21,20 +21,26 @@ export async function GET(request, { params }) {
     const { patientId } = await params;
 
     if (!patientId) {
+      console.log('GET /api/patient/[patientId]/profile - Missing patientId');
       return NextResponse.json(
         { success: false, error: 'Patient ID is required' },
         { status: 400 }
       );
     }
 
+    console.log(`GET /api/patient/${patientId}/profile - Starting fetch`);
     const patient = await getPatientProfile(parseInt(patientId));
+    console.log(`GET /api/patient/${patientId}/profile - Success`);
 
     return NextResponse.json({
       success: true,
       data: patient,
     });
   } catch (error) {
-    console.error('Get Patient Profile API Error:', error?.message);
+    console.error(`Get Patient Profile API Error [${params.patientId}]:`, {
+      message: error?.message,
+      stack: error?.stack?.split('\n').slice(0, 3).join('\n'),
+    });
     
     const statusCode =
       error?.message?.includes('Authentication failed') ? 401 :

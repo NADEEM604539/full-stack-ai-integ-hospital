@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Calendar, Clock, User, Stethoscope, CheckCircle2, AlertCircle, Loader, ArrowLeft } from 'lucide-react';
+import { Search, Calendar, Clock, User, Stethoscope, CheckCircle2, AlertCircle, Loader, ArrowLeft, Star } from 'lucide-react';
 
 export default function AppointmentBookingClient() {
   // Left side - Patient selection
@@ -12,6 +12,7 @@ export default function AppointmentBookingClient() {
 
   // Right side - Doctor and time selection
   const [doctors, setDoctors] = useState([]);
+  const [doctorRatings, setDoctorRatings] = useState({});
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [timeSlots, setTimeSlots] = useState([]);
@@ -63,13 +64,33 @@ export default function AppointmentBookingClient() {
     try {
       const response = await fetch(`/api/receptionist/doctors?department_id=${departmentId}`);
       const data = await response.json();
-      setDoctors(data.data || []);
+      const doctorsList = data.data || [];
+      setDoctors(doctorsList);
+      // Fetch satisfaction ratings for each doctor
+      doctorsList.forEach(doctor => {
+        fetchDoctorRating(doctor.doctor_id);
+      });
     } catch (err) {
       console.error('Failed to fetch doctors:', err);
       setDoctors([]);
       setError('Failed to load doctors');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDoctorRating = async (doctorId) => {
+    try {
+      const response = await fetch(`/api/doctor/${doctorId}/average-satisfaction`);
+      const data = await response.json();
+      if (response.ok) {
+        setDoctorRatings(prev => ({
+          ...prev,
+          [doctorId]: data.data
+        }));
+      }
+    } catch (err) {
+      console.error(`Failed to fetch rating for doctor ${doctorId}:`, err);
     }
   };
 
@@ -355,27 +376,61 @@ export default function AppointmentBookingClient() {
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-40 overflow-y-auto">
-                    {doctors.map((doctor) => (
-                      <button
-                        key={doctor.doctor_id}
-                        onClick={() => handleSelectDoctor(doctor)}
-                        className="w-full text-left p-4 rounded-lg transition-all"
-                        style={{
-                          backgroundColor: selectedDoctor?.doctor_id === doctor.doctor_id ? '#E8F8F5' : '#FFFFFF',
-                          border: selectedDoctor?.doctor_id === doctor.doctor_id ? '2px solid #10B981' : '1px solid #E5E7EB',
-                        }}
-                      >
-                        <p className="font-semibold" style={{ color: '#1F2937' }}>
-                          Dr. {doctor.staff_first_name} {doctor.staff_last_name}
-                        </p>
-                        <p style={{ color: '#10B981' }} className="text-sm">
-                          {doctor.specialization}
-                        </p>
-                        <p style={{ color: '#6B7280' }} className="text-xs mt-1">
-                          Fee: Rs. {doctor.consultation_fee}
-                        </p>
-                      </button>
-                    ))}
+                    {doctors.map((doctor) => {
+                      const rating = doctorRatings[doctor.doctor_id];
+                      const avgRating = rating?.avg_rating ? parseFloat(rating.avg_rating) : null;
+                      
+                      return (
+                        <button
+                          key={doctor.doctor_id}
+                          onClick={() => handleSelectDoctor(doctor)}
+                          className="w-full text-left p-4 rounded-lg transition-all"
+                          style={{
+                            backgroundColor: selectedDoctor?.doctor_id === doctor.doctor_id ? '#E8F8F5' : '#FFFFFF',
+                            border: selectedDoctor?.doctor_id === doctor.doctor_id ? '2px solid #10B981' : '1px solid #E5E7EB',
+                          }}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="font-semibold" style={{ color: '#1F2937' }}>
+                                Dr. {doctor.staff_first_name} {doctor.staff_last_name}
+                              </p>
+                              <p style={{ color: '#10B981' }} className="text-sm">
+                                {doctor.specialization}
+                              </p>
+                              <p style={{ color: '#6B7280' }} className="text-xs mt-1">
+                                Fee: Rs. {doctor.consultation_fee}
+                              </p>
+                            </div>
+                            {avgRating && (
+                              <div className="flex items-center gap-1 ml-4 flex-shrink-0">
+                                <Star 
+                                  size={16} 
+                                  style={{ color: '#FBBF24' }} 
+                                  fill="#FBBF24"
+                                />
+                                <span
+                                  style={{
+                                    color: selectedDoctor?.doctor_id === doctor.doctor_id ? '#065F46' : '#1F2937',
+                                  }}
+                                  className="text-sm font-medium"
+                                >
+                                  {avgRating}
+                                </span>
+                                <span
+                                  style={{
+                                    color: '#6B7280',
+                                  }}
+                                  className="text-xs"
+                                >
+                                  ({rating.total_ratings})
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -210,6 +210,7 @@ CREATE TABLE appointments (
     status ENUM('Scheduled', 'Completed', 'Cancelled', 'No Show') DEFAULT 'Scheduled',
     reason_for_visit TEXT,
     notes TEXT,
+    satisfaction_rating DECIMAL(3,1) DEFAULT 5.0 COMMENT 'Patient satisfaction rating (0-5.0, default 5) - can be edited after appointment',
     created_by INT,
     updated_by INT,
     is_deleted BOOLEAN DEFAULT FALSE,
@@ -223,11 +224,13 @@ CREATE TABLE appointments (
     FOREIGN KEY (updated_by) REFERENCES users(user_id) ON DELETE SET NULL,
     UNIQUE KEY unique_doctor_slot (doctor_id, appointment_date, appointment_time),
     CHECK (duration_minutes > 0),
+    CHECK (satisfaction_rating >= 0 AND satisfaction_rating <= 5),
     INDEX idx_patient_appt (patient_id, appointment_date),
     INDEX idx_doctor_appt (doctor_id, appointment_date),
     INDEX idx_dept_appt (department_id, appointment_date),
     INDEX idx_status (status),
     INDEX idx_deleted (is_deleted),
+    INDEX idx_satisfaction_rating (satisfaction_rating),
     INDEX idx_time_range (doctor_id, appointment_date, appointment_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Partitioned by date for large-scale hospitals - Now includes department_id';
 
@@ -1348,6 +1351,9 @@ WHERE e.is_deleted = FALSE;
 -- ? Dynamic Duration Availability Checking (FN4 updated)
 -- ? Forensic IP + User Agent Tracking (ai_logs, audit_logs)
 -- ? Clinical Governance Approval Workflow (ai_logs.approval_status)
+-- ? Patient Satisfaction Rating System (appointments.satisfaction_rating: 0-5, DEFAULT 5, CHECK constraint)
+-- ? Doctor Performance Analytics (avg satisfaction, rating breakdown, total ratings)
+-- ? Frontend Satisfaction Integration (patient rating UI, doctor rating display in booking flows)
 --
 -- AI FEATURES MONITORING:
 --
@@ -1359,8 +1365,10 @@ WHERE e.is_deleted = FALSE;
 -- ? vitals.ai_risk_score
 -- ? patients.ai_readmission_risk
 -- ? ai_logs table for complete audit trail with compliance tracking + governance
+-- ? appointments.satisfaction_rating - Patient satisfaction for AI analytics & doctor performance tracking
 --
 -- All AI suggestions tracked with confidence scores for compliance & analytics.
+-- Patient satisfaction data used for doctor performance analytics and booking recommendations.
 --
 -- ================================================================================
 -- SECTION 12: PARTITIONING STRATEGY (Production Optimization)
@@ -1461,7 +1469,35 @@ WHERE e.is_deleted = FALSE;
 --
 -- Populate via event scheduler monthly.
 --
--- 4. MULTI-HOSPITAL SUPPORT (Future Scalability):
+-- 4. PATIENT SATISFACTION RATING SYSTEM (NEW FEATURE):
+--
+-- appointments.satisfaction_rating: DECIMAL(3,1) DEFAULT 5.0
+-- - Range: 0 to 5.0 stars
+-- - Default: 5.0 (optimistic default)
+-- - Nullable: No (always has a value)
+-- - Editable: Yes (patients can update after appointment)
+-- - CHECK Constraint: satisfaction_rating >= 0 AND satisfaction_rating <= 5
+-- - Indexed: idx_satisfaction_rating for fast filtering/sorting
+--
+-- Features:
+-- ? Patient API: PUT /api/patient/[patientId]/appointments/[appointmentId]/satisfaction
+-- ? Doctor API: GET /api/doctor/satisfaction-rating (view own stats)
+-- ? Doctor API: GET /api/doctor/[doctorId]/average-satisfaction (public rating)
+-- ? Admin API: GET /api/admin/appointments/satisfaction (full list with filters)
+--
+-- Frontend Implementation:
+-- ? Patients: Rate completed appointments with star UI (1-5)
+-- ? Patients: View/edit ratings in appointment list
+-- ? Booking Flow: Show doctor's average rating when booking (patient & receptionist)
+-- ? Doctor Dashboard: Satisfaction card with breakdown (avg rating, total ratings, distribution)
+-- ? Admin: Appointments satisfaction page with filters, sorting, pagination
+--
+-- Query Example:
+-- SELECT AVG(satisfaction_rating) as avg_rating, COUNT(*) as total_ratings
+-- FROM appointments
+-- WHERE doctor_id = ? AND satisfaction_rating IS NOT NULL AND is_deleted = FALSE;
+--
+-- 5. MULTI-HOSPITAL SUPPORT (Future Scalability):
 --
 -- ALTER TABLE patients ADD COLUMN hospital_id INT AFTER patient_id;
 -- ALTER TABLE appointments ADD COLUMN hospital_id INT AFTER appointment_id;

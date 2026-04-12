@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, User, FileText, Loader, AlertCircle, Eye } from 'lucide-react';
+import { Calendar, Clock, User, FileText, Loader, AlertCircle, Eye, Star } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DoctorAppointmentsClient() {
@@ -153,6 +153,28 @@ export default function DoctorAppointmentsClient() {
                     <div className="mb-3 p-3 rounded-lg" style={{ backgroundColor: '#EFF6FF', borderLeft: '3px solid #3B82F6' }}>
                       <p className="text-xs font-semibold" style={{ color: '#6B7280' }}>Reason for Visit</p>
                       <p className="text-sm mt-1" style={{ color: '#1E40AF' }}>{apt.reason_for_visit}</p>
+                    </div>
+                  )}
+
+                  {/* Patient Satisfaction Rating */}
+                  {apt.satisfaction_rating && (
+                    <div className="mb-3 p-3 rounded-lg" style={{ backgroundColor: '#FEF3C7', borderLeft: '3px solid #FBBF24' }}>
+                      <p className="text-xs font-semibold" style={{ color: '#6B7280' }}>Patient Satisfaction Rating</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <Star
+                              key={i}
+                              size={16}
+                              fill={i <= parseFloat(apt.satisfaction_rating) ? '#FBBF24' : '#E5E7EB'}
+                              color={i <= parseFloat(apt.satisfaction_rating) ? '#FBBF24' : '#D1D5DB'}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm font-bold" style={{ color: '#D97706' }}>
+                          {parseFloat(apt.satisfaction_rating).toFixed(1)}/5.0
+                        </span>
+                      </div>
                     </div>
                   )}
 

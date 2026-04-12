@@ -5,7 +5,7 @@ import { getUserId } from '@/services/auth';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/doctor/appointments/[id]
+ * GET /api/doctor/appointments/[appointmentId]
  * Get specific appointment details for authenticated doctor
  * 
  * RBAC:
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request, { params }) {
   try {
-    const { id: appointmentId } = await params;
+    const { appointmentId } = await params;
 
     if (!appointmentId) {
       return NextResponse.json(

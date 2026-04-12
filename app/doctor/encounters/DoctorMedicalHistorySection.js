@@ -331,7 +331,7 @@ export default function DoctorMedicalHistorySection({ patientId }) {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center z-50 p-4">
           <div style={{ backgroundColor: '#FFFFFF' }} className="rounded-2xl max-w-2xl w-full shadow-2xl">
             {/* Modal Header */}
             <div

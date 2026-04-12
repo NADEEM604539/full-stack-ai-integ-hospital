@@ -413,12 +413,14 @@ export async function getAllEncounters() {
         p.mrn,
         u.email as doctor_email,
         s.first_name as doctor_first_name,
-        s.last_name as doctor_last_name
+        s.last_name as doctor_last_name,
+        a.satisfaction_rating
        FROM encounters e
        LEFT JOIN patients p ON e.patient_id = p.patient_id
        LEFT JOIN doctors d ON e.doctor_id = d.doctor_id
        LEFT JOIN staff s ON d.staff_id = s.staff_id
        LEFT JOIN users u ON s.user_id = u.user_id
+       LEFT JOIN appointments a ON e.appointment_id = a.appointment_id
        ORDER BY e.admission_date DESC`
     );
 

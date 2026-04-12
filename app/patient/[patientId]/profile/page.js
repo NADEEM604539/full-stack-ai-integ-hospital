@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { User, Mail, Phone, MapPin, AlertCircle, CheckCircle, Save, X, ChevronLeft, Heart, Clipboard, Building } from 'lucide-react';
+import { User, Mail, Phone, MapPin, AlertCircle, CheckCircle, Save, X, ChevronLeft, Heart, Clipboard, Building, AlertTriangle, Loader } from 'lucide-react';
 
 const ProfilePage = () => {
   const { patientId } = useParams();
@@ -14,6 +14,8 @@ const ProfilePage = () => {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showDepartmentWarning, setShowDepartmentWarning] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState(null);
   const [formData, setFormData] = useState({});
 
   useEffect(() => {
@@ -64,15 +66,28 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
+    setError(null);
+    setSuccess(false);
+
+    // Check if department is changing
+    if (formData.department_id && formData.department_id !== patient?.department_id) {
+      setPendingFormData(formData);
+      setShowDepartmentWarning(true);
+      return;
+    }
+
+    await submitProfileUpdate(formData);
+  };
+
+  const submitProfileUpdate = async (dataToSubmit) => {
     try {
       setSaving(true);
-      setError(null);
-      setSuccess(false);
+      setShowDepartmentWarning(false);
 
       const response = await fetch(`/api/patient/${patientId}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSubmit),
       });
 
       const data = await response.json();
@@ -86,6 +101,7 @@ const ProfilePage = () => {
       setFormData(data.data || data);
       setSuccess(true);
       setEditing(false);
+      setPendingFormData(null);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(err.message);
@@ -98,6 +114,8 @@ const ProfilePage = () => {
     setFormData(patient);
     setEditing(false);
     setError(null);
+    setShowDepartmentWarning(false);
+    setPendingFormData(null);
   };
 
   if (loading) {
@@ -692,6 +710,161 @@ const ProfilePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Department Change Warning Modal */}
+      {showDepartmentWarning && pendingFormData && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '12px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 20px 25px rgba(0, 0, 0, 0.15)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                padding: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <AlertTriangle size={28} color="#FFFFFF" />
+              <h2 style={{ color: '#FFFFFF', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
+                Department Change Warning
+              </h2>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ color: '#1F2937', marginBottom: '12px' }}>
+                  You are changing your department from:
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div
+                    style={{
+                      backgroundColor: '#F0FDF4',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '2px solid #10B981',
+                    }}
+                  >
+                    <p style={{ color: '#6B7280', fontSize: '12px', margin: '0 0 4px 0' }}>Current Department</p>
+                    <p style={{ color: '#065F46', fontWeight: 'bold', margin: 0 }}>
+                      {departments?.find(d => d.department_id === patient?.department_id)?.department_name || 'N/A'}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      backgroundColor: '#DBEAFE',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '2px solid #3B82F6',
+                    }}
+                  >
+                    <p style={{ color: '#6B7280', fontSize: '12px', margin: '0 0 4px 0' }}>New Department</p>
+                    <p style={{ color: '#1D4ED8', fontWeight: 'bold', margin: 0 }}>
+                      {departments?.find(d => d.department_id === pendingFormData.department_id)?.department_name || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  backgroundColor: '#FEF2F2',
+                  border: '2px solid #FCA5A5',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '20px',
+                }}
+              >
+                <p style={{ color: '#92400B', fontSize: '14px', fontWeight: '500', margin: '0 0 12px 0' }}>
+                  ⚠️ Important: Your Doctors Will Lose Access
+                </p>
+                <ul style={{ color: '#7F1D1D', fontSize: '14px', margin: '0', paddingLeft: '20px' }}>
+                  <li>Your doctors in the <strong>{departments?.find(d => d.department_id === patient?.department_id)?.department_name}</strong> department will <strong>lose access</strong> to your medical records</li>
+                  <li>Only doctors in the <strong>{departments?.find(d => d.department_id === pendingFormData.department_id)?.department_name}</strong> department will have access to your data</li>
+                  <li>Your previous medical history will still be stored, but doctors won't see it</li>
+                </ul>
+              </div>
+
+              <p style={{ color: '#6B7280', fontSize: '13px', margin: '0 0 20px 0', fontStyle: 'italic' }}>
+                If you need to switch back to your previous department, contact hospital administration.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div
+              style={{
+                padding: '16px 24px',
+                borderTop: '1px solid #E5E7EB',
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <button
+                onClick={() => {
+                  setShowDepartmentWarning(false);
+                  setPendingFormData(null);
+                }}
+                disabled={saving}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#FFFFFF',
+                  color: '#065F46',
+                  border: '2px solid #10B981',
+                  borderRadius: '8px',
+                  fontWeight: '500',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  opacity: saving ? 0.5 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => submitProfileUpdate(pendingFormData)}
+                disabled={saving}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: saving ? '#CCCCCC' : '#3B82F6',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '500',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                {saving && <Loader size={16} className="animate-spin" />}
+                {saving ? 'Processing...' : 'Yes, Change Department'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

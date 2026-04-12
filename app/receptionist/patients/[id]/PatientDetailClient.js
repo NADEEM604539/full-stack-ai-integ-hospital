@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle2, Loader, ArrowLeft, Edit2, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader, ArrowLeft, Edit2, X, AlertTriangle } from 'lucide-react';
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const GENDERS = ['Male', 'Female', 'Other'];
@@ -44,6 +44,9 @@ export default function PatientDetailClient({ patientId, initialData, initialErr
   const [error, setError] = useState(initialError);
   const [success, setSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [departments, setDepartments] = useState([]);
+  const [showDepartmentWarning, setShowDepartmentWarning] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState(null);
 
   const [formData, setFormData] = useState({
     first_name: initialData?.first_name || '',
@@ -56,8 +59,25 @@ export default function PatientDetailClient({ patientId, initialData, initialErr
     address: initialData?.address || '',
     city: initialData?.city || '',
     emergency_contact: initialData?.emergency_contact || '',
-    emergency_phone:initialData?.emergency_phone || '',
+    emergency_phone: initialData?.emergency_phone || '',
+    department_id: initialData?.department_id || '',
   });
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch('/api/departments');
+      if (response.ok) {
+        const data = await response.json();
+        setDepartments(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching departments:', err);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -77,15 +97,27 @@ export default function PatientDetailClient({ patientId, initialData, initialErr
       return;
     }
 
+    // Check if department is changing
+    if (formData.department_id && formData.department_id !== patient?.department_id) {
+      setPendingFormData(formData);
+      setShowDepartmentWarning(true);
+      return;
+    }
+
+    await submitPatientUpdate(formData);
+  };
+
+  const submitPatientUpdate = async (dataToSubmit) => {
     try {
       setSaving(true);
+      setShowDepartmentWarning(false);
 
       const response = await fetch(`/api/receptionist/patients/${patientId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSubmit),
       });
 
       const result = await response.json();
@@ -98,6 +130,7 @@ export default function PatientDetailClient({ patientId, initialData, initialErr
       setSuccessMessage('Patient updated successfully!');
       setSuccess(true);
       setIsEditing(false);
+      setPendingFormData(null);
 
       setTimeout(() => {
         setSuccess(false);
@@ -125,9 +158,12 @@ export default function PatientDetailClient({ patientId, initialData, initialErr
         city: patient.city || '',
         emergency_contact: patient.emergency_contact || '',
         emergency_phone: patient.emergency_phone || '',
+        department_id: patient.department_id || '',
       });
     }
     setError(null);
+    setShowDepartmentWarning(false);
+    setPendingFormData(null);
   };
 
   if (error && !patient) {
@@ -618,6 +654,42 @@ export default function PatientDetailClient({ patientId, initialData, initialErr
                 </div>
               </div>
 
+              {/* Department Section */}
+              <div>
+                <h2 className="text-xl font-bold mb-6" style={{ color: '#065F46' }}>
+                  Department Assignment
+                </h2>
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#065F46' }}>
+                    Department
+                  </label>
+                  <select
+                    name="department_id"
+                    value={formData.department_id}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border-2 outline-none transition-all"
+                    style={{
+                      borderColor: '#E5E7EB',
+                      backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
+                    }}
+                    disabled={saving}
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map(dept => (
+                      <option key={dept.department_id} value={dept.department_id}>
+                        {dept.department_name}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.department_id && formData.department_id !== patient?.department_id && (
+                    <p className="text-xs mt-2" style={{ color: '#F59E0B' }}>
+                      ⚠️ Changing department will affect access. You'll receive a confirmation warning.
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Buttons */}
               <div className="flex gap-4 justify-end pt-6 border-t" style={{ borderColor: 'rgba(16, 185, 129, 0.15)' }}>
                 <button
@@ -648,6 +720,162 @@ export default function PatientDetailClient({ patientId, initialData, initialErr
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Department Change Warning Modal */}
+      {showDepartmentWarning && pendingFormData && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '12px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 20px 25px rgba(0, 0, 0, 0.15)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #F59E0B 0%, #E67E22 100%)',
+                padding: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <AlertTriangle size={28} color="#FFFFFF" />
+              <h2 style={{ color: '#FFFFFF', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
+                Department Change Warning
+              </h2>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ color: '#1F2937', marginBottom: '12px' }}>
+                  You are changing the patient's department from:
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div
+                    style={{
+                      backgroundColor: '#F0FDF4',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '2px solid #10B981',
+                    }}
+                  >
+                    <p style={{ color: '#6B7280', fontSize: '12px', margin: '0 0 4px 0' }}>Current Department</p>
+                    <p style={{ color: '#065F46', fontWeight: 'bold', margin: 0 }}>
+                      {departments?.find(d => d.department_id === patient?.department_id)?.department_name || 'N/A'}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      backgroundColor: '#FEF3C7',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '2px solid #F59E0B',
+                    }}
+                  >
+                    <p style={{ color: '#6B7280', fontSize: '12px', margin: '0 0 4px 0' }}>New Department</p>
+                    <p style={{ color: '#92400E', fontWeight: 'bold', margin: 0 }}>
+                      {departments?.find(d => d.department_id === pendingFormData.department_id)?.department_name || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  backgroundColor: '#FEF2F2',
+                  border: '2px solid #FCA5A5',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  marginBottom: '20px',
+                }}
+              >
+                <p style={{ color: '#92400B', fontSize: '14px', fontWeight: '500', margin: '0 0 12px 0' }}>
+                  ⚠️ Important Consequences:
+                </p>
+                <ul style={{ color: '#7F1D1D', fontSize: '14px', margin: '0', paddingLeft: '20px' }}>
+                  <li>You will <strong>lose access</strong> to this patient after the change</li>
+                  <li>Doctors in the old department will <strong>lose access</strong> to this patient's records</li>
+                  <li>Only staff in the new department will be able to access this patient</li>
+                  <li>Contact the new department or admin to regain access</li>
+                </ul>
+              </div>
+
+              <p style={{ color: '#6B7280', fontSize: '13px', margin: '0 0 20px 0', fontStyle: 'italic' }}>
+                If you need to transfer this patient back, you must contact the admin or the new department's receptionist.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div
+              style={{
+                padding: '16px 24px',
+                borderTop: '1px solid #E5E7EB',
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <button
+                onClick={() => {
+                  setShowDepartmentWarning(false);
+                  setPendingFormData(null);
+                }}
+                disabled={saving}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#FFFFFF',
+                  color: '#065F46',
+                  border: '2px solid #10B981',
+                  borderRadius: '8px',
+                  fontWeight: '500',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  opacity: saving ? 0.5 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => submitPatientUpdate(pendingFormData)}
+                disabled={saving}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: saving ? '#CCCCCC' : '#E74C3C',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '500',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                {saving && <Loader size={16} className="animate-spin" />}
+                {saving ? 'Processing...' : 'Yes, Change Department'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, Clock, User, MapPin, AlertCircle, CheckCircle as Check, ChevronLeft, Stethoscope, Phone, Plus } from 'lucide-react';
+import { Calendar, Clock, User, MapPin, AlertCircle, CheckCircle as Check, ChevronLeft, Stethoscope, Phone, Plus, Star, Edit2 } from 'lucide-react';
 import PatientAppointmentBookingClient from './PatientAppointmentBookingClient';
 
 const AppointmentsPage = () => {
@@ -14,6 +14,8 @@ const AppointmentsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [ratingModal, setRatingModal] = useState({ show: false, appointmentId: null, rating: 0 });
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
   useEffect(() => {
     fetchAppointments();
@@ -83,6 +85,48 @@ const AppointmentsPage = () => {
 
   const handleBookingSuccess = () => {
     fetchAppointments();
+  };
+
+  const handleOpenRatingModal = (appointmentId, currentRating) => {
+    setRatingModal({
+      show: true,
+      appointmentId,
+      rating: currentRating || 5
+    });
+  };
+
+  const handleSubmitRating = async () => {
+    if (!ratingModal.appointmentId) return;
+
+    setRatingSubmitting(true);
+    try {
+      const response = await fetch(
+        `/api/patient/${patientId}/appointments/${ratingModal.appointmentId}/satisfaction`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ satisfaction_rating: ratingModal.rating })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to update rating');
+      }
+
+      // Update local state
+      setAppointments(appointments.map(apt =>
+        apt.appointment_id === ratingModal.appointmentId
+          ? { ...apt, satisfaction_rating: ratingModal.rating }
+          : apt
+      ));
+
+      setRatingModal({ show: false, appointmentId: null, rating: 0 });
+    } catch (err) {
+      console.error('Error submitting rating:', err);
+      alert('Failed to update rating. Please try again.');
+    } finally {
+      setRatingSubmitting(false);
+    }
   };
 
   return (
@@ -315,8 +359,8 @@ const AppointmentsPage = () => {
                           )}
                         </div>
 
-                        {/* Right - Status */}
-                        <div className="lg:w-48 flex-shrink-0 flex items-center">
+                        {/* Right - Status and Rating */}
+                        <div className="lg:w-48 flex-shrink-0 flex flex-col gap-4">
                           <div className="w-full">
                             <div
                               style={{
@@ -341,6 +385,45 @@ const AppointmentsPage = () => {
                               </span>
                             </div>
                           </div>
+                          
+                          {/* Satisfaction Rating - Show for past appointments */}
+                          {new Date(appointment.appointment_date) < new Date() && (
+                            <button
+                              onClick={() => handleOpenRatingModal(appointment.appointment_id, appointment.satisfaction_rating)}
+                              style={{
+                                backgroundColor: appointment.satisfaction_rating ? '#FEF3C7' : '#F3F4F6',
+                                borderColor: appointment.satisfaction_rating ? '#FBBF24' : '#E5E7EB',
+                              }}
+                              className="w-full rounded-lg border-2 p-4 text-center hover:shadow-lg transition"
+                            >
+                              {appointment.satisfaction_rating ? (
+                                <div>
+                                  <div className="flex justify-center gap-1 mb-2">
+                                    {[1, 2, 3, 4, 5].map((i) => (
+                                      <Star
+                                        key={i}
+                                        size={16}
+                                        fill={i <= appointment.satisfaction_rating ? '#FBBF24' : '#E5E7EB'}
+                                        color={i <= appointment.satisfaction_rating ? '#FBBF24' : '#D1D5DB'}
+                                      />
+                                    ))}
+                                  </div>
+                                  <p className="text-sm font-semibold" style={{ color: '#D97706' }}>
+                                    {appointment.satisfaction_rating.toFixed(1)}/5.0
+                                  </p>
+                                </div>
+                              ) : (
+                                <div>
+                                  <p className="text-sm font-semibold" style={{ color: '#6B7280' }}>
+                                    Rate Visit
+                                  </p>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-center gap-1 mt-2">
+                                <Edit2 size={14} />
+                              </div>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -351,6 +434,87 @@ const AppointmentsPage = () => {
           </div>
         )}
       </div>
+
+      {/* Rating Modal */}
+      {ratingModal.show && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center z-50 p-4">
+          <div style={{ backgroundColor: '#FFFFFF' }} className="rounded-2xl max-w-md w-full shadow-2xl">
+            {/* Header */}
+            <div
+              className="px-8 py-6"
+              style={{
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              }}
+            >
+              <h2 className="text-2xl font-bold text-white">Rate Your Visit</h2>
+              <p className="text-emerald-100 text-sm mt-1">How was your appointment experience?</p>
+            </div>
+
+            {/* Content */}
+            <div className="p-8">
+              <div className="mb-8">
+                <p className="text-sm font-semibold mb-4" style={{ color: '#6B7280' }}>
+                  Rate your satisfaction (1-5)
+                </p>
+                <div className="flex justify-center gap-3">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setRatingModal({ ...ratingModal, rating: star })}
+                      className="transition-transform hover:scale-110"
+                    >
+                      <Star
+                        size={40}
+                        fill={star <= ratingModal.rating ? '#FBBF24' : '#E5E7EB'}
+                        color={star <= ratingModal.rating ? '#FBBF24' : '#D1D5DB'}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-center text-lg font-bold mt-4" style={{ color: '#065F46' }}>
+                  {ratingModal.rating}/5.0
+                </p>
+              </div>
+
+              {/* Rating Labels */}
+              <div className="mb-8 text-center">
+                <p style={{ color: '#6B7280' }} className="text-sm">
+                  {ratingModal.rating === 5 && "Excellent experience!"}
+                  {ratingModal.rating === 4 && "Very good experience"}
+                  {ratingModal.rating === 3 && "Good experience"}
+                  {ratingModal.rating === 2 && "Fair experience"}
+                  {ratingModal.rating === 1 && "Poor experience"}
+                </p>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setRatingModal({ show: false, appointmentId: null, rating: 0 })}
+                  style={{
+                    backgroundColor: '#E5E7EB',
+                    color: '#065F46',
+                  }}
+                  className="flex-1 font-semibold py-3 rounded-lg transition hover:shadow-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitRating}
+                  disabled={ratingSubmitting}
+                  style={{
+                    backgroundColor: '#10B981',
+                    color: 'white',
+                  }}
+                  className="flex-1 font-semibold py-3 rounded-lg transition hover:shadow-lg disabled:opacity-50"
+                >
+                  {ratingSubmitting ? 'Saving...' : 'Submit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Booking Modal */}
       {showBookingModal && patientInfo && (

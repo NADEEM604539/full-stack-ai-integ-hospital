@@ -239,6 +239,16 @@ export default function ProfileClient() {
                       />
                     </div>
                     <div>
+                      <label className="text-xs font-semibold block mb-2" style={{ color: '#6B7280' }}>Department</label>
+                      <input
+                        type="text"
+                        value={profile.department_name || ''}
+                        disabled
+                        className="w-full px-4 py-2 rounded-lg border-2 outline-none bg-gray-100 text-gray-500"
+                        style={{ borderColor: '#E5E7EB' }}
+                      />
+                    </div>
+                    <div>
                       <label className="text-xs font-semibold block mb-2" style={{ color: '#6B7280' }}>Status</label>
                       <input
                         type="text"
@@ -323,6 +333,10 @@ export default function ProfileClient() {
                   <div>
                     <label className="text-xs font-semibold block mb-2" style={{ color: '#6B7280' }}>Designation</label>
                     <p className="text-lg font-bold" style={{ color: '#065F46' }}>{profile.designation}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-2" style={{ color: '#6B7280' }}>Department</label>
+                    <p className="text-lg font-bold" style={{ color: '#065F46' }}>{profile.department_name || 'N/A'}</p>
                   </div>
                   <div>
                     <label className="text-xs font-semibold block mb-2" style={{ color: '#6B7280' }}>Status</label>

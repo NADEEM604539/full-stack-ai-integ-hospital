@@ -50,18 +50,34 @@ export default function PatientDetailLayout({ children }) {
     try {
       setLoading(true);
       setError(null);
+      console.log(`[Layout] Fetching patient profile for patientId: ${patientId}`);
+      
       const response = await fetch(`/api/patient/${patientId}/profile`);
+      console.log(`[Layout] Profile fetch response status: ${response.status}`);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch patient');
+        let errorMessage = 'Failed to fetch patient';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          // Response is not JSON (might be HTML error page)
+          const responseText = await response.text();
+          console.error('[Layout] Response was not JSON:', responseText.substring(0, 200));
+          errorMessage = `Server Error (${response.status}): ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      console.log(`[Layout] Profile fetch successful:`, data.data);
       setPatient(data.data);
     } catch (err) {
+      console.error('[Layout] Error fetching patient:', {
+        message: err.message,
+        patientId,
+      });
       setError(err.message);
-      console.error('Error fetching patient:', err);
     } finally {
       setLoading(false);
     }

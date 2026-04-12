@@ -10,7 +10,7 @@ export async function GET(request) {
     const connection = await db.getConnection();
 
     try {
-      // Get receptionist staff info
+      // Get receptionist staff info with department name
       const [staff] = await connection.query(
         `SELECT 
           s.staff_id,
@@ -22,9 +22,11 @@ export async function GET(request) {
           s.phone_number,
           s.status,
           s.department_id,
+          d.department_name,
           u.email
          FROM staff s
          JOIN users u ON s.user_id = u.user_id
+         JOIN departments d ON s.department_id = d.department_id
          WHERE u.role_id = 4
          LIMIT 1`
       );

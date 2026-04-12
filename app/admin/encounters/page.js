@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Star } from 'lucide-react';
 
 export default function EncountersPage() {
   const [encounters, setEncounters] = useState([]);
@@ -75,6 +76,7 @@ export default function EncountersPage() {
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Doctor</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Date</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Type</th>
+              <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Patient Satisfaction</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Status</th>
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#065F46' }}>Actions</th>
             </tr>
@@ -104,6 +106,28 @@ export default function EncountersPage() {
                     }}>
                       {encounter.encounter_type || 'General'}
                     </span>
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    {encounter.satisfaction_rating ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.2rem' }}>
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <Star
+                              key={i}
+                              size={16}
+                              fill={i <= Math.round(parseFloat(encounter.satisfaction_rating)) ? '#FBBF24' : '#E5E7EB'}
+                              color={i <= Math.round(parseFloat(encounter.satisfaction_rating)) ? '#FBBF24' : '#D1D5DB'}
+                              style={{ cursor: 'pointer' }}
+                            />
+                          ))}
+                        </div>
+                        <span style={{ fontWeight: 'bold', color: '#D97706', fontSize: '0.9rem' }}>
+                          {parseFloat(encounter.satisfaction_rating).toFixed(1)}/5
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#9CA3AF', fontSize: '0.85rem' }}>Not rated</span>
+                    )}
                   </td>
                   <td style={{ padding: '1rem' }}>
                     <span style={{
