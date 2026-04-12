@@ -295,3 +295,93 @@ export async function checkDoctorAccess(connection) {
     if (shouldRelease && conn) conn.release();
   }
 }
+
+/**
+ * Checks if the current user is a nurse and retrieves their nurse_id (staff_id)
+ * Throws an error if not authenticated or not a nurse.
+ * Also enforces department-based access control
+ * @param {Connection} connection - Database connection (optional, will create if not provided)
+ * @returns {Promise<{nurseId: number, userId: number, departmentId: number}>} The nurse's staff_id, user_id, and department_id
+ */
+export async function checkNurseAccess(connection) {
+  console.log('checkNurseAccess() - Starting auth check');
+  
+  const user = await currentUser();
+  console.log('checkNurseAccess() - Clerk user:', {
+    exists: !!user,
+    id: user?.id,
+    email: user?.emailAddresses?.[0]?.emailAddress,
+  });
+  
+  if (!user) {
+    console.error('checkNurseAccess() - No user logged in');
+    throw new Error('Authentication failed: No user is logged in.');
+  }
+
+  const email = user.emailAddresses?.[0]?.emailAddress;
+  if (!email) {
+    console.error('checkNurseAccess() - User has no email');
+    throw new Error('Authentication failed: User profile has no email.');
+  }
+
+  console.log(`checkNurseAccess() - Checking database for email: ${email}`);
+
+  let conn = connection;
+  let shouldRelease = false;
+
+  try {
+    if (!conn) {
+      conn = await db.getConnection();
+      shouldRelease = true;
+    }
+
+    // Get user and verify it's a nurse (role_id = 3)
+    const [rows] = await conn.query(
+      'SELECT user_id, role_id FROM users WHERE email = ?',
+      [email]
+    );
+
+    console.log(`checkNurseAccess() - Database query returned ${rows?.length || 0} rows`);
+
+    if (rows.length === 0) {
+      console.error(`checkNurseAccess() - User email "${email}" not found in database`);
+      throw new Error(`Access Denied: User with email "${email}" not found in the system.`);
+    }
+
+    const dbUser = rows[0];
+    console.log(`checkNurseAccess() - User found, userId: ${dbUser.user_id}, role_id: ${dbUser.role_id}`);
+    
+    if (dbUser.role_id !== 3) { // 3 is the role_id for NURSE
+      console.error(`checkNurseAccess() - Invalid role_id: ${dbUser.role_id}, expected 3 (NURSE)`);
+      throw new Error('Access Denied: You do not have permission to access this resource. Nurse role required.');
+    }
+
+    // Get nurse profile from staff table (department_id for department-based access)
+    const [nurseRows] = await conn.query(
+      `SELECT staff_id, department_id 
+       FROM staff 
+       WHERE user_id = ?`,
+      [dbUser.user_id]
+    );
+
+    if (nurseRows.length === 0) {
+      console.error(`checkNurseAccess() - Nurse profile not found for user ${dbUser.user_id}`);
+      throw new Error('Access Denied: Nurse profile not found for this user.');
+    }
+
+    const nurseId = nurseRows[0].staff_id;
+    const departmentId = nurseRows[0].department_id;
+    
+    console.log(`checkNurseAccess() - Auth successful, returning nurseId: ${nurseId}, userId: ${dbUser.user_id}, departmentId: ${departmentId}`);
+    
+    return { nurseId, userId: dbUser.user_id, departmentId };
+  } catch (error) {
+    console.error('checkNurseAccess() - Error:', {
+      message: error.message,
+      stack: error?.stack?.split('\n').slice(0, 2).join('\n'),
+    });
+    throw error;
+  } finally {
+    if (shouldRelease && conn) conn.release();
+  }
+}

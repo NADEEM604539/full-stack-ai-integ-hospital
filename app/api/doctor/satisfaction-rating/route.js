@@ -19,10 +19,11 @@ export async function GET(request) {
     const { doctorId } = await checkDoctorAccess(connection);
     console.log(`Getting satisfaction rating for doctor ID: ${doctorId}`);
 
-    // Get average satisfaction rating - handle all data types properly
+    // Get average satisfaction rating - ONLY include actual ratings (non-NULL, > 0)
+    // Example: ratings [5, 3, 2] = (5+3+2)/3 = 3.33 (NOT including NULL/0 values)
     const [satisfactionData] = await connection.query(
       `SELECT 
-        AVG(CAST(COALESCE(satisfaction_rating, 0) AS DECIMAL(3,2))) as avg_rating,
+        AVG(CAST(satisfaction_rating AS DECIMAL(3,2))) as avg_rating,
         COUNT(CASE WHEN satisfaction_rating IS NOT NULL AND satisfaction_rating > 0 THEN 1 END) as total_ratings,
         COUNT(DISTINCT appointment_id) as total_appointments
        FROM appointments 

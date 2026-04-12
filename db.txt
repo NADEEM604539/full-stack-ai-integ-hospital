@@ -266,7 +266,7 @@ CREATE TABLE encounters (
 
 CREATE TABLE vitals (
     vital_id INT AUTO_INCREMENT PRIMARY KEY,
-    encounter_id INT NOT NULL,
+    encounter_id INT NOT NULL UNIQUE COMMENT '1:1 relationship - One vital per encounter',
     recorded_by INT NOT NULL,
     temperature_c DECIMAL(5,2),
     blood_pressure_systolic INT,
@@ -279,12 +279,13 @@ CREATE TABLE vitals (
     ai_risk_category ENUM('Low', 'Moderate', 'High', 'Critical') COMMENT 'AI risk category',
     ai_alerts JSON COMMENT 'JSON array of AI-generated alerts {alert_type, severity, description}',
     recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (encounter_id) REFERENCES encounters(encounter_id) ON DELETE CASCADE,
     FOREIGN KEY (recorded_by) REFERENCES staff(staff_id) ON DELETE RESTRICT,
     INDEX idx_encounter (encounter_id),
     INDEX idx_recorded (recorded_at),
     INDEX idx_ai_risk (ai_risk_score)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='One vital record per encounter - editable';
 
 -- ================================================================================
 -- SECTION 5: SOAP MODEL (Properly Separated Components)
@@ -454,6 +455,48 @@ CREATE TABLE inventory_transactions (
     INDEX idx_date (transaction_date),
     INDEX idx_reference (reference_id, reference_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Partitioned by transaction_date for time-series analysis';
+
+-- ================================================================================
+-- SECTION 6B: MEDICINE ORDERS (Nurse requests, Pharmacist approves)
+-- ================================================================================
+
+CREATE TABLE order_medicine (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    encounter_id INT NOT NULL,
+    appointment_id INT COMMENT 'Reference to appointment for easier tracking',
+    patient_id INT NOT NULL,
+    status ENUM('Pending', 'Accepted', 'Rejected') DEFAULT 'Pending' COMMENT 'Pending=Awaiting approval, Accepted=Added to invoice, Rejected=Not approved',
+    total_amount DECIMAL(12,2) DEFAULT 0.00 COMMENT 'Sum of all medicine items',
+    rejection_reason TEXT COMMENT 'Why pharmacist rejected the order (if rejected)',
+    requested_by INT NOT NULL COMMENT 'Nurse who requested',
+    approved_by INT COMMENT 'Pharmacist who approved/rejected',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (encounter_id) REFERENCES encounters(encounter_id) ON DELETE CASCADE,
+    FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id) ON DELETE SET NULL,
+    FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE CASCADE,
+    FOREIGN KEY (requested_by) REFERENCES staff(staff_id) ON DELETE RESTRICT,
+    FOREIGN KEY (approved_by) REFERENCES staff(staff_id) ON DELETE SET NULL,
+    INDEX idx_encounter (encounter_id),
+    INDEX idx_status (status),
+    INDEX idx_patient (patient_id),
+    INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Medicine orders from nurse to pharmacist for specific encounters';
+
+CREATE TABLE order_medicine_items (
+    item_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    medicine_id INT NOT NULL COMMENT 'Reference to inventory_items (medication)',
+    medicine_name VARCHAR(255) NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    total_price DECIMAL(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
+    notes VARCHAR(255),
+    FOREIGN KEY (order_id) REFERENCES order_medicine(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (medicine_id) REFERENCES inventory_items(item_id) ON DELETE RESTRICT,
+    INDEX idx_order (order_id),
+    INDEX idx_medicine (medicine_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Individual medicines in a medicine order';
 
 -- ================================================================================
 -- SECTION 7: BILLING & PAYMENTS

@@ -326,7 +326,29 @@ INSERT INTO prescription_details (prescription_id, item_id, dosage, frequency, d
 (4, 1, '500mg', 'Twice daily', 7, 14);
 
 -- ==========================================
--- 20. INVENTORY_TRANSACTIONS (Medicine stock movements)
+-- 20. ORDER_MEDICINE (Nurse requests medicines)
+-- ==========================================
+
+INSERT INTO order_medicine (encounter_id, appointment_id, patient_id, status, total_amount, requested_by, approved_by) VALUES
+(1, 1, 1, 'Accepted', 50.00, 10, 1),
+(2, 2, 2, 'Pending', 70.00, 10, NULL),
+(3, 3, 5, 'Accepted', 120.00, 10, 1),
+(4, 4, 7, 'Rejected', 30.00, 10, 1);
+
+-- ==========================================
+-- 20B. ORDER_MEDICINE_ITEMS (Individual medicines in orders)
+-- ==========================================
+
+INSERT INTO order_medicine_items (order_id, medicine_id, medicine_name, quantity, unit_price, notes) VALUES
+(1, 1, 'Paracetamol 500mg', 10, 5.00, 'For fever management'),
+(2, 2, 'Ibuprofen 200mg', 5, 8.50, 'For pain relief'),
+(2, 1, 'Paracetamol 500mg', 5, 5.00, 'Additional for comfort'),
+(3, 6, 'Lisinopril 10mg', 4, 18.00, 'Blood pressure control'),
+(3, 4, 'Metformin 500mg', 4, 15.00, 'Diabetes management'),
+(4, 3, 'Amoxicillin 500mg', 2, 12.00, 'Rejected - stock issue');
+
+-- ==========================================
+-- 19. INVENTORY_TRANSACTIONS (Medicine stock movements)
 -- ==========================================
 
 INSERT INTO inventory_transactions (item_id, transaction_type, quantity, reference_id, reference_type, performed_by, notes) VALUES

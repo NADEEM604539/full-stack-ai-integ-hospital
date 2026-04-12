@@ -193,6 +193,7 @@ export async function getPatientAppointments(patientId) {
         a.status,
         a.reason_for_visit,
         a.notes,
+        a.satisfaction_rating,
         a.created_at,
         d.doctor_id,
         CONCAT(s.first_name, ' ', s.last_name) as doctor_name,

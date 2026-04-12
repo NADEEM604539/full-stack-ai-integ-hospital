@@ -386,13 +386,13 @@ const AppointmentsPage = () => {
                             </div>
                           </div>
                           
-                          {/* Satisfaction Rating - Show for past appointments */}
-                          {new Date(appointment.appointment_date) < new Date() && (
+                          {/* Satisfaction Rating - Show for all appointments */}
+                          {appointment.status?.toLowerCase() !== 'cancelled' && (
                             <button
-                              onClick={() => handleOpenRatingModal(appointment.appointment_id, appointment.satisfaction_rating)}
+                              onClick={() => handleOpenRatingModal(appointment.appointment_id, appointment.satisfaction_rating || 5)}
                               style={{
-                                backgroundColor: appointment.satisfaction_rating ? '#FEF3C7' : '#F3F4F6',
-                                borderColor: appointment.satisfaction_rating ? '#FBBF24' : '#E5E7EB',
+                                backgroundColor: appointment.satisfaction_rating && appointment.satisfaction_rating < 5 ? '#FEF3C7' : '#F3F4F6',
+                                borderColor: appointment.satisfaction_rating && appointment.satisfaction_rating < 5 ? '#FBBF24' : '#E5E7EB',
                               }}
                               className="w-full rounded-lg border-2 p-4 text-center hover:shadow-lg transition"
                             >
@@ -403,13 +403,13 @@ const AppointmentsPage = () => {
                                       <Star
                                         key={i}
                                         size={16}
-                                        fill={i <= appointment.satisfaction_rating ? '#FBBF24' : '#E5E7EB'}
-                                        color={i <= appointment.satisfaction_rating ? '#FBBF24' : '#D1D5DB'}
+                                        fill={i <= Math.round(appointment.satisfaction_rating) ? '#FBBF24' : '#E5E7EB'}
+                                        color={i <= Math.round(appointment.satisfaction_rating) ? '#FBBF24' : '#D1D5DB'}
                                       />
                                     ))}
                                   </div>
                                   <p className="text-sm font-semibold" style={{ color: '#D97706' }}>
-                                    {appointment.satisfaction_rating.toFixed(1)}/5.0
+                                    {parseFloat(appointment.satisfaction_rating).toFixed(1)}/5.0
                                   </p>
                                 </div>
                               ) : (
