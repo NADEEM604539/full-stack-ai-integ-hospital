@@ -81,7 +81,9 @@ const ProfilePage = () => {
         throw new Error(data.error || 'Failed to update profile');
       }
 
-      setPatient(formData);
+      // Use the updated patient data from the API response (includes department_name)
+      setPatient(data.data || data);
+      setFormData(data.data || data);
       setSuccess(true);
       setEditing(false);
       setTimeout(() => setSuccess(false), 3000);

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { UserButton } from '@clerk/nextjs';
 import {
   Plus,
   Heart,
@@ -15,6 +16,7 @@ import {
   ArrowRight,
   Stethoscope,
   Clock,
+  LogOut,
 } from 'lucide-react';
 
 const PatientDashboard = () => {
@@ -77,23 +79,42 @@ const PatientDashboard = () => {
                 Manage your medical profiles and health records
               </p>
             </div>
-            <Link
-              href="/patient/register"
-              className="flex items-center gap-2 text-white px-8 py-4 rounded-full font-semibold transition-all hover:shadow-2xl"
-              style={{
-                backgroundColor: '#FFD9E8',
-                color: '#065F46',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              <Plus size={22} />
-              Add New Patient
-            </Link>
+            <div className="flex items-center gap-6">
+              <Link
+                href="/patient/register"
+                className="flex items-center gap-2 text-white px-8 py-4 rounded-full font-semibold transition-all hover:shadow-2xl"
+                style={{
+                  backgroundColor: '#FFD9E8',
+                  color: '#065F46',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <Plus size={22} />
+                Add New Patient
+              </Link>
+              {/* User Button */}
+              <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }} className="rounded-full p-2">
+                <UserButton
+                  afterSignOutUrl="/sign-in"
+                  appearance={{
+                    elements: {
+                      userButtonAvatarBox: {
+                        width: '48px',
+                        height: '48px',
+                      },
+                      userButtonTrigger: {
+                        padding: '4px',
+                      },
+                    },
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

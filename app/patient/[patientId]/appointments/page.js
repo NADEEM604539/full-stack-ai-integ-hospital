@@ -3,18 +3,34 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, Clock, User, MapPin, AlertCircle, CheckCircle as Check, ChevronLeft, Stethoscope, Phone } from 'lucide-react';
+import { Calendar, Clock, User, MapPin, AlertCircle, CheckCircle as Check, ChevronLeft, Stethoscope, Phone, Plus } from 'lucide-react';
+import PatientAppointmentBookingClient from './PatientAppointmentBookingClient';
 
 const AppointmentsPage = () => {
   const { patientId } = useParams();
   const router = useRouter();
   const [appointments, setAppointments] = useState([]);
+  const [patientInfo, setPatientInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   useEffect(() => {
     fetchAppointments();
+    fetchPatientInfo();
   }, [patientId]);
+
+  const fetchPatientInfo = async () => {
+    try {
+      const response = await fetch(`/api/patient/${patientId}/profile`);
+      if (response.ok) {
+        const data = await response.json();
+        setPatientInfo(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching patient info:', err);
+    }
+  };
 
   const fetchAppointments = async () => {
     try {
@@ -65,6 +81,10 @@ const AppointmentsPage = () => {
     }
   };
 
+  const handleBookingSuccess = () => {
+    fetchAppointments();
+  };
+
   return (
     <div style={{ backgroundColor: '#FFFFFF' }} className="min-h-screen">
       {/* Modern Header */}
@@ -82,12 +102,23 @@ const AppointmentsPage = () => {
             <ChevronLeft size={20} />
             Back
           </button>
-          <h1 className="text-5xl font-bold text-white mb-2">
-            Your Appointments
-          </h1>
-          <p className="text-emerald-100 text-lg">
-            View and manage your scheduled medical visits
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-5xl font-bold text-white mb-2">
+                Your Appointments
+              </h1>
+              <p className="text-emerald-100 text-lg">
+                View and manage your scheduled medical visits
+              </p>
+            </div>
+            <button
+              onClick={() => setShowBookingModal(true)}
+              className="flex items-center gap-2 text-white px-6 py-3 rounded-full font-semibold transition hover:bg-emerald-700 hover:shadow-lg bg-emerald-600"
+            >
+              <Plus size={20} />
+              Book Appointment
+            </button>
+          </div>
         </div>
       </div>
 
@@ -320,6 +351,16 @@ const AppointmentsPage = () => {
           </div>
         )}
       </div>
+
+      {/* Booking Modal */}
+      {showBookingModal && patientInfo && (
+        <PatientAppointmentBookingClient
+          patientId={parseInt(patientId)}
+          patientInfo={patientInfo}
+          onClose={() => setShowBookingModal(false)}
+          onSuccess={handleBookingSuccess}
+        />
+      )}
     </div>
   );
 };

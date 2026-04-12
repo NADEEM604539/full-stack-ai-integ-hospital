@@ -14,6 +14,10 @@ import {
   Activity,
   Pill,
   ClipboardList,
+  Heart,
+  Thermometer,
+  Wind,
+  Droplet,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -408,6 +412,74 @@ const EncounterDetailPage = () => {
                 <div style={{ backgroundColor: '#FFE4F5', borderLeft: '4px solid #F59E0B' }} className="rounded-lg p-6">
                   <AlertCircle size={20} style={{ color: '#D97706' }} className="inline mr-2" />
                   <p style={{ color: '#D97706' }} className="font-medium">Not documented</p>
+                </div>
+              )}
+            </div>
+
+            {/* Vitals */}
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <div style={{ backgroundColor: '#E8F8F5' }} className="rounded-lg p-3">
+                  <Heart size={24} style={{ color: '#10B981' }} />
+                </div>
+                <h2 className="text-2xl font-bold" style={{ color: '#065F46' }}>
+                  Vital Signs
+                </h2>
+              </div>
+              {soap.vitals && soap.vitals.length > 0 ? (
+                <div style={{ backgroundColor: '#FFFFFF', border: '2px solid #E8F8F5' }} className="rounded-lg p-6">
+                  {soap.vitals.map((vital, idx) => (
+                    <div key={vital.vital_id || idx} className={idx > 0 ? 'border-t border-gray-200 pt-6 mt-6' : ''}>
+                      <p style={{ color: '#059669' }} className="text-sm font-bold uppercase mb-4">
+                        Recorded: {new Date(vital.recorded_at).toLocaleString()}
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {(vital.blood_pressure_systolic || vital.blood_pressure_diastolic) && (
+                          <div style={{ backgroundColor: '#F0FDF4' }} className="rounded-lg p-4">
+                            <p style={{ color: '#059669' }} className="text-xs font-bold uppercase">Blood Pressure</p>
+                            <p style={{ color: '#065F46' }} className="text-xl font-bold mt-2">
+                              {vital.blood_pressure_systolic || '--'}/{vital.blood_pressure_diastolic || '--'} mmHg
+                            </p>
+                          </div>
+                        )}
+                        {vital.heart_rate && (
+                          <div style={{ backgroundColor: '#F0FDF4' }} className="rounded-lg p-4">
+                            <p style={{ color: '#059669' }} className="text-xs font-bold uppercase">Heart Rate</p>
+                            <p style={{ color: '#065F46' }} className="text-xl font-bold mt-2">{vital.heart_rate} bpm</p>
+                          </div>
+                        )}
+                        {vital.temperature_c && (
+                          <div style={{ backgroundColor: '#F0FDF4' }} className="rounded-lg p-4">
+                            <p style={{ color: '#059669' }} className="text-xs font-bold uppercase">Temperature</p>
+                            <p style={{ color: '#065F46' }} className="text-xl font-bold mt-2">{vital.temperature_c}°C</p>
+                          </div>
+                        )}
+                        {vital.oxygen_saturation && (
+                          <div style={{ backgroundColor: '#F0FDF4' }} className="rounded-lg p-4">
+                            <p style={{ color: '#059669' }} className="text-xs font-bold uppercase">O₂ Saturation</p>
+                            <p style={{ color: '#065F46' }} className="text-xl font-bold mt-2">{vital.oxygen_saturation}%</p>
+                          </div>
+                        )}
+                        {vital.weight_kg && (
+                          <div style={{ backgroundColor: '#F0FDF4' }} className="rounded-lg p-4">
+                            <p style={{ color: '#059669' }} className="text-xs font-bold uppercase">Weight</p>
+                            <p style={{ color: '#065F46' }} className="text-xl font-bold mt-2">{vital.weight_kg} kg</p>
+                          </div>
+                        )}
+                        {vital.height_cm && (
+                          <div style={{ backgroundColor: '#F0FDF4' }} className="rounded-lg p-4">
+                            <p style={{ color: '#059669' }} className="text-xs font-bold uppercase">Height</p>
+                            <p style={{ color: '#065F46' }} className="text-xl font-bold mt-2">{vital.height_cm} cm</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ backgroundColor: '#FFE4F5', borderLeft: '4px solid #F59E0B' }} className="rounded-lg p-6">
+                  <AlertCircle size={20} style={{ color: '#D97706' }} className="inline mr-2" />
+                  <p style={{ color: '#D97706' }} className="font-medium">No vital signs recorded</p>
                 </div>
               )}
             </div>

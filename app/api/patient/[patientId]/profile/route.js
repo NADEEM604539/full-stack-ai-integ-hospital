@@ -86,7 +86,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: result.message,
+      message: 'Patient profile updated successfully',
       data: result,
     });
   } catch (error) {

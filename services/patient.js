@@ -399,11 +399,37 @@ export async function updatePatientProfile(patientId, updateData) {
       throw new Error('Patient not found or no changes made');
     }
 
-    return {
-      success: true,
-      patient_id: patientId,
-      message: 'Patient profile updated successfully'
-    };
+    // Fetch and return the updated patient data
+    const [patients] = await connection.query(
+      `SELECT 
+        p.patient_id,
+        p.mrn,
+        p.user_id,
+        p.first_name,
+        p.last_name,
+        p.date_of_birth,
+        p.gender,
+        p.blood_type,
+        p.phone_number,
+        p.email,
+        p.address,
+        p.city,
+        p.emergency_contact,
+        p.emergency_phone,
+        p.department_id,
+        d.department_name,
+        p.created_at
+       FROM patients p
+       LEFT JOIN departments d ON p.department_id = d.department_id
+       WHERE p.patient_id = ? AND p.is_deleted = FALSE`,
+      [patientId]
+    );
+
+    if (!patients.length) {
+      throw new Error('Patient not found');
+    }
+
+    return patients[0];
   } catch (error) {
     console.error('Error updating patient profile:', error.message);
     throw error;
@@ -475,12 +501,24 @@ export async function getEncounterSOAP(patientId, encounterId) {
       [encounterId]
     );
 
+    // Fetch vitals for this encounter
+    const [vitals] = await connection.query(
+      `SELECT vital_id, encounter_id, temperature_c, 
+              blood_pressure_systolic, blood_pressure_diastolic, heart_rate, 
+              oxygen_saturation, weight_kg, height_cm, ai_risk_score, ai_risk_category, recorded_at
+       FROM vitals 
+       WHERE encounter_id = ?
+       ORDER BY recorded_at DESC`,
+      [encounterId]
+    );
+
     return {
       encounter: enc,
       subjective: subjective[0] || null,
       objective: objective[0] || null,
       assessment: assessment[0] || null,
       plan: plan[0] || null,
+      vitals: vitals || [],
       soapComplete: subjective.length > 0 && objective.length > 0 && 
                     assessment.length > 0 && plan.length > 0
     };
@@ -526,21 +564,30 @@ export async function getPatientVitals(patientId) {
     try {
       const [vitalData] = await connection.query(
         `SELECT 
-          vital_id,
-          encounter_id,
-          blood_pressure,
-          heart_rate,
-          body_temperature,
-          respiratory_rate,
-          oxygen_saturation,
-          recorded_at,
-          created_at
-         FROM vitals
-         WHERE encounter_id IN (
+          v.vital_id,
+          v.encounter_id,
+          v.temperature_c,
+          v.blood_pressure_systolic,
+          v.blood_pressure_diastolic,
+          v.heart_rate,
+          v.oxygen_saturation,
+          v.weight_kg,
+          v.height_cm,
+          v.ai_risk_score,
+          v.recorded_at,
+          e.encounter_type,
+          e.admission_date,
+          e.chief_complaint,
+          CONCAT(s.first_name, ' ', s.last_name) as doctor_name
+         FROM vitals v
+         LEFT JOIN encounters e ON v.encounter_id = e.encounter_id
+         LEFT JOIN doctors doc ON e.doctor_id = doc.doctor_id
+         LEFT JOIN staff s ON doc.staff_id = s.staff_id
+         WHERE v.encounter_id IN (
            SELECT encounter_id FROM encounters 
            WHERE patient_id = ? AND is_deleted = FALSE
          )
-         ORDER BY recorded_at DESC
+         ORDER BY v.recorded_at DESC
          LIMIT 50`,
         [patientId]
       );
@@ -553,6 +600,228 @@ export async function getPatientVitals(patientId) {
     return vitals;
   } catch (error) {
     console.error('Error fetching patient vitals:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get available doctors for a patient's department
+ * RBAC: Patient can only view doctors from their own department
+ * @param {number} patientId - The patient requesting doctors
+ * @returns {Promise<Array>} List of doctors in patient's department
+ */
+export async function getAvailableDoctors(patientId) {
+  const { userId } = await checkPatientAccess();
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Get patient and verify ownership
+    const [patients] = await connection.query(
+      `SELECT patient_id, department_id FROM patients 
+       WHERE patient_id = ? AND user_id = ? AND is_deleted = FALSE`,
+      [patientId, userId]
+    );
+
+    if (!patients.length) {
+      throw new Error('Patient not found or access denied');
+    }
+
+    const departmentId = patients[0].department_id;
+
+    // Get active doctors in patient's department
+    const [doctors] = await connection.query(
+      `SELECT 
+        d.doctor_id,
+        d.staff_id,
+        d.specialization,
+        d.consultation_fee,
+        s.first_name as staff_first_name,
+        s.last_name as staff_last_name,
+        s.employee_id,
+        dep.department_name
+      FROM doctors d
+      JOIN staff s ON d.staff_id = s.staff_id
+      JOIN departments dep ON s.department_id = dep.department_id
+      WHERE s.department_id = ? 
+      AND s.status = 'Active'
+      ORDER BY s.first_name, s.last_name`,
+      [departmentId]
+    );
+
+    return doctors;
+  } catch (error) {
+    console.error('Error fetching available doctors:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get available time slots for a doctor on a specific date
+ * Generates 30-minute slots based on doctor's availability
+ * @param {number} doctorId - The doctor to check availability for
+ * @param {string} appointmentDate - Date in YYYY-MM-DD format
+ * @returns {Promise<Array>} List of available time slots (HH:MM format)
+ */
+export async function getAvailableTimeSlots(doctorId, appointmentDate) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Get doctor's availability for the day of week
+    const dayOfWeek = new Date(appointmentDate).toLocaleDateString('en-US', { weekday: 'long' });
+
+    const [availability] = await connection.query(
+      `SELECT shift_start_time, shift_end_time
+       FROM doctor_availability
+       WHERE doctor_id = ? AND day_of_week = ? AND is_working = true`,
+      [doctorId, dayOfWeek]
+    );
+
+    if (!availability.length) {
+      return []; // Doctor not available on this day
+    }
+
+    const { shift_start_time, shift_end_time } = availability[0];
+
+    // Get booked appointments for this doctor on this date
+    const [bookedSlots] = await connection.query(
+      `SELECT appointment_time
+       FROM appointments
+       WHERE doctor_id = ? 
+       AND appointment_date = ? 
+       AND status != 'Cancelled'
+       AND is_deleted = false`,
+      [doctorId, appointmentDate]
+    );
+
+    const bookedTimes = new Set(bookedSlots.map(slot => slot.appointment_time));
+
+    // Generate 30-minute slots between shift times
+    const slots = [];
+    const [startHours, startMin] = shift_start_time.split(':').map(Number);
+    const [endHours, endMin] = shift_end_time.split(':').map(Number);
+
+    let currentHours = startHours;
+    let currentMin = startMin;
+    const endTotalMin = endHours * 60 + endMin;
+
+    while (currentHours * 60 + currentMin < endTotalMin) {
+      const timeStr = `${String(currentHours).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}:00`;
+      
+      // Only add if not already booked
+      if (!bookedTimes.has(timeStr)) {
+        slots.push(timeStr.substring(0, 5)); // Return HH:MM format
+      }
+
+      currentMin += 30;
+      if (currentMin >= 60) {
+        currentMin -= 60;
+        currentHours += 1;
+      }
+    }
+
+    return slots;
+  } catch (error) {
+    console.error('Error fetching available time slots:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Book an appointment for a patient
+ * RBAC: Patient can only book appointments for their own patients
+ * @param {number} patientId - The patient to book appointment for
+ * @param {Object} appointmentData - Booking data (doctor_id, appointment_date, appointment_time, reason_for_visit)
+ * @returns {Promise<Object>} Created appointment details
+ */
+export async function bookAppointment(patientId, appointmentData) {
+  const { userId } = await checkPatientAccess();
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Verify patient access and ownership
+    const [patients] = await connection.query(
+      `SELECT patient_id, department_id FROM patients 
+       WHERE patient_id = ? AND user_id = ? AND is_deleted = FALSE`,
+      [patientId, userId]
+    );
+
+    if (!patients.length) {
+      throw new Error('Patient not found or access denied');
+    }
+
+    const departmentId = patients[0].department_id;
+
+    // Verify doctor exists and is in the patient's department
+    const [doctorCheck] = await connection.query(
+      `SELECT s.department_id FROM doctors d
+       JOIN staff s ON d.staff_id = s.staff_id
+       WHERE d.doctor_id = ? AND s.department_id = ?`,
+      [appointmentData.doctor_id, departmentId]
+    );
+
+    if (!doctorCheck.length) {
+      throw new Error('Doctor not found or not in your department');
+    }
+
+    // Insert the appointment
+    const [result] = await connection.query(
+      `INSERT INTO appointments (
+        patient_id,
+        doctor_id,
+        department_id,
+        appointment_date,
+        appointment_time,
+        duration_minutes,
+        status,
+        reason_for_visit,
+        created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        patientId,
+        appointmentData.doctor_id,
+        departmentId,
+        appointmentData.appointment_date,
+        appointmentData.appointment_time,
+        appointmentData.duration_minutes || 30,
+        'Scheduled',
+        appointmentData.reason_for_visit || null,
+        userId // Patient created the appointment
+      ]
+    );
+
+    // Return the created appointment details
+    const [appointment] = await connection.query(
+      `SELECT 
+        a.appointment_id,
+        a.appointment_date,
+        a.appointment_time,
+        a.status,
+        a.reason_for_visit,
+        CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
+        d.specialization,
+        dept.department_name
+       FROM appointments a
+       JOIN doctors d ON a.doctor_id = d.doctor_id
+       JOIN staff s ON d.staff_id = s.staff_id
+       JOIN departments dept ON s.department_id = dept.department_id
+       WHERE a.appointment_id = ?`,
+      [result.insertId]
+    );
+
+    return appointment[0] || { success: true, appointment_id: result.insertId };
+  } catch (error) {
+    console.error('Error booking appointment:', error.message);
     throw error;
   } finally {
     if (connection) connection.release();

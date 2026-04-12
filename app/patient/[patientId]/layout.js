@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
+import { UserButton } from '@clerk/nextjs';
 import {
   Menu,
   X,
-  ArrowLeft,
+  Home,
   Calendar,
   Stethoscope,
   FileText,
@@ -14,6 +15,7 @@ import {
   Heart,
   ChevronRight,
   AlertCircle,
+  LogOut,
 } from 'lucide-react';
 
 export default function PatientDetailLayout({ children }) {
@@ -22,13 +24,27 @@ export default function PatientDetailLayout({ children }) {
   const { patientId } = params;
 
   const [patient, setPatient] = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchPatient();
+    fetchUserInfo();
   }, [patientId]);
+
+  const fetchUserInfo = async () => {
+    try {
+      const response = await fetch('/api/auth/user');
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching user info:', err);
+    }
+  };
 
   const fetchPatient = async () => {
     try {
@@ -149,47 +165,120 @@ export default function PatientDetailLayout({ children }) {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Sidebar Header */}
-        <div style={{ borderBottom: '1px solid #10B981' }} className="p-6">
-          <div className="flex justify-between items-start mb-4">
-            <Link
-              href="/patient/dashboard"
-              className="flex items-center gap-2 font-medium"
-              style={{ color: '#10B981' }}
-            >
-              <ArrowLeft size={18} />
-              Dashboard
-            </Link>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-1 rounded"
-              style={{ backgroundColor: '#F0FDF4' }}
-            >
-              <X size={20} style={{ color: '#10B981' }} />
-            </button>
-          </div>
+        {/* Sidebar Header - User & Dashboard */}
+        <div style={{ borderBottom: '2px solid #10B981' }} className="p-6">
+          {/* Dashboard Button - Beautiful Design */}
+          <Link
+            href="/patient/dashboard"
+            className="flex items-center gap-3 px-4 py-3 mb-6 rounded-xl font-bold transition-all duration-300 hover:shadow-lg hover:scale-105 transform"
+            style={{
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              color: '#FFFFFF',
+            }}
+          >
+            <Home size={20} />
+            <span>Dashboard</span>
+            <ChevronRight size={18} className="ml-auto" />
+          </Link>
 
+          {/* User Profile Section */}
+          {user && (
+            <div
+              style={{
+                backgroundColor: '#E8F8F5',
+                borderLeft: '4px solid #10B981',
+              }}
+              className="rounded-lg p-4 mb-4"
+            >
+              <p style={{ color: '#059669' }} className="text-xs font-bold uppercase tracking-wide mb-3">
+                Account
+              </p>
+
+              {/* User Avatar & Info */}
+              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
+                <div className="flex-shrink-0">
+                  <div style={{ backgroundColor: '#10B981' }} className="w-10 h-10 rounded-full flex items-center justify-center">
+                    <span style={{ color: '#FFFFFF' }} className="font-bold text-sm">
+                      {(user.username || user.email?.charAt(0) || 'U').toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-sm" style={{ color: '#065F46' }}>
+                    {user.username || user.email?.split('@')[0]}
+                  </h3>
+                  <p style={{ color: '#10B981' }} className="text-xs truncate">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+
+              {/* Role Badge */}
+              {user.role && (
+                <div className="mb-4">
+                  <span
+                    className="inline-block text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider"
+                    style={{
+                      backgroundColor: '#10B981',
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    {user.role}
+                  </span>
+                </div>
+              )}
+
+              {/* User Button - Better Styling */}
+              <div className="flex justify-center p-3 bg-white rounded-lg border border-gray-200">
+                <UserButton
+                  afterSignOutUrl="/sign-in"
+                  appearance={{
+                    elements: {
+                      userButtonAvatarBox: {
+                        width: '44px',
+                        height: '44px',
+                      },
+                      userButtonTrigger: {
+                        padding: '2px',
+                      },
+                    },
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Patient Info */}
           {patient && (
-            <div style={{ backgroundColor: '#E8F8F5', borderLeft: '4px solid #10B981' }} className="rounded-lg p-4">
-              <h3 className="font-semibold text-base" style={{ color: '#065F46' }}>
+            <div
+              style={{
+                backgroundColor: '#F0FDF4',
+                border: '2px solid #10B981',
+              }}
+              className="rounded-lg p-4"
+            >
+              <p style={{ color: '#059669' }} className="text-xs font-bold uppercase tracking-wide mb-2">
+                Patient Info
+              </p>
+              <h4 className="font-bold text-sm" style={{ color: '#065F46' }}>
                 {patient.first_name} {patient.last_name}
-              </h3>
+              </h4>
               {patient.mrn && (
-                <p style={{ color: '#10B981' }} className="text-xs mt-1">
-                  MRN: <span className="font-mono">{patient.mrn}</span>
+                <p style={{ color: '#10B981' }} className="text-xs mt-2 font-mono">
+                  MRN: <span className="font-bold">{patient.mrn}</span>
                 </p>
               )}
-              <div className="flex gap-2 mt-2 flex-wrap">
+              <div className="flex gap-2 mt-3 flex-wrap">
                 <span
                   className="inline-block text-xs px-2 py-1 rounded font-medium"
-                  style={{ backgroundColor: '#FFE4F5', color: '#065F46' }}
+                  style={{ backgroundColor: '#FFFFFF', color: '#065F46', border: '1px solid #10B981' }}
                 >
                   {patient.gender}
                 </span>
                 {patient.blood_type && (
                   <span
                     className="inline-block text-xs px-2 py-1 rounded font-medium"
-                    style={{ backgroundColor: '#FFD9E8', color: '#065F46' }}
+                    style={{ backgroundColor: '#FFFFFF', color: '#065F46', border: '1px solid #10B981' }}
                   >
                     {patient.blood_type}
                   </span>
@@ -201,6 +290,17 @@ export default function PatientDetailLayout({ children }) {
 
         {/* Navigation */}
         <nav className="p-4 space-y-1">
+          {/* Mobile Close Button */}
+          <div className="lg:hidden mb-4 px-4">
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="w-full flex items-center justify-center p-2 rounded-lg transition"
+              style={{ backgroundColor: '#F0FDF4' }}
+            >
+              <X size={20} style={{ color: '#10B981' }} />
+            </button>
+          </div>
+
           <p style={{ color: '#059669' }} className="text-xs font-bold uppercase tracking-wider px-4 py-2 mb-4">
             Clinical
           </p>
