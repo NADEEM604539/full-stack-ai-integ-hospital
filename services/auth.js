@@ -143,3 +143,45 @@ export async function getUserRole() {
     throw error;
   }
 }
+
+/**
+ * Checks if the current user is a patient.
+ * Throws an error if not authenticated or not a patient.
+ * @returns {Promise<{userId: number}>} The user's ID and role ID.
+ */
+export async function checkPatientAccess() {
+  const user = await currentUser();
+  if (!user) {
+    throw new Error('Authentication failed: No user is logged in.');
+  }
+
+  const email = user.emailAddresses?.[0]?.emailAddress;
+  if (!email) {
+    throw new Error('Authentication failed: User profile has no email.');
+  }
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const [rows] = await connection.query(
+      'SELECT user_id, role_id FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (rows.length === 0) {
+      throw new Error(`Access Denied: User with email "${email}" not found in the system.`);
+    }
+
+    const dbUser = rows[0];
+    if (dbUser.role_id !== 7) { // 7 is the role_id for PATIENT
+      throw new Error('Access Denied: You do not have permission to access this resource.');
+    }
+
+    return { userId: dbUser.user_id };
+  } catch (error) {
+    console.error('Error in checkPatientAccess:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}

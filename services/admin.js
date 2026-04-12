@@ -1955,16 +1955,28 @@ export async function patientToStaff(userId, patientId, firstName, lastName, dep
       );
 
       // 2. DELETE from patients table using patient_id
-      await connection.query(
+      const [patientDeleteResult] = await connection.query(
         'DELETE FROM patients WHERE patient_id = ?',
         [patientId]
       );
+      
+      console.log(`[PATIENT-TO-STAFF] Deleted patient - patient_id: ${patientId}, affectedRows: ${patientDeleteResult.affectedRows}`);
+
+      if (patientDeleteResult.affectedRows === 0) {
+        throw new Error(`Failed to delete patient - patient_id ${patientId} not found`);
+      }
 
       // 3. DELETE from users table using user_id
-      await connection.query(
+      const [userDeleteResult] = await connection.query(
         'DELETE FROM users WHERE user_id = ?',
         [actualUserId]
       );
+      
+      console.log(`[PATIENT-TO-STAFF] Deleted user - user_id: ${actualUserId}, affectedRows: ${userDeleteResult.affectedRows}`);
+
+      if (userDeleteResult.affectedRows === 0) {
+        throw new Error(`Failed to delete user - user_id ${actualUserId} not found`);
+      }
 
       // 4. RE-INSERT user with new staff role
       await connection.query(

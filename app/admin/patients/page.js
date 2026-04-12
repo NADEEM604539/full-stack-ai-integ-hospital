@@ -73,23 +73,51 @@ export default function PatientsPage() {
 
     setSearchingUser(true);
     try {
-      const response = await fetch(`/api/admin/users?email=${encodeURIComponent(searchEmail)}`);
+      // Search in patients table by patient email (more accurate than searching users)
+      const matchingPatient = patients.find(p => p.email?.toLowerCase() === searchEmail.toLowerCase());
+      
+      if (!matchingPatient) {
+        // If not found in patients list, search users API for fallback
+        const response = await fetch(`/api/admin/users?email=${encodeURIComponent(searchEmail)}`);
+        if (!response.ok) throw new Error('User not found');
+        const data = await response.json();
+
+        if (!data.data || data.data.length === 0) {
+          setUserSearchError('No patient user found with this email');
+          return;
+        }
+
+        const user = data.data[0];
+        // Verify user has patient role (role_id = 7)
+        if (user.role_id !== 7) {
+          setUserSearchError('This email belongs to a staff/admin user, not a patient');
+          return;
+        }
+
+        setFoundUser(user);
+        setSearchEmail('');
+        return;
+      }
+
+      // Found patient record - verify user still has patient role
+      const response = await fetch(`/api/admin/users?email=${encodeURIComponent(matchingPatient.email)}`);
       if (!response.ok) throw new Error('User not found');
       const data = await response.json();
 
       if (!data.data || data.data.length === 0) {
-        setUserSearchError('No patient user found with this email');
+        setUserSearchError('Associated user not found');
         return;
       }
 
       const user = data.data[0];
-      // Verify user has patient role (role_id = 7)
       if (user.role_id !== 7) {
         setUserSearchError('This email belongs to a staff/admin user, not a patient');
         return;
       }
 
+      // Set both foundUser and toStaffPatient correctly
       setFoundUser(user);
+      setToStaffPatient(matchingPatient);
       setSearchEmail('');
     } catch (err) {
       setUserSearchError(err.message || 'Failed to search user');
@@ -221,167 +249,6 @@ export default function PatientsPage() {
         </div>
       )}
 
-      {/* User Search Section */}
-      <div style={{
-        backgroundColor: '#fff',
-        padding: '2rem',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        marginBottom: '2rem',
-        borderLeft: '4px solid #10B981'
-      }}>
-        <h2 style={{ margin: '0 0 1.5rem 0', color: '#065F46', fontSize: '1.2rem', fontWeight: '600' }}>🔍 Search Patient User</h2>
-        
-        {!foundUser ? (
-          <form onSubmit={handleSearchUser} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
-            <div style={{ flex: 1, minWidth: '250px' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#065F46' }}>
-                User Email *
-              </label>
-              <input
-                type="email"
-                placeholder="Enter patient email..."
-                value={searchEmail}
-                onChange={(e) => {
-                  setSearchEmail(e.target.value);
-                  setUserSearchError(null);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  fontSize: '1rem',
-                  boxSizing: 'border-box',
-                  color: '#065F46',
-                  backgroundColor: '#fafafa'
-                }}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={searchingUser}
-              style={{
-                padding: '0.75rem 1.5rem',
-                backgroundColor: '#10B981',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: searchingUser ? 'not-allowed' : 'pointer',
-                fontWeight: 'bold',
-                opacity: searchingUser ? 0.6 : 1
-              }}
-            >
-              {searchingUser ? 'Searching...' : 'Search'}
-            </button>
-          </form>
-        ) : (
-          <div style={{
-            backgroundColor: '#F0FDF4',
-            padding: '1.5rem',
-            borderRadius: '4px',
-            border: '2px solid #10B981'
-          }}>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <p style={{ margin: '0 0 0.5rem 0', color: '#065F46', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                ✓ Found User:
-              </p>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '1rem',
-                backgroundColor: '#fff',
-                padding: '1rem',
-                borderRadius: '4px',
-                border: '1px solid #DCFCE7'
-              }}>
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '0.85rem', fontWeight: '500' }}>Email:</span>
-                  <div style={{ color: '#065F46', fontWeight: '600', marginTop: '0.25rem' }}>{foundUser.email}</div>
-                </div>
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '0.85rem', fontWeight: '500' }}>User ID:</span>
-                  <div style={{ color: '#065F46', fontWeight: '600', marginTop: '0.25rem' }}>{foundUser.user_id}</div>
-                </div>
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '0.85rem', fontWeight: '500' }}>Role:</span>
-                  <div style={{ color: '#10B981', fontWeight: '600', marginTop: '0.25rem' }}>Patient</div>
-                </div>
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '0.85rem', fontWeight: '500' }}>Status:</span>
-                  <div style={{
-                    color: foundUser.is_active ? '#2E7D32' : '#C62828',
-                    fontWeight: '600',
-                    marginTop: '0.25rem'
-                  }}>
-                    {foundUser.is_active ? '✓ Active' : '✗ Inactive'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <button
-                onClick={handleSeeAllPatients}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#2196F3',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                👁️ See All Patients
-              </button>
-              <button
-                onClick={() => {
-                  const userPatients = filteredPatients.filter(p => p.user_id === foundUser.user_id);
-                  if (userPatients.length > 0) {
-                    setToStaffPatient(userPatients[0]);
-                    setShowToStaffWarning(true);
-                  } else {
-                    setError('No patients found for this user');
-                  }
-                }}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#FF9800',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                👤 Move to Staff
-              </button>
-              <button
-                onClick={handleClearFoundUser}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#ccc',
-                  color: '#333',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-        )}
-
-        {userSearchError && (
-          <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#FFEBEE', color: '#C62828', borderRadius: '4px', border: '1px solid #EF5350' }}>
-            ⚠️ {userSearchError}
-          </div>
-        )}
-      </div>
-
       {/* Patients Table Section */}
       <div style={{
         backgroundColor: '#fff',
@@ -390,7 +257,7 @@ export default function PatientsPage() {
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
         <h2 style={{ margin: '0 0 1.5rem 0', color: '#065F46', fontSize: '1.2rem', fontWeight: '600' }}>
-          📋 All Patients {foundUser && `(${foundUser.email})`}
+          📋 All Patients {foundUser ? `(${foundUser.email})` : ''}
         </h2>
 
         <div style={{
