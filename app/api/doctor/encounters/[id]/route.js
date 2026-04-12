@@ -228,8 +228,6 @@ export async function GET(request, { params }) {
         };
       }
 
-      connection.release();
-
       return NextResponse.json({
         success: true,
         encounter,
@@ -507,8 +505,6 @@ export async function POST(request, { params }) {
 
         // Commit transaction
         await connection.query('COMMIT');
-
-        connection.release();
 
         return NextResponse.json({
           success: true,
