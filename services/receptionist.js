@@ -589,6 +589,7 @@ export async function updatePatient(patientId, patientData) {
         city = ?,
         emergency_contact = ?,
         emergency_phone = ?,
+        department_id = ?,
         user_id = ?,
         updated_by = ?,
         updated_at = NOW()
@@ -605,6 +606,7 @@ export async function updatePatient(patientId, patientData) {
         patientData.city || patient.city,
         patientData.emergency_contact || patient.emergency_contact,
         patientData.emergency_phone || patient.emergency_phone,
+        patientData.department_id || patient.department_id,
         newUserId,
         userId,
         patientId
@@ -613,7 +615,7 @@ export async function updatePatient(patientId, patientData) {
 
     // Return updated patient
     const [updatedPatient] = await connection.query(
-      `SELECT * FROM patients WHERE patient_id = ?`,
+      `SELECT p.*, d.department_name FROM patients p LEFT JOIN departments d ON p.department_id = d.department_id WHERE p.patient_id = ?`,
       [patientId]
     );
 

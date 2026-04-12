@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2, Loader, ArrowLeft, Edit2, X, AlertTriangle } from 'lucide-react';
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -37,6 +38,7 @@ function formatDateForDisplay(dateValue) {
 }
 
 export default function PatientDetailClient({ patientId, initialData, initialError }) {
+  const router = useRouter();
   const [patient, setPatient] = useState(initialData);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -132,9 +134,19 @@ export default function PatientDetailClient({ patientId, initialData, initialErr
       setIsEditing(false);
       setPendingFormData(null);
 
-      setTimeout(() => {
-        setSuccess(false);
-      }, 3000);
+      // Check if department was changed
+      const departmentChanged = dataToSubmit.department_id && dataToSubmit.department_id !== patient?.department_id;
+
+      // If department changed, redirect to patients list after showing success message
+      if (departmentChanged) {
+        setTimeout(() => {
+          router.push('/receptionist/patients');
+        }, 2000);
+      } else {
+        setTimeout(() => {
+          setSuccess(false);
+        }, 3000);
+      }
     } catch (err) {
       console.error('Update error:', err);
       setError(err.message);
