@@ -64,6 +64,15 @@ export default function EncounterSOAPClient({ encounterId }) {
     plan: true,
   });
 
+  // Encounter Management
+  const [isEditingEncounter, setIsEditingEncounter] = useState(false);
+  const [editingStatus, setEditingStatus] = useState('Active');
+  const [editingDischargeDate, setEditingDischargeDate] = useState('');
+  const [editingChiefComplaint, setEditingChiefComplaint] = useState('');
+  const [updatingEncounter, setUpdatingEncounter] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingEncounter, setDeletingEncounter] = useState(false);
+
   useEffect(() => {
     fetchEncounterData();
   }, [encounterId]);
@@ -81,6 +90,11 @@ export default function EncounterSOAPClient({ encounterId }) {
       const data = await res.json();
       setEncounter(data.encounter);
       setPatientContext(data.patientContext);
+
+      // Initialize encounter management fields
+      setEditingStatus(data.encounter?.status || 'Active');
+      setEditingDischargeDate(data.encounter?.discharge_date ? data.encounter.discharge_date.split('T')[0] : '');
+      setEditingChiefComplaint(data.encounter?.chief_complaint || '');
 
       // Load existing SOAP notes and vitals
       if (data.patientContext?.vitals) {
@@ -552,6 +566,68 @@ export default function EncounterSOAPClient({ encounterId }) {
       ...prev,
       [section]: !prev[section],
     }));
+  };
+
+  const handleUpdateEncounter = async () => {
+    try {
+      setUpdatingEncounter(true);
+      setError(null);
+
+      const res = await fetch(`/api/doctor/encounters/${encounterId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: editingStatus,
+          discharge_date: editingDischargeDate || null,
+          chief_complaint: editingChiefComplaint,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to update encounter');
+      }
+
+      const data = await res.json();
+      setEncounter(data.data);
+      setIsEditingEncounter(false);
+      alert('✅ Encounter updated successfully!');
+    } catch (err) {
+      console.error('Error updating encounter:', err);
+      setError(err.message);
+    } finally {
+      setUpdatingEncounter(false);
+    }
+  };
+
+  const handleDeleteEncounter = async () => {
+    try {
+      setDeletingEncounter(true);
+      setError(null);
+
+      const res = await fetch(`/api/doctor/encounters/${encounterId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to delete encounter');
+      }
+
+      alert('✅ Encounter deleted successfully!');
+      
+      // Redirect back to appointments
+      setTimeout(() => {
+        window.location.href = '/doctor/appointments';
+      }, 1000);
+    } catch (err) {
+      console.error('Error deleting encounter:', err);
+      setError(err.message);
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeletingEncounter(false);
+    }
   };
 
   if (loading) {
@@ -1247,8 +1323,218 @@ export default function EncounterSOAPClient({ encounterId }) {
               </p>
             </div>
           )}
+
+          {/* Encounter Management */}
+          <div className="rounded-2xl overflow-hidden shadow-sm p-6" style={{ backgroundColor: '#FFFFFF' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold" style={{ color: '#1E40AF' }}>
+                ⚙️ Encounter Management
+              </h3>
+              <button
+                onClick={() => setIsEditingEncounter(!isEditingEncounter)}
+                className="flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-semibold transition-all"
+                style={{
+                  backgroundColor: isEditingEncounter ? '#DBEAFE' : '#F3F4F6',
+                  color: isEditingEncounter ? '#1E40AF' : '#6B7280',
+                }}
+              >
+                <Edit2 size={14} />
+                {isEditingEncounter ? 'Cancel' : 'Edit'}
+              </button>
+            </div>
+
+            {!isEditingEncounter ? (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p style={{ color: '#6B7280' }} className="text-xs font-semibold mb-1">
+                    Status
+                  </p>
+                  <p style={{ color: '#1F2937' }} className="font-semibold">
+                    {encounter?.status}
+                  </p>
+                </div>
+                <div>
+                  <p style={{ color: '#6B7280' }} className="text-xs font-semibold mb-1">
+                    Chief Complaint
+                  </p>
+                  <p style={{ color: '#1F2937' }}>
+                    {encounter?.chief_complaint || 'Not specified'}
+                  </p>
+                </div>
+                {encounter?.discharge_date && (
+                  <div>
+                    <p style={{ color: '#6B7280' }} className="text-xs font-semibold mb-1">
+                      Discharge Date
+                    </p>
+                    <p style={{ color: '#1F2937' }}>
+                      {new Date(encounter.discharge_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Status Dropdown */}
+                <div>
+                  <label style={{ color: '#065F46' }} className="block text-sm font-semibold mb-2">
+                    Encounter Status
+                  </label>
+                  <select
+                    value={editingStatus}
+                    onChange={(e) => setEditingStatus(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    style={{ borderColor: '#D1D5DB', color: '#1F2937' }}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Discharged">Discharged</option>
+                    <option value="Transferred">Transferred</option>
+                  </select>
+                </div>
+
+                {/* Chief Complaint */}
+                <div>
+                  <label style={{ color: '#065F46' }} className="block text-sm font-semibold mb-2">
+                    Chief Complaint
+                  </label>
+                  <input
+                    type="text"
+                    value={editingChiefComplaint}
+                    onChange={(e) => setEditingChiefComplaint(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    style={{ borderColor: '#D1D5DB', color: '#1F2937' }}
+                    placeholder="Patient's chief complaint"
+                  />
+                </div>
+
+                {/* Discharge Date */}
+                <div>
+                  <label style={{ color: '#065F46' }} className="block text-sm font-semibold mb-2">
+                    Discharge Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editingDischargeDate}
+                    onChange={(e) => setEditingDischargeDate(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    style={{ borderColor: '#D1D5DB', color: '#1F2937' }}
+                  />
+                </div>
+
+                {/* Update Button */}
+                <button
+                  onClick={handleUpdateEncounter}
+                  disabled={updatingEncounter}
+                  className="w-full py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                  style={{
+                    backgroundColor: '#10B981',
+                    color: 'white',
+                    opacity: updatingEncounter ? 0.5 : 1,
+                  }}
+                >
+                  {updatingEncounter ? (
+                    <>
+                      <Loader size={16} className="animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      Update Encounter
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Delete Button - Always Visible */}
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full mt-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+              style={{
+                backgroundColor: '#FEE2E2',
+                color: '#DC2626',
+                border: '1px solid #FCA5A5',
+              }}
+              disabled={isEditingEncounter}
+            >
+              🗑️ Delete Encounter
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            className="rounded-2xl shadow-2xl p-8 max-w-md w-90%"
+            style={{ backgroundColor: '#FFFFFF' }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle size={32} color="#DC2626" />
+              <h2 className="text-2xl font-bold" style={{ color: '#DC2626' }}>
+                Delete Encounter?
+              </h2>
+            </div>
+
+            <p style={{ color: '#374151' }} className="mb-6">
+              This will <strong>permanently delete</strong> this encounter from the database. You cannot undo this action.
+            </p>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <p className="text-sm" style={{ color: '#92400E' }}>
+                <strong>⚠️ Warning:</strong> This is a hard delete. All SOAP notes, vitals, and encounter data will be permanently removed.
+              </p>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-3 rounded-lg font-semibold transition-all"
+                style={{
+                  backgroundColor: '#F3F4F6',
+                  color: '#374151',
+                }}
+                disabled={deletingEncounter}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteEncounter}
+                disabled={deletingEncounter}
+                className="flex-1 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor: '#DC2626',
+                  color: 'white',
+                  opacity: deletingEncounter ? 0.5 : 1,
+                }}
+              >
+                {deletingEncounter ? (
+                  <>
+                    <Loader size={16} className="animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  '🗑️ Delete Permanently'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

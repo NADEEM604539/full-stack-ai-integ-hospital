@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Calendar, Clock, User, FileText, Loader, AlertCircle, 
-  CheckCircle, Plus, Edit, ArrowRight, ChevronRight 
+  CheckCircle, Plus, Edit, ArrowRight, ChevronRight, Save, X
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -19,6 +19,9 @@ export default function AppointmentDetailClient({ appointmentId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [creatingEncounter, setCreatingEncounter] = useState(false);
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     fetchAppointmentDetails();
@@ -90,6 +93,37 @@ export default function AppointmentDetailClient({ appointmentId }) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async () => {
+    if (!newStatus || newStatus === appointment.status) {
+      setIsEditingStatus(false);
+      return;
+    }
+
+    try {
+      setUpdatingStatus(true);
+      const res = await fetch(`/api/doctor/appointments/${appointmentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to update appointment status');
+      }
+
+      const data = await res.json();
+      setAppointment({ ...appointment, status: newStatus });
+      setIsEditingStatus(false);
+      alert('✅ Appointment status updated!');
+    } catch (err) {
+      console.error('Error updating status:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -177,12 +211,65 @@ export default function AppointmentDetailClient({ appointmentId }) {
             <div className="flex items-start justify-between mb-6">
               <div>
                 <p className="text-sm font-semibold" style={{ color: '#6B7280' }}>Status</p>
-                <span
-                  className="inline-block px-4 py-2 rounded-lg text-sm font-bold mt-2"
-                  style={{ backgroundColor: statusConfig.bgColor, color: statusConfig.color }}
-                >
-                  {appointment.status}
-                </span>
+                {!isEditingStatus ? (
+                  <div className="flex items-center gap-3 mt-2">
+                    <span
+                      className="inline-block px-4 py-2 rounded-lg text-sm font-bold"
+                      style={{ backgroundColor: statusConfig.bgColor, color: statusConfig.color }}
+                    >
+                      {appointment.status}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setIsEditingStatus(true);
+                        setNewStatus(appointment.status);
+                      }}
+                      className="p-2 rounded-lg transition-all hover:bg-gray-100"
+                      title="Change Status"
+                    >
+                      <Edit size={16} color="#6B7280" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex gap-2">
+                    <select
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value)}
+                      className="px-3 py-2 border rounded-lg text-sm"
+                      style={{ borderColor: '#D1D5DB', color: '#1F2937' }}
+                    >
+                      <option value="Scheduled">Scheduled</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Cancelled">Cancelled</option>
+                      <option value="No Show">No Show</option>
+                    </select>
+                    <button
+                      onClick={handleUpdateStatus}
+                      disabled={updatingStatus}
+                      className="px-3 py-2 rounded-lg font-semibold flex items-center gap-1"
+                      style={{
+                        backgroundColor: '#10B981',
+                        color: 'white',
+                        opacity: updatingStatus ? 0.5 : 1,
+                      }}
+                    >
+                      {updatingStatus ? <Loader size={14} className="animate-spin" /> : <Save size={14} />}
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setIsEditingStatus(false)}
+                      disabled={updatingStatus}
+                      className="px-3 py-2 rounded-lg font-semibold flex items-center gap-1"
+                      style={{
+                        backgroundColor: '#F3F4F6',
+                        color: '#374151',
+                      }}
+                    >
+                      <X size={14} />
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-sm font-semibold" style={{ color: '#6B7280' }}>Appointment Date</p>

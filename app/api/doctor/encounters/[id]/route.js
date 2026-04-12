@@ -540,3 +540,282 @@ export async function POST(request, { params }) {
     );
   }
 }
+
+/**
+ * PUT /api/doctor/encounters/[id]
+ * Update encounter details (status, discharge_date, chief_complaint)
+ * 
+ * RBAC: Doctor (role_id = 2) can update only their own encounters
+ *       Admin (role_id = 1) can update any encounter
+ */
+export async function PUT(request, { params }) {
+  try {
+    const { id: encounterId } = await params;
+    const body = await request.json();
+    const { status, discharge_date, chief_complaint } = body;
+
+    if (!encounterId) {
+      return NextResponse.json(
+        { error: 'Encounter ID is required' },
+        { status: 400 }
+      );
+    }
+
+    let connection;
+    try {
+      connection = await db.getConnection();
+    } catch (dbError) {
+      throw new Error(`Database connection failed: ${dbError?.message}`);
+    }
+
+    // Get current user
+    let userId;
+    try {
+      userId = await getUserId();
+    } catch (authError) {
+      throw new Error(`Authentication failed: ${authError?.message}`);
+    }
+
+    try {
+      // Get user role
+      const [userRows] = await connection.query(
+        `SELECT role_id FROM users WHERE user_id = ?`,
+        [userId]
+      );
+
+      if (!userRows.length) {
+        throw new Error(`User ${userId} not found in database`);
+      }
+
+      const roleId = userRows[0].role_id;
+
+      // Only DOCTOR (2) and ADMIN (1) can update
+      if (roleId !== 2 && roleId !== 1) {
+        throw new Error(`Access Denied: Required role DOCTOR (2) or ADMIN (1), got ${roleId}`);
+      }
+
+      // Get encounter and verify doctor can update it
+      let encounterQuery = `SELECT encounter_id, doctor_id FROM encounters WHERE encounter_id = ?`;
+      let queryParams = [encounterId];
+
+      if (roleId === 2) {
+        // Get doctor_id for this user
+        const [doctorRows] = await connection.query(
+          `SELECT d.doctor_id FROM doctors d
+           JOIN staff s ON d.staff_id = s.staff_id
+           WHERE s.user_id = ?`,
+          [userId]
+        );
+
+        if (!doctorRows.length) {
+          throw new Error(`Doctor profile not found for user ${userId}`);
+        }
+
+        const doctorId = doctorRows[0].doctor_id;
+        encounterQuery += ` AND doctor_id = ?`;
+        queryParams.push(doctorId);
+      }
+
+      const [encounters] = await connection.query(encounterQuery, queryParams);
+
+      if (!encounters.length) {
+        throw new Error('Encounter not found or access denied');
+      }
+
+      // Update encounter
+      const updateParts = [];
+      const updateValues = [];
+
+      if (status !== undefined) {
+        updateParts.push('status = ?');
+        updateValues.push(status);
+      }
+      if (discharge_date !== undefined) {
+        updateParts.push('discharge_date = ?');
+        updateValues.push(discharge_date);
+      }
+      if (chief_complaint !== undefined) {
+        updateParts.push('chief_complaint = ?');
+        updateValues.push(chief_complaint);
+      }
+
+      if (updateParts.length === 0) {
+        throw new Error('No valid fields to update');
+      }
+
+      updateParts.push('updated_by = ?');
+      updateValues.push(userId);
+      updateParts.push('updated_at = CURRENT_TIMESTAMP');
+
+      updateValues.push(encounterId);
+
+      await connection.query(
+        `UPDATE encounters SET ${updateParts.join(', ')} WHERE encounter_id = ?`,
+        updateValues
+      );
+
+      // Fetch and return updated encounter
+      const [updatedEncounters] = await connection.query(
+        `SELECT * FROM encounters WHERE encounter_id = ?`,
+        [encounterId]
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: updatedEncounters[0],
+        message: 'Encounter updated successfully',
+      });
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  } catch (error) {
+    console.error('Update Encounter API Error:', error?.message);
+
+    const statusCode =
+      error?.message?.includes('Authentication failed') ? 401 :
+      error?.message?.includes('Access Denied') ? 403 :
+      error?.message?.includes('not found') ? 404 :
+      500;
+
+    return NextResponse.json(
+      { error: error?.message || 'Failed to update encounter' },
+      { status: statusCode }
+    );
+  }
+}
+
+/**
+ * DELETE /api/doctor/encounters/[id]
+ * Hard delete an encounter (removes from database)
+ * 
+ * RBAC: Doctor (role_id = 2) can delete only their own encounters
+ *       Admin (role_id = 1) can delete any encounter
+ */
+export async function DELETE(request, { params }) {
+  try {
+    const { id: encounterId } = await params;
+
+    if (!encounterId) {
+      return NextResponse.json(
+        { error: 'Encounter ID is required' },
+        { status: 400 }
+      );
+    }
+
+    let connection;
+    try {
+      connection = await db.getConnection();
+    } catch (dbError) {
+      throw new Error(`Database connection failed: ${dbError?.message}`);
+    }
+
+    // Get current user
+    let userId;
+    try {
+      userId = await getUserId();
+    } catch (authError) {
+      throw new Error(`Authentication failed: ${authError?.message}`);
+    }
+
+    try {
+      // Get user role
+      const [userRows] = await connection.query(
+        `SELECT role_id FROM users WHERE user_id = ?`,
+        [userId]
+      );
+
+      if (!userRows.length) {
+        throw new Error(`User ${userId} not found in database`);
+      }
+
+      const roleId = userRows[0].role_id;
+
+      // Only DOCTOR (2) and ADMIN (1) can delete
+      if (roleId !== 2 && roleId !== 1) {
+        throw new Error(`Access Denied: Required role DOCTOR (2) or ADMIN (1), got ${roleId}`);
+      }
+
+      // Get encounter and verify doctor can delete it
+      let encounterQuery = `SELECT encounter_id, doctor_id FROM encounters WHERE encounter_id = ?`;
+      let queryParams = [encounterId];
+
+      if (roleId === 2) {
+        // Get doctor_id for this user
+        const [doctorRows] = await connection.query(
+          `SELECT d.doctor_id FROM doctors d
+           JOIN staff s ON d.staff_id = s.staff_id
+           WHERE s.user_id = ?`,
+          [userId]
+        );
+
+        if (!doctorRows.length) {
+          throw new Error(`Doctor profile not found for user ${userId}`);
+        }
+
+        const doctorId = doctorRows[0].doctor_id;
+        encounterQuery += ` AND doctor_id = ?`;
+        queryParams.push(doctorId);
+      }
+
+      const [encounters] = await connection.query(encounterQuery, queryParams);
+
+      if (!encounters.length) {
+        throw new Error('Encounter not found or access denied');
+      }
+
+      // Start transaction for cascading deletes
+      await connection.query('START TRANSACTION');
+
+      try {
+        // Delete related SOAP notes (cascade)
+        await connection.query('DELETE FROM subjective_notes WHERE encounter_id = ?', [encounterId]);
+        await connection.query('DELETE FROM objective_notes WHERE encounter_id = ?', [encounterId]);
+        await connection.query('DELETE FROM assessment_notes WHERE encounter_id = ?', [encounterId]);
+        await connection.query('DELETE FROM plan_notes WHERE encounter_id = ?', [encounterId]);
+        await connection.query('DELETE FROM vitals WHERE encounter_id = ?', [encounterId]);
+
+        // Delete the encounter itself
+        await connection.query('DELETE FROM encounters WHERE encounter_id = ?', [encounterId]);
+
+        // Log to audit_logs
+        await connection.query(
+          `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_data, timestamp)
+           VALUES (?, 'DELETE', 'encounters', ?, 
+           JSON_OBJECT('action', 'hard_delete'), CURRENT_TIMESTAMP)`,
+          [userId, encounterId]
+        );
+
+        // Commit transaction
+        await connection.query('COMMIT');
+
+        return NextResponse.json({
+          success: true,
+          message: 'Encounter permanently deleted',
+        });
+      } catch (txError) {
+        // Rollback on error
+        await connection.query('ROLLBACK');
+        throw txError;
+      }
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  } catch (error) {
+    console.error('Delete Encounter API Error:', error?.message);
+
+    const statusCode =
+      error?.message?.includes('Authentication failed') ? 401 :
+      error?.message?.includes('Access Denied') ? 403 :
+      error?.message?.includes('not found') ? 404 :
+      500;
+
+    return NextResponse.json(
+      { error: error?.message || 'Failed to delete encounter' },
+      { status: statusCode }
+    );
+  }
+}
