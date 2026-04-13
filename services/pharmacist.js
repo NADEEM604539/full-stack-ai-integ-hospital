@@ -72,7 +72,8 @@ async function checkPharmacistAccess(connection) {
 
 /**
  * Get all pending medicine requests for pharmacist's department
- * RBAC: Pharmacist can only approve requests for their department
+ * Approach: Get all appointments in pharmacist's department, then get pending medicine orders for those appointments
+ * RBAC: Pharmacist can only see requests for appointments in their department
  */
 export async function getPendingMedicineRequests() {
   let connection;
@@ -81,6 +82,21 @@ export async function getPendingMedicineRequests() {
     const access = await checkPharmacistAccess(connection);
     const { departmentId } = access;
 
+    // Step 1: Get all appointments in the pharmacist's department
+    const [appointments] = await connection.query(`
+      SELECT a.appointment_id
+      FROM appointments a
+      WHERE a.department_id = ? AND a.is_deleted = FALSE
+      ORDER BY a.appointment_date DESC
+    `, [departmentId]);
+
+    if (appointments.length === 0) {
+      return []; // No appointments in this department
+    }
+
+    const appointmentIds = appointments.map(apt => apt.appointment_id);
+
+    // Step 2: Get all pending medicine orders for these appointments
     const [requests] = await connection.query(`
       SELECT 
         om.order_id,
@@ -103,10 +119,10 @@ export async function getPendingMedicineRequests() {
       LEFT JOIN appointments a ON om.appointment_id = a.appointment_id
       LEFT JOIN staff nurse_staff ON om.requested_by = nurse_staff.staff_id
       LEFT JOIN order_medicine_items omi ON om.order_id = omi.order_id
-      WHERE om.status = 'Pending' AND p.department_id = ?
+      WHERE om.status = 'Pending' AND om.appointment_id IN (${appointmentIds.map(() => '?').join(',')})
       GROUP BY om.order_id
       ORDER BY om.created_at DESC
-    `, [departmentId]);
+    `, appointmentIds);
 
     return requests;
   } catch (error) {
@@ -119,7 +135,8 @@ export async function getPendingMedicineRequests() {
 
 /**
  * Get a specific medicine order with all items
- * RBAC: Pharmacist can only view orders from their department
+ * RBAC: Pharmacist can only view orders from their department (via appointment)
+ * Approach: Verify order's appointment belongs to pharmacist's department
  * @param {number} orderId - Order ID
  */
 export async function getMedicineOrderDetail(orderId) {
@@ -129,7 +146,7 @@ export async function getMedicineOrderDetail(orderId) {
     const access = await checkPharmacistAccess(connection);
     const { departmentId } = access;
 
-    // Get order header with department check
+    // Get order header with department check via appointment
     const [orders] = await connection.query(`
       SELECT 
         om.order_id,
@@ -148,6 +165,7 @@ export async function getMedicineOrderDetail(orderId) {
         p.last_name as patient_last_name,
         a.appointment_date,
         a.appointment_time,
+        a.department_id as appointment_department_id,
         CONCAT(nurse_staff.first_name, ' ', nurse_staff.last_name) as nurse_name,
         CONCAT(pharma_staff.first_name, ' ', pharma_staff.last_name) as approval_name
       FROM order_medicine om
@@ -155,14 +173,19 @@ export async function getMedicineOrderDetail(orderId) {
       LEFT JOIN appointments a ON om.appointment_id = a.appointment_id
       LEFT JOIN staff nurse_staff ON om.requested_by = nurse_staff.staff_id
       LEFT JOIN staff pharma_staff ON om.approved_by = pharma_staff.staff_id
-      WHERE om.order_id = ? AND p.department_id = ?
-    `, [orderId, departmentId]);
+      WHERE om.order_id = ?
+    `, [orderId]);
 
     if (orders.length === 0) {
-      throw new Error('Order not found or access denied');
+      throw new Error('Order not found');
     }
 
     const order = orders[0];
+
+    // Verify appointment belongs to pharmacist's department
+    if (order.appointment_department_id !== departmentId) {
+      throw new Error('Access Denied: Order belongs to a different department');
+    }
 
     // Get order items
     const [items] = await connection.query(`
@@ -210,11 +233,11 @@ export async function approveMedicineOrder(orderId) {
 
     await connection.beginTransaction();
 
-    // Verify order belongs to this pharmacist's department
+    // Verify order belongs to this pharmacist's department (via appointment)
     const [orderCheck] = await connection.query(`
-      SELECT om.order_id, om.patient_id, om.appointment_id, om.total_amount, p.department_id
+      SELECT om.order_id, om.patient_id, om.appointment_id, om.total_amount, a.department_id
       FROM order_medicine om
-      LEFT JOIN patients p ON om.patient_id = p.patient_id
+      LEFT JOIN appointments a ON om.appointment_id = a.appointment_id
       WHERE om.order_id = ?
     `, [orderId]);
 
@@ -296,9 +319,16 @@ export async function approveMedicineOrder(orderId) {
       [invoiceId]
     );
 
+    // Get existing discount_amount to include in calculation
+    const [invoiceData] = await connection.query(
+      `SELECT discount_amount FROM invoices WHERE invoice_id = ?`,
+      [invoiceId]
+    );
+
     const subtotal = lineTotals[0].subtotal || 0;
+    const discountAmount = invoiceData[0]?.discount_amount || 0;
     const tax = subtotal * 0.10;
-    const total = subtotal + tax;
+    const total = subtotal + tax - discountAmount;
 
     await connection.query(
       `UPDATE invoices SET subtotal = ?, tax_amount = ?, total_amount = ?, updated_at = NOW() WHERE invoice_id = ?`,
@@ -335,11 +365,11 @@ export async function rejectMedicineOrder(orderId, reason) {
     const access = await checkPharmacistAccess(connection);
     const { pharmacistId, departmentId } = access;
 
-    // Verify order belongs to this pharmacist's department
+    // Verify order belongs to this pharmacist's department (via appointment)
     const [orderCheck] = await connection.query(`
-      SELECT om.order_id, p.department_id
+      SELECT om.order_id, a.department_id
       FROM order_medicine om
-      LEFT JOIN patients p ON om.patient_id = p.patient_id
+      LEFT JOIN appointments a ON om.appointment_id = a.appointment_id
       WHERE om.order_id = ?
     `, [orderId]);
 

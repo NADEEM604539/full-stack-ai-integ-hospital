@@ -8,8 +8,9 @@ import { format } from 'date-fns';
  * Pharmacist Medicines - Request Approval Page
  * Pharmacist can:
  * - View all pending medicine requests from their department
- * - Review detailed order information
- * - Approve or reject requests
+ * - Review detailed order information and edit/delete individual medicines
+ * - Set approval status per medicine (Approved, Rejected, Pending)
+ * - Approve or reject entire orders
  */
 export default function PharmacistMedicinesPage() {
   const [requests, setRequests] = useState([]);
@@ -18,13 +19,37 @@ export default function PharmacistMedicinesPage() {
   const [message, setMessage] = useState(null);
   const [messageType, setMessageType] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [medicineStatuses, setMedicineStatuses] = useState({}); // Track status per medicine item
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editPrice, setEditPrice] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionReasons, setRejectionReasons] = useState({}); // Track reason per medicine
   const [processingOrderId, setProcessingOrderId] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
 
   useEffect(() => {
     fetchPendingRequests();
   }, []);
+
+  // Fetch detailed order data when selectedOrder changes
+  useEffect(() => {
+    if (selectedOrder && !selectedOrder.items) {
+      fetchOrderDetails(selectedOrder.order_id);
+    } else if (selectedOrder && selectedOrder.items) {
+      // Initialize medicine statuses as 'Pending' for new selections
+      const newStatuses = {};
+      selectedOrder.items.forEach(item => {
+        if (!medicineStatuses[item.item_id]) {
+          newStatuses[item.item_id] = 'Pending';
+        }
+      });
+      if (Object.keys(newStatuses).length > 0) {
+        setMedicineStatuses(prev => ({ ...prev, ...newStatuses }));
+      }
+    }
+  }, [selectedOrder]);
 
   async function fetchPendingRequests() {
     try {
@@ -41,6 +66,21 @@ export default function PharmacistMedicinesPage() {
       setError(err.message || 'Failed to load medicine requests');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchOrderDetails(orderId) {
+    try {
+      const response = await fetch(`/api/pharmacist/medicines/${orderId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch order details');
+      }
+      const data = await response.json();
+      console.log('Order details fetched:', data.data);
+      setSelectedOrder(data.data);
+    } catch (err) {
+      console.error('Error fetching order details:', err);
+      setError(err.message || 'Failed to load order details');
     }
   }
 
@@ -95,7 +135,7 @@ export default function PharmacistMedicinesPage() {
       setMessageType('success');
       setSelectedOrder(null);
       setRejectionReason('');
-      setShowModal(false);
+      setShowRejectModal(false);
 
       // Refresh list after 2 seconds
       setTimeout(() => {
@@ -105,6 +145,115 @@ export default function PharmacistMedicinesPage() {
     } catch (err) {
       console.error('Error rejecting:', err);
       setMessage(err.message || 'Failed to reject order');
+      setMessageType('error');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  }
+
+  // Edit medicine quantity or price
+  function handleEditMedicine(item) {
+    setEditingItemId(item.item_id);
+    setEditQuantity(item.quantity.toString());
+    setEditPrice(item.unit_price.toString());
+  }
+
+  // Save edited medicine
+  function handleSaveEditMedicine(itemId) {
+    if (!editQuantity || !editPrice || isNaN(editQuantity) || isNaN(editPrice)) {
+      setMessage('⚠️ Please enter valid quantity and price');
+      setMessageType('error');
+      return;
+    }
+
+    // Update the item in state
+    setSelectedOrder(prev => ({
+      ...prev,
+      items: prev.items.map(item => 
+        item.item_id === itemId 
+          ? { 
+              ...item, 
+              quantity: parseInt(editQuantity),
+              unit_price: parseFloat(editPrice),
+              total_price: parseInt(editQuantity) * parseFloat(editPrice)
+            }
+          : item
+      )
+    }));
+
+    setEditingItemId(null);
+    setMessage(`✏️ Medicine updated. New total: $${(parseInt(editQuantity) * parseFloat(editPrice)).toFixed(2)}`);
+    setMessageType('success');
+  }
+
+  // Delete medicine from order
+  function handleDeleteMedicine(itemId) {
+    if (confirm('Are you sure you want to remove this medicine?')) {
+      setSelectedOrder(prev => ({
+        ...prev,
+        items: prev.items.filter(item => item.item_id !== itemId)
+      }));
+      
+      setMedicineStatuses(prev => {
+        const newStatuses = { ...prev };
+        delete newStatuses[itemId];
+        return newStatuses;
+      });
+
+      setMessage('🗑️ Medicine removed from order');
+      setMessageType('success');
+    }
+  }
+
+  // Set status for individual medicine
+  function handleSetMedicineStatus(itemId, status, reason = '') {
+    setMedicineStatuses(prev => ({
+      ...prev,
+      [itemId]: status
+    }));
+
+    if (status === 'Rejected') {
+      setRejectionReasons(prev => ({
+        ...prev,
+        [itemId]: reason
+      }));
+    }
+  }
+
+  // Approve only selected medicines
+  async function handleApproveSelected(orderId) {
+    const approvedItems = Object.entries(medicineStatuses)
+      .filter(([_, status]) => status === 'Approved')
+      .map(([itemId, _]) => parseInt(itemId));
+
+    if (approvedItems.length === 0) {
+      setMessage('⚠️ Please mark at least one medicine as Approved');
+      setMessageType('error');
+      return;
+    }
+
+    setProcessingOrderId(orderId);
+    try {
+      const response = await fetch(`/api/pharmacist/medicines/${orderId}/approve-partial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds: approvedItems })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to approve');
+
+      setMessage(`✅ Selected medicines approved! (${approvedItems.length} items)`);
+      setMessageType('success');
+
+      setTimeout(() => {
+        setMessage(null);
+        setSelectedOrder(null);
+        fetchPendingRequests();
+      }, 2000);
+    } catch (err) {
+      console.error('Error approving:', err);
+      setMessage(err.message || 'Failed to approve selected medicines');
       setMessageType('error');
     } finally {
       setProcessingOrderId(null);
@@ -258,10 +407,10 @@ export default function PharmacistMedicinesPage() {
       )}
 
       {/* Details Modal */}
-      {selectedOrder && !showModal && (
+      {selectedOrder && !showRejectModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-96 overflow-y-auto border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto border border-gray-200">
+            <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
@@ -280,38 +429,127 @@ export default function PharmacistMedicinesPage() {
               </div>
 
               {/* Medicine Items Table */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-bold text-gray-900 mb-3 text-lg">📋 Medicine Items</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm bg-white rounded">
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                <h3 className="font-bold text-gray-900 mb-4 text-lg">📋 Medicine Items (Editable)</h3>
+                <div className="overflow-x-auto border border-gray-300 rounded-lg">
+                  <table className="w-full bg-white text-sm">
                     <thead>
-                      <tr className="border-b-2 border-gray-300 bg-gray-100">
-                        <th className="text-left py-3 px-3 font-bold text-gray-900">Medicine</th>
-                        <th className="text-center py-3 px-3 font-bold text-gray-900">Qty</th>
-                        <th className="text-right py-3 px-3 font-bold text-gray-900">Unit Price</th>
-                        <th className="text-right py-3 px-3 font-bold text-gray-900">Total</th>
+                      <tr className="bg-blue-600 border-b-2 border-blue-700">
+                        <th className="text-left py-3 px-3 font-bold text-white">Medicine</th>
+                        <th className="text-center py-3 px-3 font-bold text-white">Qty</th>
+                        <th className="text-center py-3 px-3 font-bold text-white">Price</th>
+                        <th className="text-center py-3 px-3 font-bold text-white">Total</th>
+                        <th className="text-center py-3 px-3 font-bold text-white">Status</th>
+                        <th className="text-center py-3 px-3 font-bold text-white">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedOrder.items && selectedOrder.items.map((item) => (
-                        <tr key={item.item_id} className="border-b border-gray-200 hover:bg-gray-50">
-                          <td className="py-3 px-3 text-gray-800 font-medium">{item.medicine_name}</td>
-                          <td className="py-3 px-3 text-center text-gray-800 font-medium">{item.quantity}</td>
-                          <td className="py-3 px-3 text-right text-gray-800">${Number(item.unit_price).toFixed(2)}</td>
-                          <td className="py-3 px-3 text-right font-bold text-green-700">
-                            ${(item.quantity * Number(item.unit_price)).toFixed(2)}
+                      {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                        selectedOrder.items.map((item) => (
+                          <tr key={item.item_id} className="border-b border-gray-300 hover:bg-blue-50">
+                            <td className="py-3 px-3 text-gray-900 font-semibold border-r border-gray-200">
+                              {item.medicine_name}
+                            </td>
+                            <td className="py-3 px-3 text-center text-gray-900 font-bold border-r border-gray-200">
+                              {editingItemId === item.item_id ? (
+                                <input
+                                  type="number"
+                                  value={editQuantity}
+                                  onChange={(e) => setEditQuantity(e.target.value)}
+                                  className="w-12 text-center border border-gray-300 rounded px-1"
+                                  min="1"
+                                />
+                              ) : (
+                                item.quantity
+                              )}
+                            </td>
+                            <td className="py-3 px-3 text-center text-gray-900 font-medium border-r border-gray-200">
+                              {editingItemId === item.item_id ? (
+                                <input
+                                  type="number"
+                                  value={editPrice}
+                                  onChange={(e) => setEditPrice(e.target.value)}
+                                  className="w-16 text-center border border-gray-300 rounded px-1"
+                                  step="0.01"
+                                  min="0"
+                                />
+                              ) : (
+                                `$${Number(item.unit_price).toFixed(2)}`
+                              )}
+                            </td>
+                            <td className="py-3 px-3 text-center font-bold text-green-700 border-r border-gray-200">
+                              ${(item.quantity * Number(item.unit_price)).toFixed(2)}
+                            </td>
+                            <td className="py-3 px-3 text-center border-r border-gray-200">
+                              <select
+                                value={medicineStatuses[item.item_id] || 'Pending'}
+                                onChange={(e) => handleSetMedicineStatus(item.item_id, e.target.value)}
+                                className={`px-2 py-1 rounded font-semibold text-xs ${
+                                  medicineStatuses[item.item_id] === 'Approved'
+                                    ? 'bg-green-200 text-green-800'
+                                    : medicineStatuses[item.item_id] === 'Rejected'
+                                    ? 'bg-red-200 text-red-800'
+                                    : 'bg-yellow-200 text-yellow-800'
+                                }`}
+                              >
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Rejected">Rejected</option>
+                              </select>
+                            </td>
+                            <td className="py-3 px-3 text-center text-xs">
+                              {editingItemId === item.item_id ? (
+                                <div className="flex gap-1 justify-center">
+                                  <button
+                                    onClick={() => handleSaveEditMedicine(item.item_id)}
+                                    className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 text-xs"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingItemId(null)}
+                                    className="bg-gray-400 text-white px-2 py-1 rounded hover:bg-gray-500 text-xs"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex gap-1 justify-center">
+                                  <button
+                                    onClick={() => handleEditMedicine(item)}
+                                    className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 text-xs"
+                                  >
+                                    ✏️ Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMedicine(item.item_id)}
+                                    className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 text-xs"
+                                  >
+                                    🗑️ Delete
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="6" className="py-6 px-4 text-center text-gray-500 italic">
+                            No medicine items found
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-gray-300 font-bold bg-gray-100">
-                        <td colSpan="3" className="py-3 px-3 text-right text-gray-900">Total Amount:</td>
-                        <td className="py-3 px-3 text-right text-green-700 text-lg">
-                          ${(Number(selectedOrder.total_amount) || 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    </tfoot>
+                    {selectedOrder.items && selectedOrder.items.length > 0 && (
+                      <tfoot>
+                        <tr className="bg-amber-100 border-t-2 border-amber-400 font-bold">
+                          <td colSpan="3" className="py-3 px-3 text-right text-gray-900 text-base">💰 Total Amount:</td>
+                          <td colSpan="3" className="py-3 px-3 text-center text-green-700 text-lg font-bold">
+                            ${(Number(selectedOrder.total_amount) || 0).toFixed(2)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
               </div>
@@ -325,19 +563,19 @@ export default function PharmacistMedicinesPage() {
                   Close
                 </button>
                 <button
-                  onClick={() => handleApprove(selectedOrder.order_id)}
+                  onClick={() => handleApproveSelected(selectedOrder.order_id)}
                   disabled={processingOrderId === selectedOrder.order_id}
                   className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-semibold disabled:opacity-50 transition"
                 >
-                  ✅ Approve
+                  ✅ Approve Selected
                 </button>
                 <button
                   onClick={() => {
-                    setShowModal(true);
+                    setShowRejectModal(true);
                   }}
                   className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-semibold transition"
                 >
-                  ❌ Reject
+                  ❌ Reject Order
                 </button>
               </div>
             </div>

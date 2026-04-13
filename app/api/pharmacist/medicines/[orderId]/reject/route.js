@@ -8,7 +8,7 @@ import { rejectMedicineOrder } from '@/services/pharmacist';
  */
 export async function POST(request, { params }) {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
     const { reason } = await request.json();
 
     if (!orderId || isNaN(orderId)) {
