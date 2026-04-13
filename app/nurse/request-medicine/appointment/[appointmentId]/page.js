@@ -32,6 +32,7 @@ const AppointmentMedicineDetailPage = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [showNewOrderForm, setShowNewOrderForm] = useState(false);
   const [newOrderItems, setNewOrderItems] = useState([]);
+  const [expandedOrders, setExpandedOrders] = useState(new Set());
 
   useEffect(() => {
     if (appointmentId) {
@@ -189,6 +190,16 @@ const AppointmentMedicineDetailPage = () => {
     ).toFixed(2);
   };
 
+  const toggleOrderExpanded = (orderId) => {
+    const newExpanded = new Set(expandedOrders);
+    if (newExpanded.has(orderId)) {
+      newExpanded.delete(orderId);
+    } else {
+      newExpanded.add(orderId);
+    }
+    setExpandedOrders(newExpanded);
+  };
+
   if (loading) {
     return (
       <div style={{ backgroundColor: '#F9FAFB', minHeight: '100vh' }} className="p-8 flex items-center justify-center">
@@ -316,6 +327,7 @@ const AppointmentMedicineDetailPage = () => {
                   'Rejected': { bg: '#FEE2E2', text: '#991B1B', icon: '❌' },
                 };
                 const color = statusColor[order.status] || statusColor['Pending'];
+                const isExpanded = expandedOrders.has(order.order_id);
 
                 return (
                   <div
@@ -328,7 +340,7 @@ const AppointmentMedicineDetailPage = () => {
                     className="rounded-xl p-4"
                   >
                     <div className="flex justify-between items-start mb-3">
-                      <div>
+                      <div className="flex-1">
                         <span
                           style={{
                             backgroundColor: color.bg,
@@ -351,6 +363,49 @@ const AppointmentMedicineDetailPage = () => {
                         </p>
                       </div>
                     </div>
+
+                    {/* View Items Button */}
+                    <button
+                      onClick={() => toggleOrderExpanded(order.order_id)}
+                      className="mb-3 px-3 py-2 text-sm rounded-lg font-semibold transition hover:shadow-md flex items-center gap-2"
+                      style={{
+                        backgroundColor: '#E0E7FF',
+                        color: '#4F46E5',
+                      }}
+                    >
+                      {isExpanded ? '▼' : '▶'} View Items ({order.item_count})
+                    </button>
+
+                    {/* Expanded Medicines List */}
+                    {isExpanded && order.items && order.items.length > 0 && (
+                      <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <p className="font-semibold mb-3" style={{ color: '#1F2937' }}>
+                          📋 Medicines in this order:
+                        </p>
+                        <div className="space-y-2">
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="p-3 bg-white rounded border border-gray-200 flex justify-between items-start">
+                              <div>
+                                <p className="font-semibold" style={{ color: '#1F2937' }}>
+                                  {item.medicine_name}
+                                </p>
+                                <p style={{ color: '#6B7280' }} className="text-sm">
+                                  Quantity: {item.quantity} × PKR {parseFloat(item.unit_price).toFixed(2)}
+                                </p>
+                                {item.notes && (
+                                  <p style={{ color: '#9CA3AF' }} className="text-xs italic mt-1">
+                                    Note: {item.notes}
+                                  </p>
+                                )}
+                              </div>
+                              <p className="font-bold" style={{ color: '#047857' }}>
+                                PKR {(item.quantity * item.unit_price).toFixed(2)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {order.status === 'Pending' && (
                       <div className="flex gap-2 mt-3">
@@ -414,49 +469,6 @@ const AppointmentMedicineDetailPage = () => {
 
           {showNewOrderForm && (
             <div className="space-y-6">
-              {/* Encounter Selection */}
-              <div>
-                <label style={{ color: '#6B7280' }} className="block text-sm font-semibold mb-2">
-                  Select Encounter *
-                </label>
-                {appointment?.encounters && appointment.encounters.length > 0 ? (
-                  <div className="space-y-2">
-                    {appointment.encounters.map((enc) => (
-                      <button
-                        key={enc.encounter_id}
-                        onClick={() => setSelectedEncounter(enc)}
-                        style={{
-                          backgroundColor:
-                            selectedEncounter?.encounter_id === enc.encounter_id
-                              ? '#8B5CF6'
-                              : '#F3F4F6',
-                          color:
-                            selectedEncounter?.encounter_id === enc.encounter_id
-                              ? '#FFFFFF'
-                              : '#1F2937',
-                        }}
-                        className="w-full text-left px-4 py-3 rounded-lg font-semibold transition hover:shadow-md"
-                      >
-                        {enc.encounter_type} - {new Date(enc.admission_date).toLocaleString()}
-                        {enc.chief_complaint && ` (${enc.chief_complaint})`}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      backgroundColor: '#FEF3C7',
-                      border: '1px solid #FCD34D',
-                      color: '#92400E',
-                    }}
-                    className="rounded-lg p-4 flex gap-3"
-                  >
-                    <AlertTriangle size={18} className="flex-shrink-0" />
-                    <span>No encounters available for this appointment</span>
-                  </div>
-                )}
-              </div>
-
               {/* Medicine Items */}
               <div>
                 <label style={{ color: '#6B7280' }} className="block text-sm font-semibold mb-3">

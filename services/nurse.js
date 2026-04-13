@@ -1151,10 +1151,33 @@ export async function getAppointmentDetail(appointmentId) {
       [appointmentId]
     );
 
+    // Get items for each medicine order
+    const medicineOrdersWithItems = await Promise.all(
+      medicineOrders.map(async (order) => {
+        const [items] = await connection.query(
+          `SELECT 
+            omi.item_id,
+            omi.medicine_id,
+            ii.item_name as medicine_name,
+            omi.quantity,
+            omi.unit_price,
+            omi.notes
+           FROM order_medicine_items omi
+           LEFT JOIN inventory_items ii ON omi.medicine_id = ii.item_id
+           WHERE omi.order_id = ?`,
+          [order.order_id]
+        );
+        return {
+          ...order,
+          items: items || []
+        };
+      })
+    );
+
     return {
       appointment,
       encounters,
-      medicineOrders
+      medicineOrders: medicineOrdersWithItems
     };
   } catch (error) {
     console.error('Error fetching appointment detail:', error.message);
