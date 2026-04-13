@@ -207,7 +207,7 @@ export default function PharmacistMedicinesPage() {
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase">Amount</p>
                   <p className="text-lg font-bold text-green-600 mt-1">
-                    ${request.total_amount.toFixed(2)}
+                    ${(Number(request.total_amount) || 0).toFixed(2)}
                   </p>
                   <p className="text-sm text-gray-600">
                     By: {request.nurse_name}
@@ -308,7 +308,7 @@ export default function PharmacistMedicinesPage() {
                       <tr className="border-t-2 border-gray-200 font-bold">
                         <td colSpan="3" className="py-2 px-2 text-right">Total:</td>
                         <td className="py-2 px-2 text-right text-green-600">
-                          ${selectedOrder.total_amount.toFixed(2)}
+                          ${(Number(selectedOrder.total_amount) || 0).toFixed(2)}
                         </td>
                       </tr>
                     </tfoot>
