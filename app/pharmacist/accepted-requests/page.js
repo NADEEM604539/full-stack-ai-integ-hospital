@@ -128,7 +128,7 @@ export default function AcceptedRequestsPage() {
               {/* Expandable Details */}
               <button
                 onClick={() => setExpandedItem(expandedItem === request.order_id ? null : request.order_id)}
-                className="mt-4 text-blue-600 hover:text-blue-800 font-semibold text-sm"
+                className="mt-4 text-blue-900 hover:text-blue-950 font-bold text-sm"
               >
                 {expandedItem === request.order_id ? '▼' : '▶'} View Items
               </button>

@@ -80,7 +80,7 @@ export default function PharmacistInventoryPage() {
     lowStock: inventory.filter((m) => m.stock_status === 'LOW_STOCK').length,
     expiring: inventory.filter((m) => m.stock_status === 'EXPIRING_SOON').length,
     expired: inventory.filter((m) => m.stock_status === 'EXPIRED').length,
-    totalValue: inventory.reduce((sum, m) => sum + (m.quantity_in_stock * m.unit_price), 0),
+    totalValue: inventory.reduce((sum, m) => sum + (Number(m.quantity_in_stock) * Number(m.unit_price)), 0),
   };
 
   if (loading) {
@@ -273,14 +273,14 @@ export default function PharmacistInventoryPage() {
                   <div>
                     <p className="text-gray-600">Unit Price</p>
                     <p className="font-bold text-gray-800">
-                      ${medicine.unit_price.toFixed(2)}
+                      ${Number(medicine.unit_price).toFixed(2)}
                     </p>
                   </div>
 
                   <div>
                     <p className="text-gray-600">Total Value</p>
                     <p className="font-bold text-green-600">
-                      ${(medicine.quantity_in_stock * medicine.unit_price).toFixed(2)}
+                      ${(Number(medicine.quantity_in_stock) * Number(medicine.unit_price)).toFixed(2)}
                     </p>
                   </div>
                 </div>

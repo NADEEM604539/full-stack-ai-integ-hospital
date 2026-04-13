@@ -43,6 +43,16 @@ export default function PharmacistNavbar() {
                   {item.label}
                 </Link>
               ))}
+              <Link
+                href="/pharmacist/profile"
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors text-sm ${
+                  isActive('/pharmacist/profile')
+                    ? 'bg-white text-blue-600 shadow-md'
+                    : 'text-white hover:bg-blue-500 hover:bg-opacity-50'
+                }`}
+              >
+                👤 Profile
+              </Link>
             </nav>
 
             {/* Mobile Menu Button */}
@@ -73,6 +83,17 @@ export default function PharmacistNavbar() {
                   {item.label}
                 </Link>
               ))}
+              <Link
+                href="/pharmacist/profile"
+                onClick={() => setIsMenuOpen(false)}
+                className={`block px-4 py-2 rounded-lg font-semibold transition-colors ${
+                  isActive('/pharmacist/profile')
+                    ? 'bg-white text-blue-600'
+                    : 'text-white hover:bg-blue-600'
+                }`}
+              >
+                👤 Profile
+              </Link>
             </nav>
           </div>
         )}
