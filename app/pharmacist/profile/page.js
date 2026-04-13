@@ -95,7 +95,8 @@ export default function PharmacistProfilePage() {
   }
 
   return (
-    <div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-6 flex items-center justify-center">
+      <div className="w-full max-w-2xl">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800">👤 My Profile</h1>
@@ -123,7 +124,7 @@ export default function PharmacistProfilePage() {
       )}
 
       {/* Profile Card */}
-      <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl">
+      <div className="bg-white rounded-lg shadow-lg p-8 w-full">
         {/* Profile Header */}
         <div className="flex items-start justify-between mb-8 pb-6 border-b border-gray-200">
           <div className="flex items-center gap-6">
@@ -262,6 +263,7 @@ export default function PharmacistProfilePage() {
         <p className="text-blue-800">
           You can only update your phone number. For other changes, please contact the administration.
         </p>
+      </div>
       </div>
     </div>
   );
