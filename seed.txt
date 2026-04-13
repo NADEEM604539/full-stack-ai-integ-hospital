@@ -49,7 +49,7 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (15, 'clerk_doctor_006', 'dr.maryam@hospital.com', 'Dr. Maryam Saif', 2, TRUE),
 
 -- RECEPTIONIST USERS (3 receptionists)
-(20, 'nadeem recep', 'nmushtaq.bscs24seecs@seecs.edu.pk', 'Receptionist Aisha', 4, TRUE),
+(20, 'nadeem recep', 'nmushtaq.bscs24seecss@seecs.edu.pk', 'Receptionist Aisha', 4, TRUE),
 (21, 'clerk_receptionist_002', 'receptionist2@hospital.com', 'Receptionist Hina', 4, TRUE),
 (22, 'clerk_receptionist_003', 'receptionist3@hospital.com', 'Receptionist Ali', 4, TRUE),
 
@@ -59,7 +59,7 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (32, 'clerk_nurse_003', 'nurse3@hospital.com', 'Nurse Rizwan', 3, TRUE),
 
 -- PHARMACIST USERS (2 pharmacists)
-(40, 'clerk_pharmacist_001', 'pharmacist1@hospital.com', 'Pharmacist Hassan', 5, TRUE),
+(40, 'clerk_pharmacist_001', 'nmushtaq.bscs24seecs@seecs.edu.pk', 'Pharmacist Hassan', 5, TRUE),
 (41, 'clerk_pharmacist_002', 'pharmacist2@hospital.com', 'Pharmacist Zainab', 5, TRUE),
 
 -- FINANCE USERS (2 finance officers)
@@ -169,19 +169,19 @@ INSERT INTO doctor_availability (doctor_id, department_id, day_of_week, shift_st
 -- 7. PATIENTS (Patient-specific attributes with department_id)
 -- ==========================================
 INSERT INTO patients (patient_id, user_id, mrn, first_name, last_name, date_of_birth, gender, blood_type, phone_number, email, address, city, emergency_contact, emergency_phone, department_id, is_active) VALUES
-(1, 100, 'MRN001', 'John', 'Doe', '1985-05-15', 'Male', 'O+', '03001234567', 'john.doe@email.com', '123 Main St', 'Islamabad', 'Ayesha Doe', '03001234500', 1, TRUE),
-(2, 101, 'MRN002', 'Fatima', 'Khan', '1990-08-22', 'Female', 'A+', '03001234568', 'fatima.khan@email.com', '456 Hospital Rd', 'Islamabad', 'Muhammad Khan', '03001234501', 1, TRUE),
+(1, 100, 'MRN001', 'John', 'Doe', '1985-05-15', 'Male', 'O+', '03001234567', 'john.doe@email.com', '123 Main St', 'Islamabad', 'Ayesha Doe', '03001234500', 8, TRUE),
+(2, 101, 'MRN002', 'Fatima', 'Khan', '1990-08-22', 'Female', 'A+', '03001234568', 'fatima.khan@email.com', '456 Hospital Rd', 'Islamabad', 'Muhammad Khan', '03001234501', 8, TRUE),
 (3, 102, 'MRN003', 'Ali', 'Hassan', '1978-12-03', 'Male', 'B+', '03001234569', 'ali.hassan@email.com', '789 Health Ave', 'Islamabad', 'Fatima Hassan', '03001234502', 1, TRUE),
-(4, 103, 'MRN004', 'Sara', 'Ahmed', '1992-06-18', 'Female', 'O-', '03001234570', 'sara.ahmed@email.com', '321 Medical Lane', 'Islamabad', 'Ahmed Ahmed', '03001234503', 1, TRUE),
+(4, 103, 'MRN004', 'Sara', 'Ahmed', '1992-06-18', 'Female', 'O-', '03001234570', 'sara.ahmed@email.com', '321 Medical Lane', 'Islamabad', 'Ahmed Ahmed', '03001234503', 8, TRUE),
 (5, 104, 'MRN005', 'Maryam', 'Saif', '1988-09-25', 'Female', 'AB+', '03001234571', 'maryam.saif@email.com', '654 Care St', 'Islamabad', 'Hassan Saif', '03001234504', 2, TRUE),
-(6, 105, 'MRN006', 'Hassan', 'Raza', '1980-11-10', 'Male', 'A-', '03001234572', 'hassan.raza@email.com', '987 Health Blvd', 'Islamabad', 'Aisha Raza', '03001234505', 2, TRUE),
+(6, 105, 'MRN006', 'Hassan', 'Raza', '1980-11-10', 'Male', 'A-', '03001234572', 'hassan.raza@email.com', '987 Health Blvd', 'Islamabad', 'Aisha Raza', '03001234505', 8, TRUE),
 (7, 106, 'MRN007', 'Zainab', 'Malik', '1995-03-07', 'Female', 'B-', '03001234573', 'zainab.malik@email.com', '147 Hospital Ave', 'Islamabad', 'Ali Malik', '03001234506', 3, TRUE),
-(8, 107, 'MRN008', 'Aisha', 'Khan', '1982-07-14', 'Female', 'O+', '03001234574', 'aisha.khan@email.com', '258 Care Lane', 'Islamabad', 'Ibrahim Khan', '03001234507', 3, TRUE),
+(8, 107, 'MRN008', 'Aisha', 'Khan', '1982-07-14', 'Female', 'O+', '03001234574', 'aisha.khan@email.com', '258 Care Lane', 'Islamabad', 'Ibrahim Khan', '03001234507', 8, TRUE),
 (9, 108, 'MRN009', 'Bilal', 'Ahmed', '1987-04-20', 'Male', 'A+', '03001234575', 'bilal.ahmed@email.com', '369 Medical St', 'Islamabad', 'Zainab Ahmed', '03001234508', 1, TRUE),
 (10, 109, 'MRN010', 'Rana', 'Hassan', '1993-10-30', 'Female', 'B+', '03001234576', 'rana.hassan@email.com', '741 Hospital Rd', 'Islamabad', 'Karim Hassan', '03001234509', 2, TRUE),
-(11, 110, 'MRN011', 'Amina', 'Malik', '1989-02-14', 'Female', 'O-', '03001234577', 'amina.malik@email.com', '852 Health Ave', 'Islamabad', 'Rashid Malik', '03001234510', 3, TRUE),
+(11, 110, 'MRN011', 'Amina', 'Malik', '1989-02-14', 'Female', 'O-', '03001234577', 'amina.malik@email.com', '852 Health Ave', 'Islamabad', 'Rashid Malik', '03001234510', 8, TRUE),
 (12, 111, 'MRN012', 'Rizwan', 'Ali', '1981-06-05', 'Male', 'AB-', '03001234578', 'rizwan.ali@email.com', '963 Care Blvd', 'Islamabad', 'Hina Ali', '03001234511', 1, TRUE),
-(13, 112, 'MRN013', 'Hina', 'Khan', '1994-09-12', 'Female', 'A+', '03001234579', 'hina.khan@email.com', '654 Medical Lane', 'Islamabad', 'Salim Khan', '03001234512', 2, TRUE),
+(13, 112, 'MRN013', 'Hina', 'Khan', '1994-09-12', 'Female', 'A+', '03001234579', 'hina.khan@email.com', '654 Medical Lane', 'Islamabad', 'Salim Khan', '03001234512', 8, TRUE),
 (14, 113, 'MRN014', 'Usman', 'Ahmed', '1986-01-25', 'Male', 'B+', '03001234580', 'usman.ahmed@email.com', '789 Health St', 'Islamabad', 'Noor Ahmed', '03001234513', 1, TRUE),
 (15, 114, 'MRN015', 'Nida', 'Malik', '1991-08-19', 'Female', 'O+', '03001234581', 'nida.malik@email.com', '147 Hospital Blvd', 'Islamabad', 'Farooq Hassan', '03001234514', 2, TRUE),
 (16, 115, 'MRN016', 'Karim', 'Hassan', '1983-11-28', 'Male', 'A-', '03001234582', 'karim.hassan@email.com', '258 Care Ave', 'Islamabad', 'Amira Malik', '03001234515', 3, TRUE);
@@ -329,7 +329,7 @@ INSERT INTO prescription_details (prescription_id, item_id, dosage, frequency, d
 -- 20. ORDER_MEDICINE (Nurse requests medicines)
 -- ==========================================
 
-INSERT INTO order_medicine (encounter_id, appointment_id, patient_id, status, total_amount, requested_by, approved_by) VALUES
+INSERT INTO order_medicine (appointment_id, patient_id, status, total_amount, requested_by, approved_by) VALUES
 (1, 1, 'Accepted', 50.00, 10, 1),
 (2, 2, 'Pending', 70.00, 10, NULL),
 (3, 5, 'Accepted', 120.00, 10, 1),

@@ -82,7 +82,7 @@ export default function PharmacistDashboardPage() {
                 {stats?.pending_count || 0}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Total: ${(stats?.pending_total || 0).toFixed(2)}
+                Total: ${(Number(stats?.pending_total) || 0).toFixed(2)}
               </p>
             </div>
             <div className="text-yellow-500 text-4xl">📋</div>
@@ -98,7 +98,7 @@ export default function PharmacistDashboardPage() {
                 {stats?.accepted_count || 0}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Worth: ${(stats?.today_approved_total || 0).toFixed(2)}
+                Worth: ${(Number(stats?.today_approved_total) || 0).toFixed(2)}
               </p>
             </div>
             <div className="text-green-500 text-4xl">✅</div>
