@@ -259,15 +259,15 @@ export default function PharmacistMedicinesPage() {
 
       {/* Details Modal */}
       {selectedOrder && !showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-96 overflow-y-auto">
-            <div className="p-6">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-96 overflow-y-auto border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-800">
+                  <h2 className="text-2xl font-bold text-gray-900">
                     Order #{selectedOrder.order_id}
                   </h2>
-                  <p className="text-gray-600 mt-1">
+                  <p className="text-gray-700 mt-1 font-medium">
                     {selectedOrder.patient_name} (MRN: {selectedOrder.mrn})
                   </p>
                 </div>
@@ -280,34 +280,34 @@ export default function PharmacistMedicinesPage() {
               </div>
 
               {/* Medicine Items Table */}
-              <div className="mb-6">
-                <h3 className="font-semibold text-gray-800 mb-3">Medicine Items</h3>
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-bold text-gray-900 mb-3 text-lg">📋 Medicine Items</h3>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm bg-white rounded">
                     <thead>
-                      <tr className="border-b-2 border-gray-200">
-                        <th className="text-left py-2 px-2">Medicine</th>
-                        <th className="text-left py-2 px-2">Qty</th>
-                        <th className="text-left py-2 px-2">Unit Price</th>
-                        <th className="text-right py-2 px-2">Total</th>
+                      <tr className="border-b-2 border-gray-300 bg-gray-100">
+                        <th className="text-left py-3 px-3 font-bold text-gray-900">Medicine</th>
+                        <th className="text-center py-3 px-3 font-bold text-gray-900">Qty</th>
+                        <th className="text-right py-3 px-3 font-bold text-gray-900">Unit Price</th>
+                        <th className="text-right py-3 px-3 font-bold text-gray-900">Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedOrder.items && selectedOrder.items.map((item) => (
-                        <tr key={item.item_id} className="border-b border-gray-100">
-                          <td className="py-2 px-2">{item.medicine_name}</td>
-                          <td className="py-2 px-2">{item.quantity}</td>
-                          <td className="py-2 px-2">${item.unit_price.toFixed(2)}</td>
-                          <td className="py-2 px-2 text-right font-semibold">
-                            ${(item.quantity * item.unit_price).toFixed(2)}
+                        <tr key={item.item_id} className="border-b border-gray-200 hover:bg-gray-50">
+                          <td className="py-3 px-3 text-gray-800 font-medium">{item.medicine_name}</td>
+                          <td className="py-3 px-3 text-center text-gray-800 font-medium">{item.quantity}</td>
+                          <td className="py-3 px-3 text-right text-gray-800">${Number(item.unit_price).toFixed(2)}</td>
+                          <td className="py-3 px-3 text-right font-bold text-green-700">
+                            ${(item.quantity * Number(item.unit_price)).toFixed(2)}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t-2 border-gray-200 font-bold">
-                        <td colSpan="3" className="py-2 px-2 text-right">Total:</td>
-                        <td className="py-2 px-2 text-right text-green-600">
+                      <tr className="border-t-2 border-gray-300 font-bold bg-gray-100">
+                        <td colSpan="3" className="py-3 px-3 text-right text-gray-900">Total Amount:</td>
+                        <td className="py-3 px-3 text-right text-green-700 text-lg">
                           ${(Number(selectedOrder.total_amount) || 0).toFixed(2)}
                         </td>
                       </tr>
@@ -317,17 +317,17 @@ export default function PharmacistMedicinesPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 justify-end">
+              <div className="flex gap-3 justify-end p-4 bg-gray-50 border-t border-gray-200">
                 <button
                   onClick={() => setSelectedOrder(null)}
-                  className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 font-semibold"
+                  className="bg-gray-400 text-white px-4 py-2 rounded-lg hover:bg-gray-500 font-semibold transition"
                 >
                   Close
                 </button>
                 <button
                   onClick={() => handleApprove(selectedOrder.order_id)}
                   disabled={processingOrderId === selectedOrder.order_id}
-                  className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 font-semibold disabled:opacity-50"
+                  className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-semibold disabled:opacity-50 transition"
                 >
                   ✅ Approve
                 </button>
@@ -335,7 +335,7 @@ export default function PharmacistMedicinesPage() {
                   onClick={() => {
                     setShowModal(true);
                   }}
-                  className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 font-semibold"
+                  className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-semibold transition"
                 >
                   ❌ Reject
                 </button>
@@ -347,18 +347,18 @@ export default function PharmacistMedicinesPage() {
 
       {/* Rejection Modal */}
       {selectedOrder && showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full border border-gray-200">
             <div className="p-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                Reject Order #{selectedOrder.order_id}?
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                ❌ Reject Order #{selectedOrder.order_id}?
               </h2>
               
               <textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder="Provide a reason for rejection (required)"
-                className="w-full border border-gray-300 rounded-lg p-3 mb-4 h-24 focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full border-2 border-gray-300 rounded-lg p-3 mb-4 h-24 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-gray-800 placeholder-gray-500"
               />
 
               <div className="flex gap-3 justify-end">
@@ -367,14 +367,14 @@ export default function PharmacistMedicinesPage() {
                     setShowModal(false);
                     setRejectionReason('');
                   }}
-                  className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 font-semibold"
+                  className="bg-gray-400 text-white px-4 py-2 rounded-lg hover:bg-gray-500 font-semibold transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleReject(selectedOrder.order_id)}
                   disabled={processingOrderId === selectedOrder.order_id || !rejectionReason.trim()}
-                  className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 font-semibold disabled:opacity-50"
+                  className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-semibold disabled:opacity-50 transition"
                 >
                   {processingOrderId === selectedOrder.order_id ? '⏳' : '❌'} Confirm Rejection
                 </button>
