@@ -16,7 +16,7 @@ export async function PUT(request, { params }) {
     const access = await checkPharmacistAccess(connection);
     
     const body = await request.json();
-    const { item_name, sku, category, unit_price, quantity_in_stock, reorder_level, manufacturer, expiration_date } = body;
+    const { item_name, unit_price, quantity_in_stock, reorder_level, manufacturer, expiration_date } = body;
 
     // Validation
     if (!item_name?.trim() || unit_price === '' || quantity_in_stock === '' || reorder_level === '') {
@@ -41,9 +41,9 @@ export async function PUT(request, { params }) {
     // Update medicine
     await connection.query(
       `UPDATE inventory_items 
-       SET item_name = ?, category = ?, unit_price = ?, quantity_in_stock = ?, reorder_level = ?, manufacturer = ?, expiration_date = ?
+       SET item_name = ?, unit_price = ?, quantity_in_stock = ?, reorder_level = ?, manufacturer = ?, expiration_date = ?
        WHERE item_id = ?`,
-      [item_name.trim(), category || null, numericUnitPrice, numericQuantity, numericReorderLevel, manufacturer?.trim() || null, expiration_date || null, itemId]
+      [item_name.trim(), numericUnitPrice, numericQuantity, numericReorderLevel, manufacturer?.trim() || null, expiration_date || null, itemId]
     );
 
     return NextResponse.json({

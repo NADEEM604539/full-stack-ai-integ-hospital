@@ -28,7 +28,7 @@ export default function PharmacistInventoryPage() {
   const [formData, setFormData] = useState({
     item_name: '',
     sku: '',
-    category: '',
+    item_type: '',
     unit_price: '',
     quantity_in_stock: '',
     reorder_level: '',
@@ -349,7 +349,7 @@ export default function PharmacistInventoryPage() {
                       setFormData({
                         item_name: medicine.item_name,
                         sku: medicine.sku,
-                        category: medicine.item_type || '',
+                        item_type: medicine.item_type || '',
                         unit_price: medicine.unit_price,
                         quantity_in_stock: medicine.quantity_in_stock,
                         reorder_level: medicine.reorder_level,
@@ -370,7 +370,7 @@ export default function PharmacistInventoryPage() {
 
       {/* Add Medicine Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-2xl max-w-md w-full max-h-screen overflow-y-auto">
             {/* Modal Header */}
             <div className="bg-green-600 text-white p-6 sticky top-0">
@@ -398,7 +398,7 @@ export default function PharmacistInventoryPage() {
                   setFormData({
                     item_name: '',
                     sku: '',
-                    category: '',
+                    item_type: '',
                     unit_price: '',
                     quantity_in_stock: '',
                     reorder_level: '',
@@ -443,14 +443,18 @@ export default function PharmacistInventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-800 mb-2">Category</label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="e.g., Tablet"
+                  <label className="block text-sm font-bold text-gray-800 mb-2">Type *</label>
+                  <select
+                    value={formData.item_type || ''}
+                    onChange={(e) => setFormData({ ...formData, item_type: e.target.value })}
+                    required
                     className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
-                  />
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Medication">💊 Medication</option>
+                    <option value="Medical Supply">🏥 Medical Supply</option>
+                    <option value="Equipment">⚙️ Equipment</option>
+                  </select>
                 </div>
               </div>
 
@@ -538,7 +542,7 @@ export default function PharmacistInventoryPage() {
 
       {/* Edit Medicine Modal */}
       {editingItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-2xl max-w-md w-full max-h-screen overflow-y-auto">
             {/* Modal Header */}
             <div className="bg-blue-600 text-white p-6 sticky top-0">
@@ -602,14 +606,17 @@ export default function PharmacistInventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-800 mb-2">Category</label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="e.g., Tablet"
+                  <label className="block text-sm font-bold text-gray-800 mb-2">Type</label>
+                  <select
+                    value={formData.item_type || ''}
+                    onChange={(e) => setFormData({ ...formData, item_type: e.target.value })}
                     className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  />
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Medication">💊 Medication</option>
+                    <option value="Medical Supply">🏥 Medical Supply</option>
+                    <option value="Equipment">⚙️ Equipment</option>
+                  </select>
                 </div>
               </div>
 
