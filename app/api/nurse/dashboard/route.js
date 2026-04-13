@@ -13,11 +13,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request) {
   try {
-    const stats = await getNurseDashboardStats();
+    const dashboardData = await getNurseDashboardStats();
 
     return NextResponse.json({
       success: true,
-      data: stats,
+      data: dashboardData,
     });
   } catch (error) {
     console.error('Nurse Dashboard API Error:', error?.message);

@@ -206,13 +206,13 @@ const NurseDashboard = () => {
                     {recentActivity.map((activity, idx) => (
                       <tr key={idx} style={{ borderBottom: '1px solid #E5E7EB' }}>
                         <td className="px-6 py-4 text-sm font-medium" style={{ color: '#1F2937' }}>
-                          {activity.patientName}
+                          {activity.patient_name}
                         </td>
                         <td className="px-6 py-4 text-sm" style={{ color: '#6B7280' }}>
-                          {activity.activityType}
+                          {activity.encounter_type} - {activity.status}
                         </td>
                         <td className="px-6 py-4 text-sm" style={{ color: '#6B7280' }}>
-                          {activity.timestamp}
+                          {new Date(activity.admission_date).toLocaleString()}
                         </td>
                       </tr>
                     ))}

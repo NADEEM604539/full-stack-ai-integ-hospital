@@ -13,6 +13,7 @@ import {
   FileText,
   User,
   Heart,
+  Pill,
   ChevronRight,
   AlertCircle,
   LogOut,
@@ -101,6 +102,12 @@ export default function PatientDetailLayout({ children }) {
       href: `/patient/${patientId}/vitals`,
       icon: Heart,
       active: pathname?.includes('/vitals'),
+    },
+    {
+      label: 'Medicines',
+      href: `/patient/${patientId}/medicines`,
+      icon: Pill,
+      active: pathname?.includes('/medicines'),
     },
     {
       label: 'Medical History',

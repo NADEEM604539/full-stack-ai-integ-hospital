@@ -1,6 +1,6 @@
 'use client';
 
-import { Home, Users, Heart, Activity, FileText, Menu, X, User, Clock } from 'lucide-react';
+import { Home, Users, Heart, Activity, FileText, Menu, X, User, Clock, Package } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -17,6 +17,7 @@ export default function NurseNavbar() {
     { href: '/nurse/patients', label: 'Patients', icon: Users },
     { href: '/nurse/encounters', label: 'Encounters', icon: Activity },
     { href: '/nurse/vitals', label: 'Vitals', icon: Heart },
+    { href: '/nurse/request-medicine', label: 'Request Medicines', icon: Package },
     { href: '/nurse/profile', label: 'My Profile', icon: User },
   ];
 

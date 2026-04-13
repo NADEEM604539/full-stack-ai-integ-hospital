@@ -6,7 +6,7 @@ import { getNurseMedicineOrderDetail } from '@/services/nurse';
  */
 export async function GET(request, { params }) {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
 
     if (!orderId || isNaN(orderId)) {
       return Response.json(

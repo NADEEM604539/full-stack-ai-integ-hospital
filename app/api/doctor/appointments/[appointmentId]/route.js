@@ -90,12 +90,16 @@ export async function GET(request, { params }) {
         d.doctor_id,
         s.first_name as doctor_first_name,
         s.last_name as doctor_last_name,
-        dept.department_name
+        s.department_id as doctor_department_id,
+        dept.department_name as doctor_department_name,
+        a.department_id as appointment_department_id,
+        apt_dept.department_name as appointment_department_name
       FROM appointments a
       JOIN doctors d ON a.doctor_id = d.doctor_id
       JOIN staff s ON d.staff_id = s.staff_id
       JOIN patients p ON a.patient_id = p.patient_id
       JOIN departments dept ON s.department_id = dept.department_id
+      LEFT JOIN departments apt_dept ON a.department_id = apt_dept.department_id
       WHERE a.appointment_id = ?
     `;
 

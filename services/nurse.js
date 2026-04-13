@@ -761,7 +761,7 @@ export async function getNurseDashboardStats() {
     const access = await checkNurseAccess(connection);
     const { departmentId } = access;
 
-    // Total patients
+    // Total patients in department
     const [patientsCount] = await connection.query(
       `SELECT COUNT(DISTINCT p.patient_id) as total
        FROM patients p
@@ -769,7 +769,7 @@ export async function getNurseDashboardStats() {
       [departmentId]
     );
 
-    // Active encounters
+    // Active encounters in department
     const [encountersCount] = await connection.query(
       `SELECT COUNT(DISTINCT e.encounter_id) as total
        FROM encounters e
@@ -778,7 +778,7 @@ export async function getNurseDashboardStats() {
       [departmentId]
     );
 
-    // Vitals recorded today
+    // Vitals recorded today in department
     const [vitalsCount] = await connection.query(
       `SELECT COUNT(v.vital_id) as total
        FROM vitals v
@@ -788,10 +788,47 @@ export async function getNurseDashboardStats() {
       [departmentId]
     );
 
+    // Pending tasks: Active encounters without vitals recorded today
+    const [pendingCount] = await connection.query(
+      `SELECT COUNT(DISTINCT e.encounter_id) as total
+       FROM encounters e
+       JOIN patients p ON e.patient_id = p.patient_id
+       LEFT JOIN vitals v ON e.encounter_id = v.encounter_id AND DATE(v.recorded_at) = CURDATE()
+       WHERE e.status = 'Active' AND e.is_deleted = FALSE 
+       AND p.department_id = ? AND v.vital_id IS NULL`,
+      [departmentId]
+    );
+
+    // Recent activity: Last 5 encounters in department
+    const [recentActivity] = await connection.query(
+      `SELECT 
+        e.encounter_id,
+        e.patient_id,
+        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
+        p.mrn,
+        e.encounter_type,
+        e.status,
+        e.chief_complaint,
+        e.admission_date,
+        CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
+        (SELECT COUNT(*) FROM vitals v WHERE v.encounter_id = e.encounter_id) as vitals_count
+       FROM encounters e
+       JOIN patients p ON e.patient_id = p.patient_id
+       LEFT JOIN staff s ON e.doctor_id = s.staff_id
+       WHERE p.department_id = ? AND e.is_deleted = FALSE
+       ORDER BY e.admission_date DESC
+       LIMIT 5`,
+      [departmentId]
+    );
+
     return {
-      totalPatients: patientsCount[0]?.total || 0,
-      activeEncounters: encountersCount[0]?.total || 0,
-      vitalsRecordedToday: vitalsCount[0]?.total || 0
+      stats: {
+        totalPatients: patientsCount[0]?.total || 0,
+        activeEncounters: encountersCount[0]?.total || 0,
+        vitalsRecorded: vitalsCount[0]?.total || 0,
+        pendingTasks: pendingCount[0]?.total || 0
+      },
+      recentActivity: recentActivity || []
     };
   } catch (error) {
     console.error('Error fetching dashboard stats:', error.message);
@@ -991,6 +1028,308 @@ export async function getNurseMedicineOrderDetail(orderId) {
     };
   } catch (error) {
     console.error('Error fetching medicine order detail:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get all appointments for nurse's department
+ * RBAC: Nurse can only see appointments in their department
+ */
+export async function getNurseAppointments() {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkNurseAccess(connection);
+    const { departmentId } = access;
+
+    const [appointments] = await connection.query(
+      `SELECT 
+        a.appointment_id,
+        a.patient_id,
+        a.doctor_id,
+        a.appointment_date,
+        a.appointment_time,
+        a.duration_minutes,
+        a.status,
+        a.reason_for_visit,
+        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
+        p.mrn,
+        CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
+        (SELECT COUNT(*) FROM encounters e WHERE e.appointment_id = a.appointment_id) as encounter_count,
+        (SELECT COUNT(*) FROM order_medicine om WHERE om.appointment_id = a.appointment_id) as medicine_order_count
+       FROM appointments a
+       JOIN patients p ON a.patient_id = p.patient_id
+       LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
+       LEFT JOIN staff s ON d.staff_id = s.staff_id
+       WHERE a.department_id = ? AND a.is_deleted = FALSE
+       ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
+      [departmentId]
+    );
+
+    return appointments;
+  } catch (error) {
+    console.error('Error fetching nurse appointments:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get appointment detail with encounters and existing medicine orders
+ * RBAC: Nurse can only access appointments in their department
+ */
+export async function getAppointmentDetail(appointmentId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkNurseAccess(connection);
+    const { departmentId } = access;
+
+    // Get appointment
+    const [appointments] = await connection.query(
+      `SELECT 
+        a.appointment_id,
+        a.patient_id,
+        a.doctor_id,
+        a.appointment_date,
+        a.appointment_time,
+        a.duration_minutes,
+        a.status,
+        a.reason_for_visit,
+        a.notes,
+        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
+        p.mrn,
+        p.date_of_birth,
+        p.blood_type,
+        p.phone_number,
+        p.email,
+        CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
+        sp.specialization
+       FROM appointments a
+       JOIN patients p ON a.patient_id = p.patient_id
+       LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
+       LEFT JOIN staff s ON d.staff_id = s.staff_id
+       LEFT JOIN (SELECT doctor_id, specialization FROM doctors) sp ON a.doctor_id = sp.doctor_id
+       WHERE a.appointment_id = ? AND a.department_id = ? AND a.is_deleted = FALSE`,
+      [appointmentId, departmentId]
+    );
+
+    if (!appointments.length) {
+      throw new Error('Appointment not found or access denied');
+    }
+
+    const appointment = appointments[0];
+
+    // Get encounters for this appointment
+    const [encounters] = await connection.query(
+      `SELECT 
+        e.encounter_id,
+        e.encounter_type,
+        e.chief_complaint,
+        e.status,
+        e.admission_date
+       FROM encounters e
+       WHERE e.appointment_id = ? AND e.is_deleted = FALSE`,
+      [appointmentId]
+    );
+
+    // Get medicine orders
+    const [medicineOrders] = await connection.query(
+      `SELECT 
+        om.order_id,
+        om.status,
+        om.total_amount,
+        om.created_at,
+        COUNT(omi.item_id) as item_count
+       FROM order_medicine om
+       LEFT JOIN order_medicine_items omi ON om.order_id = omi.order_id
+       WHERE om.appointment_id = ?
+       GROUP BY om.order_id
+       ORDER BY om.created_at DESC`,
+      [appointmentId]
+    );
+
+    return {
+      appointment,
+      encounters,
+      medicineOrders
+    };
+  } catch (error) {
+    console.error('Error fetching appointment detail:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get medicine order with items for editing
+ * RBAC: Nurse can only access orders from their requested requests
+ */
+export async function getMedicineOrderWithItems(orderId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkNurseAccess(connection);
+    const { departmentId } = access;
+
+    // Get order
+    const [orders] = await connection.query(
+      `SELECT 
+        om.order_id,
+        om.encounter_id,
+        om.appointment_id,
+        om.patient_id,
+        om.status,
+        om.total_amount,
+        om.rejection_reason,
+        om.created_at,
+        om.requested_by
+       FROM order_medicine om
+       JOIN appointments a ON om.appointment_id = a.appointment_id
+       WHERE om.order_id = ? AND a.department_id = ? AND om.status = 'Pending'`,
+      [orderId, departmentId]
+    );
+
+    if (!orders.length) {
+      throw new Error('Medicine order not found or cannot be edited (must be Pending status)');
+    }
+
+    const order = orders[0];
+
+    // Get items
+    const [items] = await connection.query(
+      `SELECT 
+        omi.item_id as id,
+        omi.medicine_id,
+        omi.medicine_name,
+        omi.quantity,
+        omi.unit_price,
+        omi.notes
+       FROM order_medicine_items omi
+       WHERE omi.order_id = ?`,
+      [orderId]
+    );
+
+    return {
+      order,
+      items
+    };
+  } catch (error) {
+    console.error('Error fetching medicine order:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Update medicine order items (can only update if Pending)
+ * RBAC: Nurse can only update their own Pending orders
+ */
+export async function updateMedicineOrderItems(orderId, items) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkNurseAccess(connection);
+    const { departmentId } = access;
+
+    // Verify order is pending and belongs to nurse's department
+    const [orders] = await connection.query(
+      `SELECT om.order_id FROM order_medicine om
+       JOIN appointments a ON om.appointment_id = a.appointment_id
+       WHERE om.order_id = ? AND a.department_id = ? AND om.status = 'Pending'`,
+      [orderId, departmentId]
+    );
+
+    if (!orders.length) {
+      throw new Error('Medicine order not found or cannot be edited');
+    }
+
+    await connection.beginTransaction();
+
+    // Delete old items
+    await connection.query(
+      `DELETE FROM order_medicine_items WHERE order_id = ?`,
+      [orderId]
+    );
+
+    // Insert new items and calculate total
+    let totalAmount = 0;
+    for (const item of items) {
+      await connection.query(
+        `INSERT INTO order_medicine_items (order_id, medicine_id, medicine_name, quantity, unit_price, notes)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [orderId, item.medicine_id, item.medicine_name, item.quantity, item.unit_price, item.notes || null]
+      );
+      totalAmount += (item.quantity * item.unit_price);
+    }
+
+    // Update order total
+    await connection.query(
+      `UPDATE order_medicine SET total_amount = ? WHERE order_id = ?`,
+      [totalAmount, orderId]
+    );
+
+    await connection.commit();
+
+    return { orderId, totalAmount, itemCount: items.length };
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error('Error updating medicine order:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Delete medicine order (can only delete if Pending)
+ * RBAC: Nurse can only delete their own Pending orders
+ */
+export async function deleteMedicineOrder(orderId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkNurseAccess(connection);
+    const { departmentId } = access;
+
+    // Verify order is pending and belongs to nurse's department
+    const [orders] = await connection.query(
+      `SELECT om.order_id FROM order_medicine om
+       JOIN appointments a ON om.appointment_id = a.appointment_id
+       WHERE om.order_id = ? AND a.department_id = ? AND om.status = 'Pending'`,
+      [orderId, departmentId]
+    );
+
+    if (!orders.length) {
+      throw new Error('Medicine order not found or cannot be deleted');
+    }
+
+    await connection.beginTransaction();
+
+    // Delete items
+    await connection.query(
+      `DELETE FROM order_medicine_items WHERE order_id = ?`,
+      [orderId]
+    );
+
+    // Delete order
+    await connection.query(
+      `DELETE FROM order_medicine WHERE order_id = ?`,
+      [orderId]
+    );
+
+    await connection.commit();
+
+    return { success: true, message: 'Medicine order deleted successfully' };
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error('Error deleting medicine order:', error.message);
     throw error;
   } finally {
     if (connection) connection.release();

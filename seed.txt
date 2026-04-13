@@ -37,7 +37,7 @@ INSERT INTO departments (department_id, department_name, department_head_name, c
 
 INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) VALUES
 -- ADMIN USERS (2 admins - NO staff records)
-(1, 'admin', 'programmingworld360@gmail.com', 'Admin User', 1, TRUE),
+(1, 'admin', 'programmingworlld360@gmail.com', 'Admin User', 1, TRUE),
 (2, 'clerk_admin_002', 'nadeem.admin@hospital.com', 'Nadeem Admin', 1, TRUE),
 
 -- DOCTOR USERS (6 doctors - Will have staff records with department_id)
@@ -54,7 +54,7 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (22, 'clerk_receptionist_003', 'receptionist3@hospital.com', 'Receptionist Ali', 4, TRUE),
 
 -- NURSE USERS (3 nurses)
-(30, 'nadeem nurse', 'programmingworld360@hospital.co', 'Nurse Saira', 3, TRUE),
+(30, 'nadeem nurse', 'programmingworld360@gmail.com', 'Nurse Saira', 3, TRUE),
 (31, 'clerk_nurse_002', 'nurse2@hospital.com', 'Nurse Amina', 3, TRUE),
 (32, 'clerk_nurse_003', 'nurse3@hospital.com', 'Nurse Rizwan', 3, TRUE),
 

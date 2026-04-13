@@ -197,11 +197,15 @@ export async function getPatientAppointments(patientId) {
         a.created_at,
         d.doctor_id,
         CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
-        dept.department_name
+        a.department_id as appointment_department_id,
+        apt_dept.department_name as appointment_department_name,
+        s.department_id as doctor_department_id,
+        doc_dept.department_name as doctor_department_name
        FROM appointments a
        JOIN doctors d ON a.doctor_id = d.doctor_id
        JOIN staff s ON d.staff_id = s.staff_id
-       JOIN departments dept ON a.department_id = dept.department_id
+       JOIN departments apt_dept ON a.department_id = apt_dept.department_id
+       JOIN departments doc_dept ON s.department_id = doc_dept.department_id
        WHERE a.patient_id = ? AND a.is_deleted = FALSE
        ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
       [patientId]
@@ -847,6 +851,59 @@ export async function bookAppointment(patientId, appointmentData) {
 }
 
 /**
+ * Move patient appointment to their doctor's assigned department
+ * RBAC: Patient can only move their own appointments
+ * @param {number} patientId - The patient who owns the appointment
+ * @param {number} appointmentId - The appointment to move
+ * @returns {Promise<Object>} { appointmentId, newDepartmentId, message }
+ */
+export async function movePatientAppointmentDepartment(patientId, appointmentId) {
+  const { userId } = await checkPatientAccess();
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Verify patient ownership of appointment
+    const [appointments] = await connection.query(
+      `SELECT 
+        a.appointment_id,
+        a.doctor_id,
+        s.department_id
+       FROM appointments a
+       JOIN doctors d ON a.doctor_id = d.doctor_id
+       JOIN staff s ON d.staff_id = s.staff_id
+       WHERE a.appointment_id = ? AND a.patient_id = ?`,
+      [appointmentId, patientId]
+    );
+
+    if (!appointments.length) {
+      throw new Error('Appointment not found or access denied');
+    }
+
+    const doctorDepartmentId = appointments[0].department_id;
+
+    // Update appointment department to match doctor's department
+    await connection.query(
+      `UPDATE appointments SET department_id = ? WHERE appointment_id = ?`,
+      [doctorDepartmentId, appointmentId]
+    );
+
+    return {
+      success: true,
+      appointmentId,
+      newDepartmentId: doctorDepartmentId,
+      message: 'Appointment moved to doctor\'s department'
+    };
+  } catch (error) {
+    console.error('Error moving appointment department:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
  * Get medical history for a patient
  * RBAC: Patient can only access their own medical history
  * @param {number} patientId - The patient whose medical history to fetch
@@ -1084,6 +1141,129 @@ export async function deletePatientMedicalHistory(patientId, historyId) {
     return { success: true, message: 'Medical history deleted successfully' };
   } catch (error) {
     console.error('Error deleting medical history:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get all medicines for a patient grouped by appointment
+ * RBAC: Patient can only access their own medicines
+ * @param {number} patientId - The patient whose medicines to fetch
+ * @returns {Promise<Array>} List of appointments with their medicines
+ */
+export async function getPatientMedicinesByAppointment(patientId) {
+  const { userId } = await checkPatientAccess();
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Verify patient ownership
+    const [patients] = await connection.query(
+      `SELECT patient_id FROM patients 
+       WHERE patient_id = ? AND user_id = ? AND is_deleted = FALSE`,
+      [patientId, userId]
+    );
+
+    if (!patients.length) {
+      throw new Error('Patient not found or access denied');
+    }
+
+    // Get all appointments with their medicine orders
+    const [appointments] = await connection.query(
+      `SELECT 
+        a.appointment_id,
+        a.appointment_date,
+        a.appointment_time,
+        a.status,
+        a.reason_for_visit,
+        CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
+        sp.specialization,
+        d.department_name
+       FROM appointments a
+       LEFT JOIN doctors doc ON a.doctor_id = doc.doctor_id
+       LEFT JOIN staff s ON doc.staff_id = s.staff_id
+       LEFT JOIN (SELECT doctor_id, specialization FROM doctors) sp ON a.doctor_id = sp.doctor_id
+       LEFT JOIN departments d ON a.department_id = d.department_id
+       WHERE a.patient_id = ? AND a.is_deleted = FALSE
+       ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
+      [patientId]
+    );
+
+    // Get all medicine orders for these appointments
+    const appointmentIds = appointments.map(apt => apt.appointment_id);
+    
+    let medicinesByAppointment = {};
+    
+    if (appointmentIds.length > 0) {
+      const [medicines] = await connection.query(
+        `SELECT 
+          om.order_id,
+          om.appointment_id,
+          om.status,
+          om.total_amount,
+          om.created_at,
+          omi.item_id,
+          omi.medicine_name,
+          omi.quantity,
+          omi.unit_price,
+          omi.notes
+         FROM order_medicine om
+         LEFT JOIN order_medicine_items omi ON om.order_id = omi.order_id
+         WHERE om.appointment_id IN (${appointmentIds.map(() => '?').join(',')})
+         ORDER BY om.created_at DESC`,
+        appointmentIds
+      );
+
+      // Group medicines by appointment
+      medicines.forEach(med => {
+        if (!medicinesByAppointment[med.appointment_id]) {
+          medicinesByAppointment[med.appointment_id] = {
+            orders: []
+          };
+        }
+        
+        const existingOrder = medicinesByAppointment[med.appointment_id].orders.find(
+          o => o.order_id === med.order_id
+        );
+        
+        if (!existingOrder) {
+          medicinesByAppointment[med.appointment_id].orders.push({
+            order_id: med.order_id,
+            status: med.status,
+            total_amount: med.total_amount,
+            created_at: med.created_at,
+            items: med.medicine_name ? [{
+              item_id: med.item_id,
+              medicine_name: med.medicine_name,
+              quantity: med.quantity,
+              unit_price: med.unit_price,
+              notes: med.notes
+            }] : []
+          });
+        } else if (med.medicine_name) {
+          existingOrder.items.push({
+            item_id: med.item_id,
+            medicine_name: med.medicine_name,
+            quantity: med.quantity,
+            unit_price: med.unit_price,
+            notes: med.notes
+          });
+        }
+      });
+    }
+
+    // Combine appointments with their medicines
+    const result = appointments.map(apt => ({
+      ...apt,
+      medicines: medicinesByAppointment[apt.appointment_id] || { orders: [] }
+    }));
+
+    return result;
+  } catch (error) {
+    console.error('Error fetching patient medicines:', error.message);
     throw error;
   } finally {
     if (connection) connection.release();

@@ -9,6 +9,8 @@ export default function DoctorAppointmentsClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('Scheduled');
+  const [movingDept, setMovingDept] = useState(null);
+  const [doctorDepartment, setDoctorDepartment] = useState(null);
 
   useEffect(() => {
     fetchAppointments();
@@ -26,6 +28,14 @@ export default function DoctorAppointmentsClient() {
 
       const result = await response.json();
       setAppointments(result.data || []);
+
+      // Extract doctor's department from first appointment
+      if (result.data && result.data.length > 0) {
+        setDoctorDepartment({
+          id: result.data[0].doctor_department_id,
+          name: result.data[0].department_name,
+        });
+      }
     } catch (err) {
       console.error('Error fetching appointments:', err);
       setError(err.message);
@@ -37,6 +47,30 @@ export default function DoctorAppointmentsClient() {
   const filteredAppointments = appointments.filter(apt => 
     selectedStatus === 'All' || apt.status === selectedStatus
   );
+
+  const handleMoveToMyDepartment = async (appointmentId) => {
+    if (!window.confirm('Move this appointment to your department?')) return;
+
+    try {
+      setMovingDept(appointmentId);
+      const response = await fetch(`/api/doctor/appointments/${appointmentId}/department`, {
+        method: 'PUT',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to move appointment');
+      }
+
+      // Refresh appointments
+      await fetchAppointments();
+      alert('Appointment moved to your department successfully!');
+    } catch (err) {
+      console.error('Error moving appointment:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setMovingDept(null);
+    }
+  };
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -153,6 +187,28 @@ export default function DoctorAppointmentsClient() {
                     <div className="mb-3 p-3 rounded-lg" style={{ backgroundColor: '#EFF6FF', borderLeft: '3px solid #3B82F6' }}>
                       <p className="text-xs font-semibold" style={{ color: '#6B7280' }}>Reason for Visit</p>
                       <p className="text-sm mt-1" style={{ color: '#1E40AF' }}>{apt.reason_for_visit}</p>
+                    </div>
+                  )}
+
+                  {/* Department Mismatch Warning */}
+                  {apt.appointment_department_id !== apt.doctor_department_id && (
+                    <div className="mb-3 p-3 rounded-lg bg-red-50 border-l-4 border-red-400">
+                      <div className="flex items-start gap-2">
+                        <div style={{ color: '#DC2626', marginTop: '2px' }}>⚠️</div>
+                        <div className="flex-1">
+                          <p className="text-xs font-bold" style={{ color: '#7F1D1D' }}>Department Mismatch</p>
+                          <p className="text-xs mt-1" style={{ color: '#991B1B' }}>
+                            Appointment is in <strong>{apt.appointment_department_name}</strong> but you are in <strong>{apt.department_name}</strong>
+                          </p>
+                          <button
+                            onClick={() => handleMoveToMyDepartment(apt.appointment_id)}
+                            disabled={movingDept === apt.appointment_id}
+                            className="mt-2 text-xs font-bold px-3 py-1.5 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition"
+                          >
+                            {movingDept === apt.appointment_id ? 'Moving...' : 'Move to My Department'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
 

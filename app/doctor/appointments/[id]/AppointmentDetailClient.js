@@ -22,6 +22,7 @@ export default function AppointmentDetailClient({ appointmentId }) {
   const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [movingDept, setMovingDept] = useState(false);
 
   useEffect(() => {
     fetchAppointmentDetails();
@@ -124,6 +125,38 @@ export default function AppointmentDetailClient({ appointmentId }) {
       alert(`Error: ${err.message}`);
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleMoveToMyDepartment = async () => {
+    if (!window.confirm(`Move this appointment to ${appointment.doctor_department_name} department?`)) {
+      return;
+    }
+
+    try {
+      setMovingDept(true);
+      const res = await fetch(`/api/doctor/appointments/${appointmentId}/department`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to move appointment');
+      }
+
+      const data = await res.json();
+      setAppointment({
+        ...appointment,
+        appointment_department_id: data.data.newDepartmentId,
+        appointment_department_name: appointment.doctor_department_name,
+      });
+      alert('✅ Appointment moved to your department!');
+    } catch (err) {
+      console.error('Error moving appointment:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setMovingDept(false);
     }
   };
 
@@ -302,9 +335,42 @@ export default function AppointmentDetailClient({ appointmentId }) {
               </p>
               <div className="mt-3 space-y-2">
                 <p><span style={{ color: '#6B7280' }} className="text-sm">MRN:</span> <span style={{ color: '#1E40AF' }} className="font-semibold">{appointment.mrn}</span></p>
-                <p><span style={{ color: '#6B7280' }} className="text-sm">Department:</span> <span style={{ color: '#1E40AF' }} className="font-semibold">{appointment.department_name}</span></p>
+                <p><span style={{ color: '#6B7280' }} className="text-sm">Department:</span> <span style={{ color: '#1E40AF' }} className="font-semibold">{appointment.appointment_department_name}</span></p>
               </div>
             </div>
+
+            {/* Department Mismatch Warning */}
+            {appointment.appointment_department_id !== appointment.doctor_department_id && (
+              <div className="mb-6 p-4 rounded-lg bg-red-50 border-l-4 border-red-400">
+                <div className="flex items-start gap-3">
+                  <div style={{ color: '#DC2626', marginTop: '2px' }}>⚠️</div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold" style={{ color: '#7F1D1D' }}>Department Mismatch</p>
+                    <p className="text-sm mt-2" style={{ color: '#991B1B' }}>
+                      This appointment is in <strong>{appointment.appointment_department_name}</strong> but you are assigned to <strong>{appointment.doctor_department_name}</strong> department.
+                    </p>
+                    <button
+                      onClick={handleMoveToMyDepartment}
+                      disabled={movingDept}
+                      className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
+                      style={{
+                        backgroundColor: '#DC2626',
+                        opacity: movingDept ? 0.6 : 1,
+                      }}
+                    >
+                      {movingDept ? (
+                        <span className="flex items-center gap-2">
+                          <Loader size={14} className="animate-spin" />
+                          Moving...
+                        </span>
+                      ) : (
+                        'Move to My Department'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Reason for Visit */}
             {appointment.reason_for_visit && (

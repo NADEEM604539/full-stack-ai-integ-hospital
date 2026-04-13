@@ -84,11 +84,12 @@ export async function getDoctorAppointments() {
       throw new Error(`Database connection failed: ${dbError?.message || String(dbError)}`);
     }
 
-    // RBAC check - verify doctor role and get doctor_id
-    let authDoctorId;
+    // RBAC check - verify doctor role and get doctor_id and department_id
+    let authDoctorId, doctorDepartmentId;
     try {
       const access = await checkDoctorAccess(connection);
       authDoctorId = access.doctorId;
+      doctorDepartmentId = access.departmentId;
     } catch (authError) {
       throw authError;
     }
@@ -105,29 +106,92 @@ export async function getDoctorAppointments() {
         a.notes,
         a.satisfaction_rating,
         a.patient_id,
+        a.department_id as appointment_department_id,
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
         p.mrn,
         d.doctor_id,
         s.first_name as doctor_first_name,
         s.last_name as doctor_last_name,
-        dept.department_name
+        s.department_id as doctor_department_id,
+        dept.department_name,
+        apt_dept.department_name as appointment_department_name
       FROM appointments a
       JOIN doctors d ON a.doctor_id = d.doctor_id
       JOIN staff s ON d.staff_id = s.staff_id
       JOIN patients p ON a.patient_id = p.patient_id
       JOIN departments dept ON s.department_id = dept.department_id
+      LEFT JOIN departments apt_dept ON a.department_id = apt_dept.department_id
       WHERE a.doctor_id = ?
       ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
       [authDoctorId]
     );
 
+    // Add doctor's department_id to each appointment for comparison
+    const appointmentsWithDeptInfo = appointments.map(apt => ({
+      ...apt,
+      doctor_department_id: doctorDepartmentId,
+    }));
+
     connection.release();
-    return appointments || [];
+    return appointmentsWithDeptInfo || [];
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
     console.error(`Failed to fetch doctor appointments:`, errorMsg);
     throw new Error(`Appointment retrieval failed: ${errorMsg}`);
+  }
+}
+
+/**
+ * Update appointment department to match doctor's department
+ * Doctor can only move their own appointments to their department
+ */
+export async function updateAppointmentDepartment(appointmentId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // RBAC check - verify doctor role and get doctor's department_id
+    const access = await checkDoctorAccess(connection);
+    const { doctorId, departmentId } = access;
+
+    // Verify appointment belongs to this doctor
+    const [appointments] = await connection.query(
+      `SELECT a.appointment_id, a.doctor_id FROM appointments 
+       WHERE a.appointment_id = ? AND a.doctor_id IN (
+         SELECT d.doctor_id FROM doctors d 
+         WHERE d.doctor_id = ?
+       )`,
+      [appointmentId, doctorId]
+    );
+
+    if (!appointments.length) {
+      throw new Error('Appointment not found or access denied');
+    }
+
+    // Update appointment department_id to match doctor's department
+    const [result] = await connection.query(
+      `UPDATE appointments SET department_id = ? WHERE appointment_id = ?`,
+      [departmentId, appointmentId]
+    );
+
+    connection.release();
+
+    if (result.affectedRows === 0) {
+      throw new Error('Failed to update appointment department');
+    }
+
+    return {
+      success: true,
+      appointmentId,
+      newDepartmentId: departmentId,
+      message: 'Appointment department updated successfully'
+    };
+  } catch (error) {
+    if (connection) connection.release();
+    const errorMsg = error?.message || String(error) || 'Unknown error';
+    console.error('Failed to update appointment department:', errorMsg);
+    throw new Error(`Update failed: ${errorMsg}`);
   }
 }
 

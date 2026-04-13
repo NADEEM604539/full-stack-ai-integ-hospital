@@ -337,7 +337,7 @@ const NurseVitalsPage = () => {
                       borderTop: '1px solid #E5E7EB',
                       backgroundColor: '#F9FAFB',
                     }}
-                    className="p-4 space-y-2"
+                    className="p-4"
                   >
                     <button
                       onClick={() => router.push(`/nurse/vitals/encounter/${encounter.encounter_id}`)}
@@ -348,17 +348,6 @@ const NurseVitalsPage = () => {
                       className="w-full px-4 py-2 rounded-lg font-semibold hover:shadow-lg transition flex items-center justify-center gap-2 text-sm"
                     >
                       {vital ? '✏️ Edit Vitals' : '➕ Record Vitals'}
-                      <ChevronRight size={16} />
-                    </button>
-                    <button
-                      onClick={() => router.push(`/nurse/medicines/request?encounterId=${encounter.encounter_id}&appointmentId=${encounter.appointment_id}`)}
-                      style={{
-                        backgroundColor: '#10B981',
-                        color: '#FFFFFF',
-                      }}
-                      className="w-full px-4 py-2 rounded-lg font-semibold hover:shadow-lg transition flex items-center justify-center gap-2 text-sm"
-                    >
-                      💊 Request Medicines
                       <ChevronRight size={16} />
                     </button>
                   </div>
