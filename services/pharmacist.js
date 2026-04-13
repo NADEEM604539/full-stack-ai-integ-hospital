@@ -84,7 +84,6 @@ export async function getPendingMedicineRequests() {
     const [requests] = await connection.query(`
       SELECT 
         om.order_id,
-        om.encounter_id,
         om.appointment_id,
         om.patient_id,
         om.status,
@@ -95,14 +94,14 @@ export async function getPendingMedicineRequests() {
         CONCAT(p.first_name, ' ', p.last_name) as patient_name,
         p.first_name,
         p.last_name,
-        e.encounter_type,
-        e.chief_complaint,
-        CONCAT(enc_staff.first_name, ' ', enc_staff.last_name) as nurse_name,
+        a.appointment_date,
+        a.appointment_time,
+        CONCAT(nurse_staff.first_name, ' ', nurse_staff.last_name) as nurse_name,
         COUNT(omi.item_id) as item_count
       FROM order_medicine om
       LEFT JOIN patients p ON om.patient_id = p.patient_id
-      LEFT JOIN encounters e ON om.encounter_id = e.encounter_id
-      LEFT JOIN staff enc_staff ON om.requested_by = enc_staff.staff_id
+      LEFT JOIN appointments a ON om.appointment_id = a.appointment_id
+      LEFT JOIN staff nurse_staff ON om.requested_by = nurse_staff.staff_id
       LEFT JOIN order_medicine_items omi ON om.order_id = omi.order_id
       WHERE om.status = 'Pending' AND p.department_id = ?
       GROUP BY om.order_id
@@ -134,7 +133,6 @@ export async function getMedicineOrderDetail(orderId) {
     const [orders] = await connection.query(`
       SELECT 
         om.order_id,
-        om.encounter_id,
         om.appointment_id,
         om.patient_id,
         om.status,
@@ -148,14 +146,13 @@ export async function getMedicineOrderDetail(orderId) {
         CONCAT(p.first_name, ' ', p.last_name) as patient_name,
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
-        e.encounter_type,
-        e.chief_complaint,
-        e.admission_date,
+        a.appointment_date,
+        a.appointment_time,
         CONCAT(nurse_staff.first_name, ' ', nurse_staff.last_name) as nurse_name,
         CONCAT(pharma_staff.first_name, ' ', pharma_staff.last_name) as approval_name
       FROM order_medicine om
       LEFT JOIN patients p ON om.patient_id = p.patient_id
-      LEFT JOIN encounters e ON om.encounter_id = e.encounter_id
+      LEFT JOIN appointments a ON om.appointment_id = a.appointment_id
       LEFT JOIN staff nurse_staff ON om.requested_by = nurse_staff.staff_id
       LEFT JOIN staff pharma_staff ON om.approved_by = pharma_staff.staff_id
       WHERE om.order_id = ? AND p.department_id = ?
@@ -215,7 +212,7 @@ export async function approveMedicineOrder(orderId) {
 
     // Verify order belongs to this pharmacist's department
     const [orderCheck] = await connection.query(`
-      SELECT om.order_id, om.patient_id, om.encounter_id, om.total_amount, p.department_id
+      SELECT om.order_id, om.patient_id, om.appointment_id, om.total_amount, p.department_id
       FROM order_medicine om
       LEFT JOIN patients p ON om.patient_id = p.patient_id
       WHERE om.order_id = ?
@@ -237,7 +234,35 @@ export async function approveMedicineOrder(orderId) {
       [pharmacistId, orderId]
     );
 
-    const { patient_id: patientId, encounter_id: encounterId, total_amount: orderAmount } = orderCheck[0];
+    const { patient_id: patientId, appointment_id: appointmentId, total_amount: orderAmount } = orderCheck[0];
+
+    // Find or create encounter for this appointment
+    let encounterId;
+    const [encounters] = await connection.query(
+      `SELECT encounter_id FROM encounters WHERE appointment_id = ? LIMIT 1`,
+      [appointmentId]
+    );
+
+    if (encounters.length > 0) {
+      encounterId = encounters[0].encounter_id;
+    } else {
+      // Create a new encounter for this appointment
+      const [apptData] = await connection.query(
+        `SELECT patient_id, doctor_id, department_id FROM appointments WHERE appointment_id = ?`,
+        [appointmentId]
+      );
+      
+      if (apptData.length === 0) {
+        throw new Error('Appointment not found');
+      }
+
+      const [result] = await connection.query(
+        `INSERT INTO encounters (patient_id, doctor_id, appointment_id, encounter_type, admission_date, chief_complaint, status, created_by)
+         VALUES (?, ?, ?, 'Outpatient', NOW(), 'Medicine Order Approval', 'Active', ?)`,
+        [apptData[0].patient_id, apptData[0].doctor_id, appointmentId, pharmacistId]
+      );
+      encounterId = result.insertId;
+    }
 
     // Check if invoice exists for this encounter
     const [invoices] = await connection.query(

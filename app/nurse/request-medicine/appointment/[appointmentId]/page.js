@@ -32,7 +32,6 @@ const AppointmentMedicineDetailPage = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [showNewOrderForm, setShowNewOrderForm] = useState(false);
   const [newOrderItems, setNewOrderItems] = useState([]);
-  const [selectedEncounter, setSelectedEncounter] = useState(null);
 
   useEffect(() => {
     if (appointmentId) {
@@ -55,10 +54,6 @@ const AppointmentMedicineDetailPage = () => {
       const data = await response.json();
       setAppointment(data.data.appointment);
       setMedicineOrders(data.data.medicineOrders);
-      // Auto-select first encounter if available
-      if (data.data.encounters.length > 0) {
-        setSelectedEncounter(data.data.encounters[0]);
-      }
     } catch (err) {
       setError(err.message);
       console.error('Error fetching appointment:', err);
@@ -112,11 +107,6 @@ const AppointmentMedicineDetailPage = () => {
   };
 
   const submitMedicineOrder = async () => {
-    if (!selectedEncounter) {
-      setError('Please select an encounter');
-      return;
-    }
-
     if (newOrderItems.length === 0) {
       setError('Please add at least one medicine');
       return;
@@ -137,7 +127,6 @@ const AppointmentMedicineDetailPage = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          encounterId: selectedEncounter.encounter_id,
           medicines: newOrderItems.map(item => ({
             medicineId: item.medicine_id,
             medicineName: item.medicine_name,

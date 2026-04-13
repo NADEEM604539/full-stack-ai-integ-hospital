@@ -46,16 +46,16 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { appointmentId } = await params;
-    const { encounterId, medicines } = await request.json();
+    const { medicines } = await request.json();
 
-    if (!appointmentId || !encounterId || !medicines || !Array.isArray(medicines) || medicines.length === 0) {
+    if (!appointmentId || !medicines || !Array.isArray(medicines) || medicines.length === 0) {
       return NextResponse.json(
-        { error: 'Appointment ID, encounter ID, and medicines array required' },
+        { error: 'Appointment ID and medicines array required' },
         { status: 400 }
       );
     }
 
-    const result = await requestMedicines(parseInt(encounterId), parseInt(appointmentId), medicines);
+    const result = await requestMedicines(parseInt(appointmentId), medicines);
 
     return NextResponse.json({
       success: true,

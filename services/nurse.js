@@ -845,27 +845,27 @@ export async function getNurseDashboardStats() {
  * @param {number} appointmentId - Appointment ID
  * @param {array} medicines - Array of {medicineId, medicineName, quantity, unitPrice, notes}
  */
-export async function requestMedicines(encounterId, appointmentId, medicines) {
+export async function requestMedicines(appointmentId, medicines) {
   let connection;
   try {
     connection = await db.getConnection();
     const access = await checkNurseAccess(connection);
     const { nurseId, departmentId } = access;
 
-    // Verify encounter belongs to nurse's department
-    const [encounters] = await connection.query(
-      `SELECT e.encounter_id, e.patient_id, p.department_id
-       FROM encounters e
-       JOIN patients p ON e.patient_id = p.patient_id
-       WHERE e.encounter_id = ? AND p.department_id = ?`,
-      [encounterId, departmentId]
+    // Verify appointment belongs to nurse's department
+    const [appointments] = await connection.query(
+      `SELECT a.appointment_id, a.patient_id, p.department_id
+       FROM appointments a
+       JOIN patients p ON a.patient_id = p.patient_id
+       WHERE a.appointment_id = ? AND p.department_id = ?`,
+      [appointmentId, departmentId]
     );
 
-    if (!encounters.length) {
-      throw new Error('Encounter not found or access denied');
+    if (!appointments.length) {
+      throw new Error('Appointment not found or access denied');
     }
 
-    const { patient_id: patientId } = encounters[0];
+    const { patient_id: patientId } = appointments[0];
 
     await connection.beginTransaction();
 
@@ -877,9 +877,9 @@ export async function requestMedicines(encounterId, appointmentId, medicines) {
 
     // Create order
     const [result] = await connection.query(
-      `INSERT INTO order_medicine (encounter_id, appointment_id, patient_id, status, total_amount, requested_by, created_at, updated_at)
-       VALUES (?, ?, ?, 'Pending', ?, ?, NOW(), NOW())`,
-      [encounterId, appointmentId, patientId, totalAmount, nurseId]
+      `INSERT INTO order_medicine (appointment_id, patient_id, status, total_amount, requested_by, created_at, updated_at)
+       VALUES (?, ?, 'Pending', ?, ?, NOW(), NOW())`,
+      [appointmentId, patientId, totalAmount, nurseId]
     );
 
     const orderId = result.insertId;
@@ -925,7 +925,6 @@ export async function getNurseMedicineRequests() {
     const [requests] = await connection.query(`
       SELECT 
         om.order_id,
-        om.encounter_id,
         om.appointment_id,
         om.patient_id,
         om.status,
@@ -937,14 +936,14 @@ export async function getNurseMedicineRequests() {
         p.mrn,
         p.first_name,
         p.last_name,
-        e.encounter_type,
-        e.chief_complaint,
+        a.appointment_date,
+        a.appointment_time,
         pharma_staff.first_name as approval_first_name,
         pharma_staff.last_name as approval_last_name,
         COUNT(omi.item_id) as item_count
       FROM order_medicine om
       LEFT JOIN patients p ON om.patient_id = p.patient_id
-      LEFT JOIN encounters e ON om.encounter_id = e.encounter_id
+      LEFT JOIN appointments a ON om.appointment_id = a.appointment_id
       LEFT JOIN staff pharma_staff ON om.approved_by = pharma_staff.staff_id
       LEFT JOIN order_medicine_items omi ON om.order_id = omi.order_id
       WHERE om.requested_by = ?
@@ -976,7 +975,6 @@ export async function getNurseMedicineOrderDetail(orderId) {
     const [orders] = await connection.query(`
       SELECT 
         om.order_id,
-        om.encounter_id,
         om.appointment_id,
         om.patient_id,
         om.status,
@@ -989,13 +987,13 @@ export async function getNurseMedicineOrderDetail(orderId) {
         p.mrn,
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
-        e.encounter_type,
-        e.chief_complaint,
+        a.appointment_date,
+        a.appointment_time,
         pharma_staff.first_name as approval_first_name,
         pharma_staff.last_name as approval_last_name
       FROM order_medicine om
       LEFT JOIN patients p ON om.patient_id = p.patient_id
-      LEFT JOIN encounters e ON om.encounter_id = e.encounter_id
+      LEFT JOIN appointments a ON om.appointment_id = a.appointment_id
       LEFT JOIN staff pharma_staff ON om.approved_by = pharma_staff.staff_id
       WHERE om.order_id = ? AND om.requested_by = ?
     `, [orderId, nurseId]);
@@ -1181,7 +1179,6 @@ export async function getMedicineOrderWithItems(orderId) {
     const [orders] = await connection.query(
       `SELECT 
         om.order_id,
-        om.encounter_id,
         om.appointment_id,
         om.patient_id,
         om.status,
