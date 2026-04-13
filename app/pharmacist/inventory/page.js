@@ -8,16 +8,34 @@ import { format } from 'date-fns';
  * Pharmacist Inventory Management Page
  * Pharmacist can:
  * - View all medicines in inventory
+ * - Add new medicines
+ * - Edit existing medicines (quantity, price, reorder level)
+ * - Delete medicines
  * - See stock levels and reorder points
- * - View expiration dates
- * - See low stock and expiring alerts
  */
 export default function PharmacistInventoryPage() {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filterStatus, setFilterStatus] = useState('ALL'); // ALL, LOW_STOCK, EXPIRING_SOON, EXPIRED
+  const [message, setMessage] = useState(null);
+  const [messageType, setMessageType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [processingId, setProcessingId] = useState(null);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    item_name: '',
+    sku: '',
+    category: '',
+    unit_price: '',
+    quantity_in_stock: '',
+    reorder_level: '',
+    manufacturer: '',
+    expiration_date: '',
+  });
 
   useEffect(() => {
     fetchInventory();
