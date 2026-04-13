@@ -28,6 +28,8 @@ export default function PharmacistMedicinesPage() {
   const [processingOrderId, setProcessingOrderId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectMode, setRejectMode] = useState('whole'); // 'whole' or 'selected'
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
 
   useEffect(() => {
     fetchPendingRequests();
@@ -35,21 +37,26 @@ export default function PharmacistMedicinesPage() {
 
   // Fetch detailed order data when selectedOrder changes
   useEffect(() => {
-    if (selectedOrder && !selectedOrder.items) {
-      fetchOrderDetails(selectedOrder.order_id);
-    } else if (selectedOrder && selectedOrder.items) {
-      // Initialize medicine statuses as 'Pending' for new selections
-      const newStatuses = {};
-      selectedOrder.items.forEach(item => {
-        if (!medicineStatuses[item.item_id]) {
-          newStatuses[item.item_id] = 'Pending';
+    if (selectedOrder) {
+      console.log('Selected order changed:', selectedOrder);
+      if (!selectedOrder.items) {
+        console.log('Items not present, fetching details for order:', selectedOrder.order_id);
+        fetchOrderDetails(selectedOrder.order_id);
+      } else {
+        console.log('Items already present:', selectedOrder.items);
+        // Initialize medicine statuses as 'Pending' for new selections
+        const newStatuses = {};
+        selectedOrder.items.forEach(item => {
+          if (!medicineStatuses[item.item_id]) {
+            newStatuses[item.item_id] = 'Pending';
+          }
+        });
+        if (Object.keys(newStatuses).length > 0) {
+          setMedicineStatuses(prev => ({ ...prev, ...newStatuses }));
         }
-      });
-      if (Object.keys(newStatuses).length > 0) {
-        setMedicineStatuses(prev => ({ ...prev, ...newStatuses }));
       }
     }
-  }, [selectedOrder]);
+  }, [selectedOrder?.order_id]);
 
   async function fetchPendingRequests() {
     try {
@@ -71,16 +78,27 @@ export default function PharmacistMedicinesPage() {
 
   async function fetchOrderDetails(orderId) {
     try {
+      setLoadingOrderDetails(true);
+      console.log(`Fetching details for order: ${orderId}`);
       const response = await fetch(`/api/pharmacist/medicines/${orderId}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch order details');
+        throw new Error(`HTTP ${response.status}: Failed to fetch order details`);
       }
       const data = await response.json();
-      console.log('Order details fetched:', data.data);
+      console.log('Full API Response:', data);
+      console.log('Order data:', data.data);
+      console.log('Items:', data.data?.items);
+      
+      if (!data.data) {
+        throw new Error('No data in response');
+      }
+      
       setSelectedOrder(data.data);
     } catch (err) {
       console.error('Error fetching order details:', err);
       setError(err.message || 'Failed to load order details');
+    } finally {
+      setLoadingOrderDetails(false);
     }
   }
 
@@ -260,6 +278,54 @@ export default function PharmacistMedicinesPage() {
     }
   }
 
+  // Reject only selected medicines
+  async function handleRejectSelected(orderId) {
+    const rejectedItems = Object.entries(medicineStatuses)
+      .filter(([_, status]) => status === 'Rejected')
+      .map(([itemId, _]) => parseInt(itemId));
+
+    if (rejectedItems.length === 0) {
+      setMessage('⚠️ Please mark at least one medicine as Rejected');
+      setMessageType('error');
+      return;
+    }
+
+    // Build itemReasons object from rejectionReasons
+    const itemReasons = {};
+    rejectedItems.forEach(itemId => {
+      itemReasons[itemId] = rejectionReasons[itemId] || 'No reason provided';
+    });
+
+    setProcessingOrderId(orderId);
+    try {
+      const response = await fetch(`/api/pharmacist/medicines/${orderId}/reject-partial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemReasons })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to reject');
+
+      setMessage(`❌ Selected medicines rejected (${rejectedItems.length} items)`);
+      setMessageType('success');
+      setShowRejectModal(false);
+      setRejectionReason('');
+
+      setTimeout(() => {
+        setMessage(null);
+        fetchPendingRequests();
+        setSelectedOrder(null);
+      }, 2000);
+    } catch (err) {
+      console.error('Error rejecting:', err);
+      setMessage(err.message || 'Failed to reject selected medicines');
+      setMessageType('error');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-6">
@@ -378,16 +444,7 @@ export default function PharmacistMedicinesPage() {
                     disabled={processingOrderId === request.order_id}
                     className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 font-semibold text-sm disabled:opacity-50"
                   >
-                    {processingOrderId === request.order_id ? '⏳' : '✅'} Approve
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedOrder(request);
-                      setShowModal(true);
-                    }}
-                    className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-semibold text-sm"
-                  >
-                    ❌ Reject
+                    {processingOrderId === request.order_id ? '⏳' : '✅'} Approve All
                   </button>
                 </div>
               </div>
@@ -420,12 +477,22 @@ export default function PharmacistMedicinesPage() {
                     {selectedOrder.patient_name} (MRN: {selectedOrder.mrn})
                   </p>
                 </div>
-                <button
-                  onClick={() => setSelectedOrder(null)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ✕
-                </button>
+                <div className="flex gap-2 items-start">
+                  <button
+                    onClick={() => fetchOrderDetails(selectedOrder.order_id)}
+                    disabled={loadingOrderDetails}
+                    className="text-blue-600 hover:text-blue-800 text-2xl disabled:opacity-50"
+                    title="Refresh medicines"
+                  >
+                    {loadingOrderDetails ? '⏳' : '🔄'}
+                  </button>
+                  <button
+                    onClick={() => setSelectedOrder(null)}
+                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
 
               {/* Medicine Items Table */}
@@ -444,11 +511,11 @@ export default function PharmacistMedicinesPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                      {selectedOrder?.items && Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
                         selectedOrder.items.map((item) => (
                           <tr key={item.item_id} className="border-b border-gray-300 hover:bg-blue-50">
                             <td className="py-3 px-3 text-gray-900 font-semibold border-r border-gray-200">
-                              {item.medicine_name}
+                              {item.medicine_name || 'Unknown'}
                             </td>
                             <td className="py-3 px-3 text-center text-gray-900 font-bold border-r border-gray-200">
                               {editingItemId === item.item_id ? (
@@ -474,11 +541,11 @@ export default function PharmacistMedicinesPage() {
                                   min="0"
                                 />
                               ) : (
-                                `$${Number(item.unit_price).toFixed(2)}`
+                                `$${Number(item.unit_price || 0).toFixed(2)}`
                               )}
                             </td>
                             <td className="py-3 px-3 text-center font-bold text-green-700 border-r border-gray-200">
-                              ${(item.quantity * Number(item.unit_price)).toFixed(2)}
+                              ${((item.quantity || 0) * Number(item.unit_price || 0)).toFixed(2)}
                             </td>
                             <td className="py-3 px-3 text-center border-r border-gray-200">
                               <select
@@ -535,12 +602,12 @@ export default function PharmacistMedicinesPage() {
                       ) : (
                         <tr>
                           <td colSpan="6" className="py-6 px-4 text-center text-gray-500 italic">
-                            No medicine items found
+                            {selectedOrder?.items === undefined ? '⏳ Loading medicines...' : 'No medicine items found'}
                           </td>
                         </tr>
                       )}
                     </tbody>
-                    {selectedOrder.items && selectedOrder.items.length > 0 && (
+                    {selectedOrder?.items && Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 && (
                       <tfoot>
                         <tr className="bg-amber-100 border-t-2 border-amber-400 font-bold">
                           <td colSpan="3" className="py-3 px-3 text-right text-gray-900 text-base">💰 Total Amount:</td>
@@ -564,18 +631,23 @@ export default function PharmacistMedicinesPage() {
                 </button>
                 <button
                   onClick={() => handleApproveSelected(selectedOrder.order_id)}
-                  disabled={processingOrderId === selectedOrder.order_id}
+                  disabled={processingOrderId === selectedOrder.order_id || !Object.values(medicineStatuses).includes('Approved')}
                   className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-semibold disabled:opacity-50 transition"
                 >
-                  ✅ Approve Selected
+                  {processingOrderId === selectedOrder.order_id ? '⏳' : '✅'} Approve Selected
                 </button>
                 <button
                   onClick={() => {
+                    if (!Object.values(medicineStatuses).includes('Rejected')) {
+                      setMessage('⚠️ Mark at least one medicine as "Rejected" first');
+                      setMessageType('error');
+                      return;
+                    }
                     setShowRejectModal(true);
                   }}
                   className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-semibold transition"
                 >
-                  ❌ Reject Order
+                  ❌ Reject Selected
                 </button>
               </div>
             </div>
@@ -584,34 +656,109 @@ export default function PharmacistMedicinesPage() {
       )}
 
       {/* Rejection Modal */}
-      {selectedOrder && showModal && (
+      {selectedOrder && showRejectModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full border border-gray-200">
+          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full border border-gray-200">
             <div className="p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                ❌ Reject Order #{selectedOrder.order_id}?
+                ❌ Reject Medicines
               </h2>
               
-              <textarea
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Provide a reason for rejection (required)"
-                className="w-full border-2 border-gray-300 rounded-lg p-3 mb-4 h-24 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-gray-800 placeholder-gray-500"
-              />
+              {/* Mode selector */}
+              {selectedOrder?.items && Array.isArray(selectedOrder.items) && Object.values(medicineStatuses).includes('Rejected') && (
+                <div className="flex gap-4 mb-6 p-3 bg-gray-100 rounded-lg">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      value="selected"
+                      checked={rejectMode === 'selected'}
+                      onChange={(e) => setRejectMode(e.target.value)}
+                      className="cursor-pointer"
+                    />
+                    <span className="text-sm font-semibold text-gray-800">Reject Selected Items</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      value="whole"
+                      checked={rejectMode === 'whole'}
+                      onChange={(e) => setRejectMode(e.target.value)}
+                      className="cursor-pointer"
+                    />
+                    <span className="text-sm font-semibold text-gray-800">Reject Entire Order</span>
+                  </label>
+                </div>
+              )}
+              
+              {rejectMode === 'selected' ? (
+                // Selected medicines rejection
+                <div className="mb-6 max-h-48 overflow-y-auto">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">Provide rejection reasons for:</p>
+                  <div className="space-y-3">
+                    {selectedOrder?.items?.map(item => {
+                      if (medicineStatuses[item.item_id] === 'Rejected') {
+                        return (
+                          <div key={item.item_id} className="bg-red-50 p-3 rounded-lg border border-red-200">
+                            <label className="block mb-2">
+                              <span className="font-semibold text-gray-800">{item.medicine_name}</span>
+                              <span className="text-gray-600 text-sm ml-2">(Qty: {item.quantity})</span>
+                            </label>
+                            <textarea
+                              value={rejectionReasons[item.item_id] || ''}
+                              onChange={(e) => {
+                                setRejectionReasons(prev => ({
+                                  ...prev,
+                                  [item.item_id]: e.target.value
+                                }));
+                              }}
+                              placeholder="Reason for rejection (required)"
+                              className="w-full border-2 border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-gray-800 placeholder-gray-500"
+                              rows="2"
+                            />
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+                </div>
+              ) : (
+                // Whole order rejection
+                <div className="mb-6">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">Reason for rejecting entire order:</p>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Provide a reason for rejection (required)"
+                    className="w-full border-2 border-gray-300 rounded-lg p-3 h-24 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-gray-800 placeholder-gray-500"
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => {
-                    setShowModal(false);
+                    setShowRejectModal(false);
                     setRejectionReason('');
+                    setRejectionReasons({});
+                    setRejectMode('whole');
                   }}
                   className="bg-gray-400 text-white px-4 py-2 rounded-lg hover:bg-gray-500 font-semibold transition"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleReject(selectedOrder.order_id)}
-                  disabled={processingOrderId === selectedOrder.order_id || !rejectionReason.trim()}
+                  onClick={() => {
+                    if (rejectMode === 'selected') {
+                      handleRejectSelected(selectedOrder.order_id);
+                    } else {
+                      handleReject(selectedOrder.order_id);
+                    }
+                  }}
+                  disabled={
+                    processingOrderId === selectedOrder.order_id || 
+                    (rejectMode === 'whole' && !rejectionReason.trim())
+                  }
                   className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-semibold disabled:opacity-50 transition"
                 >
                   {processingOrderId === selectedOrder.order_id ? '⏳' : '❌'} Confirm Rejection

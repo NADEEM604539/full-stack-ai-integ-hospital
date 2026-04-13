@@ -16,7 +16,7 @@ import { getUserId } from './auth';
  * Check pharmacist role (role_id = 5) and get pharmacist_id (staff_id)
  * Returns: { userId, roleId, pharmacistId, departmentId }
  */
-async function checkPharmacistAccess(connection) {
+export async function checkPharmacistAccess(connection) {
   try {
     let userId;
     try {
@@ -187,7 +187,8 @@ export async function getMedicineOrderDetail(orderId) {
       throw new Error('Access Denied: Order belongs to a different department');
     }
 
-    // Get order items
+    // Get order items - simplified query first
+    console.log(`[getMedicineOrderDetail] Querying items for order_id: ${orderId}`);
     const [items] = await connection.query(`
       SELECT 
         omi.item_id,
@@ -197,16 +198,17 @@ export async function getMedicineOrderDetail(orderId) {
         omi.quantity,
         omi.unit_price,
         omi.total_price,
-        omi.notes,
-        ii.sku,
-        ii.manufacturer,
-        ii.quantity_in_stock
+        omi.notes
       FROM order_medicine_items omi
-      LEFT JOIN inventory_items ii ON omi.medicine_id = ii.item_id
       WHERE omi.order_id = ?
       ORDER BY omi.item_id ASC
     `, [orderId]);
 
+    console.log(`[getMedicineOrderDetail] Query returned ${items?.length || 0} items`);
+    if (items && items.length > 0) {
+      console.log('[getMedicineOrderDetail] First item sample:', items[0]);
+    }
+    
     return {
       ...order,
       items: items || []
@@ -325,10 +327,12 @@ export async function approveMedicineOrder(orderId) {
       [invoiceId]
     );
 
-    const subtotal = lineTotals[0].subtotal || 0;
-    const discountAmount = invoiceData[0]?.discount_amount || 0;
-    const tax = subtotal * 0.10;
-    const total = subtotal + tax - discountAmount;
+    const subtotal = Number(lineTotals[0]?.subtotal) || 0;
+    const discountAmount = Number(invoiceData[0]?.discount_amount) || 0;
+    const tax = Number(subtotal) * 0.10;
+    const total = Number(subtotal) + Number(tax) - Number(discountAmount);
+
+    console.log(`[approveMedicineOrder] Invoice calc: subtotal=${subtotal}, tax=${tax}, discount=${discountAmount}, total=${total}`);
 
     await connection.query(
       `UPDATE invoices SET subtotal = ?, tax_amount = ?, total_amount = ?, updated_at = NOW() WHERE invoice_id = ?`,
