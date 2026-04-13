@@ -1,53 +1,24 @@
 import { approveMedicineOrder } from '@/services/pharmacist';
-import { getUserId } from '@/services/auth';
-import pool from '@/lib/db';
 
 /**
  * POST /api/pharmacist/medicines/[orderId]/approve
  * Approve a medicine order and add to invoice
+ * RBAC: Pharmacist (role_id=5) can only approve requests from their department
+ * All security checks are performed in the service layer
  */
 export async function POST(request, { params }) {
-  let connection;
   try {
     const { orderId } = params;
 
     if (!orderId || isNaN(orderId)) {
       return Response.json(
-        {
-          success: false,
-          message: 'Invalid order ID'
-        },
+        { success: false, message: 'Invalid order ID' },
         { status: 400 }
       );
     }
 
-    // Get pharmacist ID from user
-    const userId = await getUserId();
-    if (!userId) {
-      return Response.json(
-        { success: false, message: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
-
-    // Get pharmacist staff_id
-    connection = await pool.getConnection();
-    const [staff] = await connection.query(
-      `SELECT staff_id, s.user_id FROM staff s WHERE s.user_id = (SELECT user_id FROM users WHERE user_id = ?)`,
-      [userId]
-    );
-
-    if (!staff.length) {
-      return Response.json(
-        { success: false, message: 'Pharmacist not found' },
-        { status: 404 }
-      );
-    }
-
-    const pharmacistId = staff[0].staff_id;
-    connection.release();
-
-    const result = await approveMedicineOrder(orderId, pharmacistId);
+    // Service function includes all RBAC checks
+    const result = await approveMedicineOrder(Number(orderId));
 
     return Response.json({
       success: true,
@@ -55,15 +26,34 @@ export async function POST(request, { params }) {
       data: result
     });
   } catch (error) {
+    const message = error?.message || 'Failed to approve medicine order';
+    
+    // Handle specific error types
+    if (message.includes('Access Denied') || message.includes('RBAC Check Failed')) {
+      return Response.json(
+        { success: false, message },
+        { status: 403 }
+      );
+    }
+    
+    if (message.includes('No user ID') || message.includes('Authentication failed')) {
+      return Response.json(
+        { success: false, message },
+        { status: 401 }
+      );
+    }
+
+    if (message.includes('not found') || message.includes('not exist')) {
+      return Response.json(
+        { success: false, message },
+        { status: 404 }
+      );
+    }
+
     console.error('Error in POST /api/pharmacist/medicines/[orderId]/approve:', error);
     return Response.json(
-      {
-        success: false,
-        message: error?.message || 'Failed to approve medicine order'
-      },
+      { success: false, message },
       { status: 500 }
     );
-  } finally {
-    if (connection) connection.release();
   }
 }

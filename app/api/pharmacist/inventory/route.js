@@ -1,19 +1,21 @@
-import { getPendingMedicineRequests } from '@/services/pharmacist';
+import { getInventory } from '@/services/pharmacist';
 
 /**
- * GET /api/pharmacist/medicines
- * Get all pending medicine requests for the pharmacist's department
- * RBAC: Pharmacist (role_id=5) can only see requests from their department
+ * GET /api/pharmacist/inventory
+ * Get inventory/medicines for pharmacist
+ * RBAC: Pharmacist (role_id=5) can only see inventory
+ * All security checks are performed in the service layer
  */
 export async function GET(request) {
   try {
-    const requests = await getPendingMedicineRequests();
+    const inventory = await getInventory();
+
     return Response.json({
       success: true,
-      data: requests
+      data: inventory
     });
   } catch (error) {
-    const message = error?.message || 'Failed to fetch pending medicine requests';
+    const message = error?.message || 'Failed to fetch inventory';
     
     // Handle specific error types
     if (message.includes('Access Denied') || message.includes('RBAC Check Failed')) {
@@ -30,7 +32,7 @@ export async function GET(request) {
       );
     }
 
-    console.error('Error in GET /api/pharmacist/medicines:', error);
+    console.error('Error in GET /api/pharmacist/inventory:', error);
     return Response.json(
       { success: false, message },
       { status: 500 }

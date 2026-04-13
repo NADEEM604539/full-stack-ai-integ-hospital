@@ -1,14 +1,87 @@
-import pool from '../lib/db.js';
+import db from '@/lib/db';
+import { getUserId } from './auth';
 
 /**
- * Get all pending medicine requests with details
- * @param {number} departmentId - Optional department filter for stock management
+ * PHARMACIST SERVICE - Department & Role-based data access
+ * Pharmacist (role_id = 5) can ONLY:
+ * - View medicine requests from their assigned pharmacy department
+ * - Approve/reject requests for medicines
+ * - Manage inventory for their department
+ * - View dispensed medicines
+ * - Cannot access other departments' data
+ * - Cannot modify patient records or appointments
  */
-export async function getPendingMedicineRequests(departmentId = null) {
-  const connection = await pool.getConnection();
 
+/**
+ * Check pharmacist role (role_id = 5) and get pharmacist_id (staff_id)
+ * Returns: { userId, roleId, pharmacistId, departmentId }
+ */
+async function checkPharmacistAccess(connection) {
   try {
-    let query = `
+    let userId;
+    try {
+      userId = await getUserId();
+    } catch (authError) {
+      console.error('Auth error in checkPharmacistAccess:', authError);
+      throw new Error(`Authentication failed: ${authError?.message || String(authError)}`);
+    }
+
+    if (!userId) {
+      throw new Error('No user ID obtained from authentication');
+    }
+
+    // Query user role from database
+    const [userRows] = await connection.query(
+      `SELECT role_id FROM users WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (!userRows.length) {
+      throw new Error(`User ${userId} not found in database`);
+    }
+
+    const roleId = userRows[0].role_id;
+
+    // Allow PHARMACIST (role_id = 5) and ADMIN (role_id = 1)
+    if (roleId !== 5 && roleId !== 1) {
+      throw new Error(`Access Denied: Required role PHARMACIST (5) or ADMIN (1), got ${roleId}`);
+    }
+
+    // Get pharmacist info: staff -> department
+    const [pharmacistRows] = await connection.query(
+      `SELECT staff_id, department_id 
+       FROM staff
+       WHERE user_id = ? AND status = 'Active'`,
+      [userId]
+    );
+
+    if (!pharmacistRows.length) {
+      throw new Error(`Pharmacist profile not found for user ${userId}. Admin must create pharmacist profile.`);
+    }
+
+    const pharmacistId = pharmacistRows[0].staff_id;
+    const departmentId = pharmacistRows[0].department_id;
+
+    return { userId, roleId, pharmacistId, departmentId };
+  } catch (error) {
+    const errorMsg = error?.message || String(error) || 'Unknown error in RBAC check';
+    console.error('RBAC Check error:', errorMsg);
+    throw new Error(`RBAC Check Failed: ${errorMsg}`);
+  }
+}
+
+/**
+ * Get all pending medicine requests for pharmacist's department
+ * RBAC: Pharmacist can only approve requests for their department
+ */
+export async function getPendingMedicineRequests() {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkPharmacistAccess(connection);
+    const { departmentId } = access;
+
+    const [requests] = await connection.query(`
       SELECT 
         om.order_id,
         om.encounter_id,
@@ -19,39 +92,45 @@ export async function getPendingMedicineRequests(departmentId = null) {
         om.requested_by,
         om.created_at,
         p.mrn,
+        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
         p.first_name,
         p.last_name,
         e.encounter_type,
         e.chief_complaint,
-        enc_staff.first_name as nurse_first_name,
-        enc_staff.last_name as nurse_last_name,
+        CONCAT(enc_staff.first_name, ' ', enc_staff.last_name) as nurse_name,
         COUNT(omi.item_id) as item_count
       FROM order_medicine om
       LEFT JOIN patients p ON om.patient_id = p.patient_id
       LEFT JOIN encounters e ON om.encounter_id = e.encounter_id
       LEFT JOIN staff enc_staff ON om.requested_by = enc_staff.staff_id
       LEFT JOIN order_medicine_items omi ON om.order_id = omi.order_id
-      WHERE om.status = 'Pending'
+      WHERE om.status = 'Pending' AND p.department_id = ?
       GROUP BY om.order_id
       ORDER BY om.created_at DESC
-    `;
+    `, [departmentId]);
 
-    const [requests] = await connection.query(query);
     return requests;
+  } catch (error) {
+    console.error('Error fetching pending medicine requests:', error.message);
+    throw error;
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 }
 
 /**
  * Get a specific medicine order with all items
+ * RBAC: Pharmacist can only view orders from their department
  * @param {number} orderId - Order ID
  */
 export async function getMedicineOrderDetail(orderId) {
-  const connection = await pool.getConnection();
-
+  let connection;
   try {
-    // Get order header
+    connection = await db.getConnection();
+    const access = await checkPharmacistAccess(connection);
+    const { departmentId } = access;
+
+    // Get order header with department check
     const [orders] = await connection.query(`
       SELECT 
         om.order_id,
@@ -66,25 +145,24 @@ export async function getMedicineOrderDetail(orderId) {
         om.created_at,
         om.updated_at,
         p.mrn,
+        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
         e.encounter_type,
         e.chief_complaint,
         e.admission_date,
-        nurse_staff.first_name as nurse_first_name,
-        nurse_staff.last_name as nurse_last_name,
-        pharma_staff.first_name as approval_first_name,
-        pharma_staff.last_name as approval_last_name
+        CONCAT(nurse_staff.first_name, ' ', nurse_staff.last_name) as nurse_name,
+        CONCAT(pharma_staff.first_name, ' ', pharma_staff.last_name) as approval_name
       FROM order_medicine om
       LEFT JOIN patients p ON om.patient_id = p.patient_id
       LEFT JOIN encounters e ON om.encounter_id = e.encounter_id
       LEFT JOIN staff nurse_staff ON om.requested_by = nurse_staff.staff_id
       LEFT JOIN staff pharma_staff ON om.approved_by = pharma_staff.staff_id
-      WHERE om.order_id = ?
-    `, [orderId]);
+      WHERE om.order_id = ? AND p.department_id = ?
+    `, [orderId, departmentId]);
 
     if (orders.length === 0) {
-      return null;
+      throw new Error('Order not found or access denied');
     }
 
     const order = orders[0];
@@ -113,21 +191,43 @@ export async function getMedicineOrderDetail(orderId) {
       ...order,
       items: items || []
     };
+  } catch (error) {
+    console.error('Error fetching medicine order detail:', error.message);
+    throw error;
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 }
 
 /**
- * Approve a medicine order and create invoice line items
+ * Approve a medicine order and add to invoice
+ * RBAC: Pharmacist can only approve orders from their department
  * @param {number} orderId - Order ID to approve
- * @param {number} pharmacistId - Staff ID of approving pharmacist
  */
-export async function approveMedicineOrder(orderId, pharmacistId) {
-  const connection = await pool.getConnection();
-
+export async function approveMedicineOrder(orderId) {
+  let connection;
   try {
+    connection = await db.getConnection();
+    const access = await checkPharmacistAccess(connection);
+    const { pharmacistId, departmentId } = access;
+
     await connection.beginTransaction();
+
+    // Verify order belongs to this pharmacist's department
+    const [orderCheck] = await connection.query(`
+      SELECT om.order_id, om.patient_id, om.encounter_id, om.total_amount, p.department_id
+      FROM order_medicine om
+      LEFT JOIN patients p ON om.patient_id = p.patient_id
+      WHERE om.order_id = ?
+    `, [orderId]);
+
+    if (!orderCheck.length) {
+      throw new Error('Order not found');
+    }
+
+    if (orderCheck[0].department_id !== departmentId) {
+      throw new Error('Access Denied: Order belongs to a different department');
+    }
 
     // Update order status to Accepted
     await connection.query(
@@ -137,17 +237,7 @@ export async function approveMedicineOrder(orderId, pharmacistId) {
       [pharmacistId, orderId]
     );
 
-    // Get the order details to link with invoice
-    const [orders] = await connection.query(
-      `SELECT encounter_id, patient_id, total_amount FROM order_medicine WHERE order_id = ?`,
-      [orderId]
-    );
-
-    if (orders.length === 0) {
-      throw new Error('Order not found');
-    }
-
-    const { encounter_id: encounterId, patient_id: patientId, total_amount: orderAmount } = orders[0];
+    const { patient_id: patientId, encounter_id: encounterId, total_amount: orderAmount } = orderCheck[0];
 
     // Check if invoice exists for this encounter
     const [invoices] = await connection.query(
@@ -158,10 +248,8 @@ export async function approveMedicineOrder(orderId, pharmacistId) {
     let invoiceId;
 
     if (invoices.length > 0) {
-      // Invoice exists - add line item to existing invoice
       invoiceId = invoices[0].invoice_id;
     } else {
-      // Create new invoice for this encounter
       const [result] = await connection.query(
         `INSERT INTO invoices (encounter_id, patient_id, invoice_date, due_date, subtotal, tax_amount, total_amount, status, created_by)
          VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?, ?, 'Unpaid', ?)`,
@@ -201,23 +289,43 @@ export async function approveMedicineOrder(orderId, pharmacistId) {
       message: 'Medicine order approved and added to invoice'
     };
   } catch (error) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
+    console.error('Error approving medicine order:', error.message);
     throw error;
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 }
 
 /**
  * Reject a medicine order with reason
+ * RBAC: Pharmacist can only reject orders from their department
  * @param {number} orderId - Order ID to reject
  * @param {string} reason - Rejection reason
- * @param {number} pharmacistId - Staff ID of pharmacist rejecting
  */
-export async function rejectMedicineOrder(orderId, reason, pharmacistId) {
-  const connection = await pool.getConnection();
-
+export async function rejectMedicineOrder(orderId, reason) {
+  let connection;
   try {
+    connection = await db.getConnection();
+    const access = await checkPharmacistAccess(connection);
+    const { pharmacistId, departmentId } = access;
+
+    // Verify order belongs to this pharmacist's department
+    const [orderCheck] = await connection.query(`
+      SELECT om.order_id, p.department_id
+      FROM order_medicine om
+      LEFT JOIN patients p ON om.patient_id = p.patient_id
+      WHERE om.order_id = ?
+    `, [orderId]);
+
+    if (!orderCheck.length) {
+      throw new Error('Order not found');
+    }
+
+    if (orderCheck[0].department_id !== departmentId) {
+      throw new Error('Access Denied: Order belongs to a different department');
+    }
+
     await connection.query(
       `UPDATE order_medicine 
        SET status = 'Rejected', rejection_reason = ?, approved_by = ?, updated_at = NOW() 
@@ -231,84 +339,169 @@ export async function rejectMedicineOrder(orderId, reason, pharmacistId) {
       reason: reason,
       message: 'Medicine order rejected'
     };
+  } catch (error) {
+    console.error('Error rejecting medicine order:', error.message);
+    throw error;
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 }
 
 /**
- * Get all medicine orders (all statuses) for reporting
- * @param {string} status - Filter by status (Optional: 'Pending', 'Accepted', 'Rejected')
- * @param {number} limit - Pagination limit
- * @param {number} offset - Pagination offset
+ * Get medicines/inventory for pharmacist's department
+ * RBAC: Pharmacist can only view inventory for their department
  */
-export async function getAllMedicineOrders(status = null, limit = 50, offset = 0) {
-  const connection = await pool.getConnection();
-
+export async function getInventory() {
+  let connection;
   try {
-    let query = `
+    connection = await db.getConnection();
+    const access = await checkPharmacistAccess(connection);
+
+    const [medicines] = await connection.query(`
       SELECT 
-        om.order_id,
-        om.encounter_id,
-        om.patient_id,
-        om.status,
-        om.total_amount,
-        om.requested_by,
-        om.approved_by,
-        om.created_at,
-        om.updated_at,
-        p.mrn,
-        p.first_name,
-        p.last_name,
-        e.encounter_type,
-        nurse_staff.first_name as nurse_first_name,
-        nurse_staff.last_name as nurse_last_name,
-        pharma_staff.first_name as approval_first_name,
-        pharma_staff.last_name as approval_last_name,
-        COUNT(omi.item_id) as item_count
-      FROM order_medicine om
-      LEFT JOIN patients p ON om.patient_id = p.patient_id
-      LEFT JOIN encounters e ON om.encounter_id = e.encounter_id
-      LEFT JOIN staff nurse_staff ON om.requested_by = nurse_staff.staff_id
-      LEFT JOIN staff pharma_staff ON om.approved_by = pharma_staff.staff_id
-      LEFT JOIN order_medicine_items omi ON om.order_id = omi.order_id
-    `;
-
-    const params = [];
-
-    if (status) {
-      query += ` WHERE om.status = ?`;
-      params.push(status);
-    }
-
-    query += ` GROUP BY om.order_id ORDER BY om.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-
-    const [orders] = await connection.query(query, params);
-    return orders;
-  } finally {
-    connection.release();
-  }
-}
-
-/**
- * Get dashboard statistics for pharmacist
- */
-export async function getPharmacistDashboard() {
-  const connection = await pool.getConnection();
-
-  try {
-    const [stats] = await connection.query(`
-      SELECT 
-        (SELECT COUNT(*) FROM order_medicine WHERE status = 'Pending') as pending_count,
-        (SELECT COUNT(*) FROM order_medicine WHERE status = 'Accepted') as accepted_count,
-        (SELECT COUNT(*) FROM order_medicine WHERE status = 'Rejected') as rejected_count,
-        (SELECT SUM(total_amount) FROM order_medicine WHERE status = 'Accepted' AND DATE(created_at) = CURDATE()) as today_approved_total,
-        (SELECT SUM(total_amount) FROM order_medicine WHERE status = 'Pending') as pending_total
+        ii.item_id,
+        ii.item_name,
+        ii.item_type,
+        ii.sku,
+        ii.manufacturer,
+        ii.unit_price,
+        ii.quantity_in_stock,
+        ii.reorder_level,
+        ii.expiration_date,
+        CASE 
+          WHEN ii.quantity_in_stock < ii.reorder_level THEN 'LOW_STOCK'
+          WHEN ii.expiration_date IS NOT NULL AND ii.expiration_date < DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN 'EXPIRING_SOON'
+          WHEN ii.expiration_date IS NOT NULL AND ii.expiration_date < CURDATE() THEN 'EXPIRED'
+          ELSE 'OK'
+        END as stock_status,
+        (SELECT SUM(quantity) FROM order_medicine_items WHERE medicine_id = ii.item_id) as total_ordered,
+        (SELECT SUM(quantity) FROM order_medicine_items 
+         WHERE medicine_id = ii.item_id 
+         AND order_id IN (SELECT order_id FROM order_medicine WHERE status = 'Pending')) as pending_orders
+      FROM inventory_items ii
+      WHERE ii.item_type = 'Medication'
+      ORDER BY ii.item_name ASC
     `);
 
-    return stats[0];
+    return medicines;
+  } catch (error) {
+    console.error('Error fetching inventory:', error.message);
+    throw error;
   } finally {
-    connection.release();
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get low stock medicines alert
+ * RBAC: Pharmacist can only see low stock medicines
+ */
+export async function getLowStockMedicines() {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkPharmacistAccess(connection);
+
+    const [lowStock] = await connection.query(`
+      SELECT 
+        ii.item_id,
+        ii.item_name,
+        ii.sku,
+        ii.quantity_in_stock,
+        ii.reorder_level,
+        (ii.reorder_level - ii.quantity_in_stock) as shortage,
+        ii.unit_price,
+        (ii.reorder_level - ii.quantity_in_stock) * ii.unit_price as estimated_cost
+      FROM inventory_items ii
+      WHERE ii.item_type = 'Medication' AND ii.quantity_in_stock < ii.reorder_level
+      ORDER BY (ii.reorder_level - ii.quantity_in_stock) DESC
+      LIMIT 10
+    `);
+
+    return lowStock;
+  } catch (error) {
+    console.error('Error fetching low stock medicines:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get expiring medicines alert
+ * RBAC: Pharmacist can only see expiring medicines
+ */
+export async function getExpiringMedicines() {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkPharmacistAccess(connection);
+
+    const [expiring] = await connection.query(`
+      SELECT 
+        ii.item_id,
+        ii.item_name,
+        ii.sku,
+        ii.expiration_date,
+        ii.quantity_in_stock,
+        DATEDIFF(ii.expiration_date, CURDATE()) as days_until_expiry,
+        ii.unit_price,
+        (ii.quantity_in_stock * ii.unit_price) as total_value
+      FROM inventory_items ii
+      WHERE ii.item_type = 'Medication' 
+      AND ii.expiration_date IS NOT NULL 
+      AND ii.expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+      ORDER BY ii.expiration_date ASC
+      LIMIT 10
+    `);
+
+    return expiring;
+  } catch (error) {
+    console.error('Error fetching expiring medicines:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get pharmacist dashboard statistics
+ * RBAC: Pharmacist sees only their department's data
+ */
+export async function getPharmacistDashboard() {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkPharmacistAccess(connection);
+    const { departmentId } = access;
+
+    const [stats] = await connection.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM order_medicine om 
+         LEFT JOIN patients p ON om.patient_id = p.patient_id
+         WHERE om.status = 'Pending' AND p.department_id = ?) as pending_count,
+        (SELECT COUNT(*) FROM order_medicine om 
+         LEFT JOIN patients p ON om.patient_id = p.patient_id
+         WHERE om.status = 'Accepted' AND p.department_id = ?) as accepted_count,
+        (SELECT COUNT(*) FROM order_medicine om 
+         LEFT JOIN patients p ON om.patient_id = p.patient_id
+         WHERE om.status = 'Rejected' AND p.department_id = ?) as rejected_count,
+        (SELECT SUM(total_amount) FROM order_medicine om 
+         LEFT JOIN patients p ON om.patient_id = p.patient_id
+         WHERE om.status = 'Accepted' AND DATE(om.created_at) = CURDATE() AND p.department_id = ?) as today_approved_total,
+        (SELECT SUM(total_amount) FROM order_medicine om 
+         LEFT JOIN patients p ON om.patient_id = p.patient_id
+         WHERE om.status = 'Pending' AND p.department_id = ?) as pending_total,
+        (SELECT COUNT(*) FROM inventory_items WHERE item_type = 'Medication' AND quantity_in_stock < reorder_level) as low_stock_count,
+        (SELECT COUNT(*) FROM inventory_items WHERE item_type = 'Medication' AND expiration_date IS NOT NULL AND expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)) as expiring_count,
+        (SELECT SUM(quantity_in_stock * unit_price) FROM inventory_items WHERE item_type = 'Medication') as total_inventory_value
+    `, [departmentId, departmentId, departmentId, departmentId, departmentId]);
+
+    return stats[0];
+  } catch (error) {
+    console.error('Error fetching pharmacist dashboard:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
   }
 }
