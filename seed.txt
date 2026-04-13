@@ -330,10 +330,10 @@ INSERT INTO prescription_details (prescription_id, item_id, dosage, frequency, d
 -- ==========================================
 
 INSERT INTO order_medicine (encounter_id, appointment_id, patient_id, status, total_amount, requested_by, approved_by) VALUES
-(1, 1, 1, 'Accepted', 50.00, 10, 1),
-(2, 2, 2, 'Pending', 70.00, 10, NULL),
-(3, 3, 5, 'Accepted', 120.00, 10, 1),
-(4, 4, 7, 'Rejected', 30.00, 10, 1);
+(1, 1, 'Accepted', 50.00, 10, 1),
+(2, 2, 'Pending', 70.00, 10, NULL),
+(3, 5, 'Accepted', 120.00, 10, 1),
+(4, 7, 'Rejected', 30.00, 10, 1);
 
 -- ==========================================
 -- 20B. ORDER_MEDICINE_ITEMS (Individual medicines in orders)

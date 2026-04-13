@@ -462,8 +462,7 @@ CREATE TABLE inventory_transactions (
 
 CREATE TABLE order_medicine (
     order_id INT AUTO_INCREMENT PRIMARY KEY,
-    encounter_id INT NOT NULL,
-    appointment_id INT COMMENT 'Reference to appointment for easier tracking',
+    appointment_id INT NOT NULL COMMENT 'Reference to appointment - unique identifier for the order',
     patient_id INT NOT NULL,
     status ENUM('Pending', 'Accepted', 'Rejected') DEFAULT 'Pending' COMMENT 'Pending=Awaiting approval, Accepted=Added to invoice, Rejected=Not approved',
     total_amount DECIMAL(12,2) DEFAULT 0.00 COMMENT 'Sum of all medicine items',
@@ -472,16 +471,15 @@ CREATE TABLE order_medicine (
     approved_by INT COMMENT 'Pharmacist who approved/rejected',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (encounter_id) REFERENCES encounters(encounter_id) ON DELETE CASCADE,
-    FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id) ON DELETE SET NULL,
+    FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id) ON DELETE CASCADE,
     FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE CASCADE,
     FOREIGN KEY (requested_by) REFERENCES staff(staff_id) ON DELETE RESTRICT,
     FOREIGN KEY (approved_by) REFERENCES staff(staff_id) ON DELETE SET NULL,
-    INDEX idx_encounter (encounter_id),
+    INDEX idx_appointment (appointment_id),
     INDEX idx_status (status),
     INDEX idx_patient (patient_id),
     INDEX idx_created (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Medicine orders from nurse to pharmacist for specific encounters';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Medicine orders from nurse to pharmacist for specific appointments';
 
 CREATE TABLE order_medicine_items (
     item_id INT AUTO_INCREMENT PRIMARY KEY,
