@@ -3,7 +3,7 @@ import financeService from '@/services/finance';
 
 export async function POST(req, { params }) {
   try {
-    const { appointmentId } = params;
+    const { appointmentId } = await params;
     const { userId } = await req.json();
 
     if (!appointmentId) {

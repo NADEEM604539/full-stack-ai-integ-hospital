@@ -49,7 +49,7 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (15, 'clerk_doctor_006', 'dr.maryam@hospital.com', 'Dr. Maryam Saif', 2, TRUE),
 
 -- RECEPTIONIST USERS (3 receptionists)
-(20, 'nadeem recep', 'nmushtaq.bscs24seecss@seecs.edu.pk', 'Receptionist Aisha', 4, TRUE),
+(20, 'nadeem recep', 'nmushtaq.bscs24seecss@seecss.edu.pk', 'Receptionist Aisha', 4, TRUE),
 (21, 'clerk_receptionist_002', 'receptionist2@hospital.com', 'Receptionist Hina', 4, TRUE),
 (22, 'clerk_receptionist_003', 'receptionist3@hospital.com', 'Receptionist Ali', 4, TRUE),
 
@@ -59,11 +59,11 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (32, 'clerk_nurse_003', 'nurse3@hospital.com', 'Nurse Rizwan', 3, TRUE),
 
 -- PHARMACIST USERS (2 pharmacists)
-(40, 'clerk_pharmacist_001', 'nmushtaq.bscs24seecs@seecs.edu.pk', 'Pharmacist Hassan', 5, TRUE),
+(40, 'clerk_pharmacist_001', 'nmushtaq.bscs24seecs@seecss.edu.pk', 'Pharmacist Hassan', 5, TRUE),
 (41, 'clerk_pharmacist_002', 'pharmacist2@hospital.com', 'Pharmacist Zainab', 5, TRUE),
 
 -- FINANCE USERS (2 finance officers)
-(50, 'clerk_finance_001', 'finance1@hospital.com', 'Finance Officer Bilal', 6, TRUE),
+(50, 'clerk_finance_001', 'nmushtaq.bscs24seecs@seecs.edu.pk', 'Finance Officer Bilal', 6, TRUE),
 (51, 'clerk_finance_002', 'finance2@hospital.com', 'Finance Officer Rana', 6, TRUE),
 
 -- PATIENT USERS (16 patients - NO staff records)
@@ -192,28 +192,28 @@ INSERT INTO patients (patient_id, user_id, mrn, first_name, last_name, date_of_b
 
 INSERT INTO appointments (patient_id, doctor_id, department_id, appointment_date, appointment_time, duration_minutes, status, reason_for_visit, created_by) VALUES
 -- April 6, 2026 (Monday) - Doctors confirmed available: Ahmed (Mon 09:00-17:00), Ali (Mon 09:30-17:30), Sara (Mon 10:00-18:00)
-(1, 1, 1, '2026-04-06', '12:00:00', 30, 'Scheduled', 'General checkup', 1),
-(2, 1, 1, '2026-04-06', '12:30:00', 30, 'Scheduled', 'Follow-up consultation', 1),
-(3, 3, 3, '2026-04-06', '14:00:00', 30, 'Scheduled', 'Routine visit', 1),
+(1, 1, 8, '2026-04-06', '12:00:00', 30, 'Scheduled', 'General checkup', 1),
+(2, 1, 8, '2026-04-06', '12:30:00', 30, 'Scheduled', 'Follow-up consultation', 1),
+(3, 3, 8, '2026-04-06', '14:00:00', 30, 'Scheduled', 'Routine visit', 1),
 (4, 3, 3, '2026-04-06', '14:30:00', 30, 'Scheduled', 'Urgent consultation', 1),
-(5, 4, 4, '2026-04-06', '15:00:00', 30, 'Scheduled', 'Cardiac checkup', 1),
+(5, 4, 8, '2026-04-06', '15:00:00', 30, 'Scheduled', 'Cardiac checkup', 1),
 (6, 4, 4, '2026-04-06', '15:30:00', 30, 'Scheduled', 'Post-surgery follow-up', 1),
 (7, 1, 1, '2026-04-06', '13:00:00', 30, 'Scheduled', 'Orthopedic consultation', 1),
-(8, 3, 3, '2026-04-06', '15:00:00', 30, 'Scheduled', 'Follow-up for previous injury', 1),
+(8, 3, 8, '2026-04-06', '15:00:00', 30, 'Scheduled', 'Follow-up for previous injury', 1),
 
 -- April 7, 2026 (Tuesday) - Doctors confirmed available: Ali (Tue 09:30-17:30), Fatima (Tue 09:00-16:00), Hassan (Tue 09:00-17:00)
 (9, 2, 2, '2026-04-07', '11:00:00', 30, 'Scheduled', 'General checkup', 1),
-(10, 5, 5, '2026-04-07', '13:00:00', 30, 'Scheduled', 'Neurology consultation', 1),
+(10, 5, 8, '2026-04-07', '13:00:00', 30, 'Scheduled', 'Neurology consultation', 1),
 (11, 3, 3, '2026-04-07', '12:00:00', 30, 'Scheduled', 'Follow-up visit', 1),
 (12, 2, 2, '2026-04-07', '11:30:00', 30, 'Scheduled', 'Patient consultation', 1),
-(13, 5, 5, '2026-04-07', '13:30:00', 30, 'Scheduled', 'Heart condition review', 1),
+(13, 5, 8, '2026-04-07', '13:30:00', 30, 'Scheduled', 'Heart condition review', 1),
 
 -- Cancelled appointments (April 7)
-(14, 1, 1, '2026-04-06', '16:00:00', 30, 'Cancelled', 'Patient cancelled', 1),
+(14, 1, 8, '2026-04-06', '16:00:00', 30, 'Cancelled', 'Patient cancelled', 1),
 (15, 3, 3, '2026-04-06', '16:30:00', 30, 'No Show', 'Patient no-show', 1),
 
 -- Completed appointments (March 31 is a Tuesday - past)
-(16, 2, 2, '2026-03-31', '12:00:00', 30, 'Completed', 'Completed consultation', 1);
+(16, 2, 8, '2026-03-31', '12:00:00', 30, 'Completed', 'Completed consultation', 1);
 
 -- ==========================================
 -- 10. AUDIT_LOGS (Operation tracking)

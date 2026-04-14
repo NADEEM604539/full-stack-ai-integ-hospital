@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DollarSign, FileText, CheckCircle, AlertCircle, TrendingUp, Calendar } from 'lucide-react';
+import { DollarSign, FileText, CheckCircle, AlertCircle, TrendingUp, Calendar, Users, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 const FinanceDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -20,6 +21,22 @@ const FinanceDashboard = () => {
     fetchData();
   }, []);
 
+  const convertAppointmentNumbers = (apts) => {
+    return (apts || []).map(apt => ({
+      ...apt,
+      consultation_fee: Number(apt.consultation_fee || 0),
+      medicines_total: Number(apt.medicines_total || 0)
+    }));
+  };
+
+  const convertInvoiceNumbers = (invs) => {
+    return (invs || []).map(inv => ({
+      ...inv,
+      total_amount: Number(inv.total_amount || 0),
+      amount_paid: Number(inv.amount_paid || 0)
+    }));
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -29,9 +46,25 @@ const FinanceDashboard = () => {
         fetch('/api/finance/summary').then(r => r.json())
       ]);
 
-      setOrders(cApts.data || []);
-      setInvoices(invsRes.data || []);
-      setSummary(sumRes.data || {});
+      setOrders(convertAppointmentNumbers(cApts.data));
+      setInvoices(convertInvoiceNumbers(invsRes.data));
+      
+      // Convert numeric string values to numbers
+      const summaryData = sumRes.data || {};
+      const convertedSummary = {
+        ...summaryData,
+        total_revenue: Number(summaryData.total_revenue || 0),
+        total_paid: Number(summaryData.total_paid || 0),
+        total_outstanding: Number(summaryData.total_outstanding || 0),
+        total_invoices: Number(summaryData.total_invoices || 0),
+        paid_invoices: Number(summaryData.paid_invoices || 0),
+        unpaid_invoices: Number(summaryData.unpaid_invoices || 0),
+        partial_invoices: Number(summaryData.partial_invoices || 0),
+        overdue_count: Number(summaryData.overdue_count || 0),
+        overdue_amount: Number(summaryData.overdue_amount || 0)
+      };
+      
+      setSummary(convertedSummary);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -191,6 +224,81 @@ const FinanceDashboard = () => {
             <FileText size={32} style={{ color: '#8B5CF6' }} />
           </div>
         </div>
+      </div>
+
+      {/* Quick Action Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Appointments Card */}
+        <Link href="/finance/appointments">
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '2px solid #E5E7EB',
+              borderRadius: '12px',
+              transition: 'all 0.3s ease'
+            }}
+            className="p-6 hover:shadow-lg hover:border-green-400 cursor-pointer h-full"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <Calendar size={32} style={{ color: '#10B981' }} />
+              <ArrowRight size={20} style={{ color: '#10B981' }} />
+            </div>
+            <h3 style={{ color: '#065F46' }} className="font-bold text-lg">
+              Complete Appointments
+            </h3>
+            <p style={{ color: '#6B7280' }} className="text-sm mt-2">
+              View and manage completed appointments without invoices
+            </p>
+          </div>
+        </Link>
+
+        {/* Invoices Card */}
+        <Link href="/finance/invoices">
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '2px solid #E5E7EB',
+              borderRadius: '12px',
+              transition: 'all 0.3s ease'
+            }}
+            className="p-6 hover:shadow-lg hover:border-green-400 cursor-pointer h-full"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <FileText size={32} style={{ color: '#10B981' }} />
+              <ArrowRight size={20} style={{ color: '#10B981' }} />
+            </div>
+            <h3 style={{ color: '#065F46' }} className="font-bold text-lg">
+              All Invoices
+            </h3>
+            <p style={{ color: '#6B7280' }} className="text-sm mt-2">
+              View, update status, and manage all invoices
+            </p>
+          </div>
+        </Link>
+
+        {/* Patients Card */}
+        <Link href="/finance/patients">
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '2px solid #E5E7EB',
+              borderRadius: '12px',
+              transition: 'all 0.3s ease'
+            }}
+            className="p-6 hover:shadow-lg hover:border-green-400 cursor-pointer h-full"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <Users size={32} style={{ color: '#10B981' }} />
+              <ArrowRight size={20} style={{ color: '#10B981' }} />
+            </div>
+            <h3 style={{ color: '#065F46' }} className="font-bold text-lg">
+              Patients & Challans
+            </h3>
+            <p style={{ color: '#6B7280' }} className="text-sm mt-2">
+              View all patients with their invoices and payment status
+            </p>
+          </div>
+        </Link>
       </div>
 
       {/* Tabs */}
