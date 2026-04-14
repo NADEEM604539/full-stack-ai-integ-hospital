@@ -696,6 +696,53 @@ const InvoicesPage = () => {
                     );
                   })}
 
+                  {/* Medicines Section */}
+                  {group.invoices.some(inv => inv.medicines && inv.medicines.length > 0) && (
+                    <div className="px-6 py-4 border-t-2" style={{ borderTopColor: '#E8F8F5' }}>
+                      <h4 className="font-semibold mb-3" style={{ color: '#065F46' }}>
+                        💊 Medicines Assigned
+                      </h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr style={{ backgroundColor: '#F3F4F6' }}>
+                              <th className="px-3 py-2 text-left font-semibold" style={{ color: '#065F46' }}>
+                                Medicine Name
+                              </th>
+                              <th className="px-3 py-2 text-center font-semibold" style={{ color: '#065F46' }}>
+                                Qty
+                              </th>
+                              <th className="px-3 py-2 text-right font-semibold" style={{ color: '#065F46' }}>
+                                Unit Price
+                              </th>
+                              <th className="px-3 py-2 text-right font-semibold" style={{ color: '#065F46' }}>
+                                Total
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.invoices.flatMap(inv => (inv.medicines || []).map((med, idx) => (
+                              <tr key={`${inv.invoice_id}-${idx}`} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                                <td className="px-3 py-2" style={{ color: '#065F46' }}>
+                                  {med.medicine_name}
+                                </td>
+                                <td className="px-3 py-2 text-center" style={{ color: '#6B7280' }}>
+                                  {med.quantity}
+                                </td>
+                                <td className="px-3 py-2 text-right" style={{ color: '#6B7280' }}>
+                                  ${parseFloat(med.unit_price).toFixed(2)}
+                                </td>
+                                <td className="px-3 py-2 text-right font-semibold" style={{ color: '#10B981' }}>
+                                  ${parseFloat(med.total_price).toFixed(2)}
+                                </td>
+                              </tr>
+                            )))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Appointment Summary */}
                   <div
                     style={{ backgroundColor: '#E8F8F5', border: '1px solid #10B981' }}

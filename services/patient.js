@@ -318,6 +318,28 @@ export async function getPatientInvoices(patientId) {
       [patientId]
     );
 
+    // Fetch medicines for each appointment
+    for (const invoice of invoices) {
+      if (invoice.appointment_id) {
+        const [medicines] = await connection.query(
+          `SELECT 
+            omi.item_id as medicine_id,
+            omi.medicine_name,
+            omi.quantity,
+            omi.unit_price,
+            omi.total_price,
+            om.appointment_id
+           FROM order_medicine om
+           JOIN order_medicine_items omi ON om.order_id = omi.order_id
+           WHERE om.appointment_id = ? AND om.status = 'Accepted'`,
+          [invoice.appointment_id]
+        );
+        invoice.medicines = medicines || [];
+      } else {
+        invoice.medicines = [];
+      }
+    }
+
     return invoices;
   } catch (error) {
     console.error('Error fetching patient invoices:', error.message);

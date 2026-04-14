@@ -900,6 +900,104 @@ BEGIN
     END IF;
 END //
 
+-- T10: Auto-create invoice when appointment is marked as Completed
+CREATE TRIGGER trg_auto_create_invoice_on_completion
+AFTER UPDATE ON appointments
+FOR EACH ROW
+BEGIN
+    DECLARE v_encounter_id INT;
+    DECLARE v_invoice_id INT;
+    DECLARE v_doctor_fee DECIMAL(10,2);
+    DECLARE v_subtotal DECIMAL(12,2);
+    DECLARE v_tax DECIMAL(12,2);
+    DECLARE v_invoice_message VARCHAR(255);
+    DECLARE doctor_user_id INT;
+    
+    -- Only trigger when status changes to 'Completed'
+    IF NEW.status = 'Completed' AND OLD.status != 'Completed' THEN
+        
+        -- Check if encounter exists for this appointment
+        SELECT encounter_id INTO v_encounter_id
+        FROM encounters
+        WHERE appointment_id = NEW.appointment_id AND is_deleted = FALSE
+        LIMIT 1;
+        
+        -- If no encounter exists, create one
+        IF v_encounter_id IS NULL THEN
+            SELECT user_id INTO doctor_user_id
+            FROM users u
+            WHERE u.role_id = (SELECT role_id FROM roles WHERE role = 'DOCTOR')
+            ORDER BY u.created_at DESC LIMIT 1;
+            
+            INSERT INTO encounters 
+            (patient_id, doctor_id, appointment_id, encounter_type, admission_date, chief_complaint, status, created_by)
+            VALUES (
+                NEW.patient_id,
+                NEW.doctor_id,
+                NEW.appointment_id,
+                'Outpatient',
+                NOW(),
+                NEW.reason_for_visit,
+                'Active',
+                COALESCE(NEW.updated_by, doctor_user_id, 1)
+            );
+            
+            SET v_encounter_id = LAST_INSERT_ID();
+        END IF;
+        
+        -- Check if invoice already exists for this appointment
+        SELECT COUNT(*) INTO @invoice_exists
+        FROM invoices
+        WHERE appointment_id = NEW.appointment_id AND is_deleted = FALSE;
+        
+        IF @invoice_exists = 0 THEN
+            -- Get doctor consultation fee
+            SELECT COALESCE(d.consultation_fee, 500) INTO v_doctor_fee
+            FROM doctors d
+            WHERE d.doctor_id = NEW.doctor_id;
+            
+            SET v_subtotal = v_doctor_fee;
+            SET v_tax = v_subtotal * 0.10;
+            
+            -- Get admin user ID for system-created invoices
+            SELECT user_id INTO doctor_user_id
+            FROM users
+            WHERE role_id = (SELECT role_id FROM roles WHERE role = 'ADMIN')
+            ORDER BY created_at DESC LIMIT 1;
+            
+            -- Create invoice with 7-day deadline
+            INSERT INTO invoices 
+            (appointment_id, encounter_id, patient_id, invoice_date, due_date, subtotal, tax_amount, discount_amount, total_amount, status, created_by)
+            VALUES (
+                NEW.appointment_id,
+                v_encounter_id,
+                NEW.patient_id,
+                CURDATE(),
+                DATE_ADD(CURDATE(), INTERVAL 7 DAY),
+                v_subtotal,
+                v_tax,
+                0,
+                v_subtotal + v_tax,
+                'Unpaid',
+                COALESCE(doctor_user_id, 1)
+            );
+            
+            SET v_invoice_id = LAST_INSERT_ID();
+            
+            -- Add consultation fee as line item
+            INSERT INTO invoice_line_items 
+            (invoice_id, description, item_type, quantity, unit_price)
+            VALUES (
+                v_invoice_id,
+                CONCAT('Doctor Consultation - Dr. ', (SELECT CONCAT(first_name, ' ', last_name) FROM doctors WHERE doctor_id = NEW.doctor_id)),
+                'Consultation',
+                1,
+                v_doctor_fee
+            );
+        END IF;
+    END IF;
+END //
+
 DELIMITER ;
 
 -- ================================================================================
