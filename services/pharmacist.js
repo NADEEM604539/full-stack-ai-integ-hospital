@@ -273,7 +273,7 @@ export async function approveMedicineOrder(orderId) {
     } else {
       // Create a new encounter for this appointment
       const [apptData] = await connection.query(
-        `SELECT patient_id, doctor_id, department_id FROM appointments WHERE appointment_id = ?`,
+        `SELECT patient_id, doctor_id, department_id, appointment_id FROM appointments WHERE appointment_id = ?`,
         [appointmentId]
       );
       
@@ -291,7 +291,7 @@ export async function approveMedicineOrder(orderId) {
 
     // Check if invoice exists for this encounter
     const [invoices] = await connection.query(
-      `SELECT invoice_id FROM invoices WHERE encounter_id = ? LIMIT 1`,
+      `SELECT invoice_id, appointment_id FROM invoices WHERE encounter_id = ? LIMIT 1`,
       [encounterId]
     );
 
@@ -301,9 +301,9 @@ export async function approveMedicineOrder(orderId) {
       invoiceId = invoices[0].invoice_id;
     } else {
       const [result] = await connection.query(
-        `INSERT INTO invoices (encounter_id, patient_id, invoice_date, due_date, subtotal, tax_amount, total_amount, status, created_by)
-         VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?, ?, 'Unpaid', ?)`,
-        [encounterId, patientId, orderAmount, orderAmount * 0.10, orderAmount * 1.10, pharmacistId]
+        `INSERT INTO invoices (appointment_id, encounter_id, patient_id, invoice_date, due_date, subtotal, tax_amount, total_amount, status, created_by)
+         VALUES (?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?, ?, 'Unpaid', ?)`,
+        [appointmentId, encounterId, patientId, orderAmount, orderAmount * 0.10, orderAmount * 1.10, pharmacistId]
       );
       invoiceId = result.insertId;
     }

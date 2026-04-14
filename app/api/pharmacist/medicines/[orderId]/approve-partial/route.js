@@ -84,9 +84,9 @@ export async function POST(request, { params }) {
         invoiceId = invoices[0].invoice_id;
       } else {
         const [invoiceResult] = await connection.query(
-          `INSERT INTO invoices (encounter_id, patient_id, invoice_date, due_date, subtotal, tax_amount, total_amount, status, created_by)
-           VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 0, 0, 0, 'Unpaid', ?)`,
-          [encounterId, orderDetail.patient_id, pharmacistId]
+          `INSERT INTO invoices (appointment_id, encounter_id, patient_id, invoice_date, due_date, subtotal, tax_amount, total_amount, status, created_by)
+           VALUES (?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 0, 0, 0, 'Unpaid', ?)`,
+          [orderDetail.appointment_id, encounterId, orderDetail.patient_id, pharmacistId]
         );
         invoiceId = invoiceResult.insertId;
       }

@@ -279,6 +279,7 @@ export async function getPatientInvoices(patientId) {
     const [invoices] = await connection.query(
       `SELECT 
         inv.invoice_id,
+        inv.appointment_id,
         inv.invoice_date,
         inv.due_date,
         inv.subtotal,
@@ -295,11 +296,25 @@ export async function getPatientInvoices(patientId) {
         p.first_name,
         p.last_name,
         p.email,
-        p.phone_number
+        p.phone_number,
+        a.appointment_id,
+        a.appointment_date,
+        a.appointment_time,
+        a.status as appointment_status,
+        a.reason_for_visit,
+        d.doctor_id,
+        s.first_name as doctor_first_name,
+        s.last_name as doctor_last_name,
+        dept.department_name,
+        dept.department_id
        FROM invoices inv
        JOIN patients p ON inv.patient_id = p.patient_id
+       LEFT JOIN appointments a ON inv.appointment_id = a.appointment_id
+       LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
+       LEFT JOIN staff s ON d.staff_id = s.staff_id
+       LEFT JOIN departments dept ON a.department_id = dept.department_id
        WHERE inv.patient_id = ? AND inv.is_deleted = FALSE
-       ORDER BY inv.invoice_date DESC`,
+       ORDER BY a.appointment_date DESC, inv.invoice_date DESC`,
       [patientId]
     );
 

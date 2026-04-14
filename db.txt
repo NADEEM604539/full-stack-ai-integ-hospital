@@ -502,6 +502,7 @@ CREATE TABLE order_medicine_items (
 
 CREATE TABLE invoices (
     invoice_id INT AUTO_INCREMENT PRIMARY KEY,
+    appointment_id INT COMMENT 'Appointment linked to this invoice - NEW PRIMARY GROUPING',
     encounter_id INT NOT NULL,
     patient_id INT COMMENT 'Patient - can be NULL if patient deleted',
     invoice_date DATE NOT NULL,
@@ -522,6 +523,7 @@ CREATE TABLE invoices (
     deleted_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id) ON DELETE SET NULL,
     FOREIGN KEY (encounter_id) REFERENCES encounters(encounter_id) ON DELETE RESTRICT,
     FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE SET NULL,
     FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE RESTRICT,
@@ -530,11 +532,13 @@ CREATE TABLE invoices (
     CHECK (amount_paid >= 0),
     INDEX idx_status (status),
     INDEX idx_patient (patient_id),
+    INDEX idx_appointment (appointment_id),
     INDEX idx_date (invoice_date),
     INDEX idx_deleted (is_deleted),
     INDEX idx_ai_fraud (ai_fraud_alert(100)),
     INDEX idx_encounter (encounter_id),
-    INDEX idx_patient_status (patient_id, status)
+    INDEX idx_patient_status (patient_id, status),
+    INDEX idx_appointment_status (appointment_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='Partitioned by invoice_date for archive + reporting';
 
 CREATE TABLE invoice_line_items (
@@ -993,6 +997,7 @@ CREATE PROCEDURE sp_generate_invoice(
 BEGIN
     DECLARE v_subtotal DECIMAL(12,2) DEFAULT 0;
     DECLARE v_tax DECIMAL(12,2) DEFAULT 0;
+    DECLARE v_appointment_id INT;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -1002,6 +1007,11 @@ BEGIN
     
     START TRANSACTION;
     
+    -- Get appointment_id from encounter
+    SELECT appointment_id INTO v_appointment_id
+    FROM encounters
+    WHERE encounter_id = p_encounter_id;
+    
     SELECT IFNULL(SUM(consultation_fee), 0) INTO v_subtotal
     FROM doctors d
     JOIN encounters e ON d.doctor_id = e.doctor_id
@@ -1010,8 +1020,9 @@ BEGIN
     SET v_tax = v_subtotal * 0.10;
     
     INSERT INTO invoices 
-    (encounter_id, patient_id, invoice_date, due_date, subtotal, tax_amount, total_amount, status, created_by)
+    (appointment_id, encounter_id, patient_id, invoice_date, due_date, subtotal, tax_amount, total_amount, status, created_by)
     VALUES (
+        v_appointment_id,
         p_encounter_id, 
         p_patient_id, 
         CURDATE(), 

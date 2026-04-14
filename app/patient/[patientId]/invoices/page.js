@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { FileText, AlertCircle, DollarSign, Calendar, Clock, Download } from 'lucide-react';
+import { FileText, AlertCircle, DollarSign, Calendar, Clock, Download, User, Stethoscope } from 'lucide-react';
 import jsPDF from 'jspdf';
 
 const InvoicesPage = () => {
@@ -38,14 +38,42 @@ const InvoicesPage = () => {
     }
   };
 
+  // Group invoices by appointment
+  const groupByAppointment = () => {
+    const grouped = {};
+    invoices.forEach(inv => {
+      const apptId = inv.appointment_id || 'no-appointment';
+      if (!grouped[apptId]) {
+        grouped[apptId] = {
+          appointment: {
+            appointment_id: inv.appointment_id,
+            appointment_date: inv.appointment_date,
+            appointment_time: inv.appointment_time,
+            appointment_status: inv.appointment_status,
+            reason_for_visit: inv.reason_for_visit,
+            doctor_first_name: inv.doctor_first_name,
+            doctor_last_name: inv.doctor_last_name,
+            department_name: inv.department_name,
+          },
+          invoices: [],
+        };
+      }
+      grouped[apptId].invoices.push(inv);
+    });
+    return Object.values(grouped);
+  };
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'paid':
         return { bgColor: '#E8F8F5', textColor: '#10B981' };
       case 'pending':
-        return { bgColor: '#FFE4F5', textColor: '#10B981' };
+      case 'unpaid':
+        return { bgColor: '#FFE4F5', textColor: '#D97706' };
       case 'overdue':
         return { bgColor: '#FFD9E8', textColor: '#D97706' };
+      case 'partial':
+        return { bgColor: '#FFF9C4', textColor: '#F57F17' };
       case 'cancelled':
         return { bgColor: '#E8F8F5', textColor: '#10B981' };
       default:
@@ -60,15 +88,12 @@ const InvoicesPage = () => {
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 15;
-      const columnWidth = (pageWidth - 2 * margin) / 2;
       let yPosition = margin;
 
       // ============ HEADER SECTION ============
-      // Hospital Header Background
       pdf.setFillColor(16, 185, 129);
       pdf.rect(0, 0, pageWidth, 35, 'F');
 
-      // Hospital Name & Info
       pdf.setFont('Helvetica', 'bold');
       pdf.setFontSize(18);
       pdf.setTextColor(255, 255, 255);
@@ -101,6 +126,10 @@ const InvoicesPage = () => {
       pdf.text(`Invoice Date: ${new Date(invoice.invoice_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, margin, yPosition);
       yPosition += 5;
       pdf.text(`Due Date: ${new Date(invoice.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, margin, yPosition);
+      yPosition += 5;
+      if (invoice.appointment_date) {
+        pdf.text(`Appointment Date: ${new Date(invoice.appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} at ${invoice.appointment_time}`, margin, yPosition);
+      }
       yPosition += 8;
 
       // Status Badge
@@ -121,7 +150,6 @@ const InvoicesPage = () => {
       pdf.text('Patient Information', margin, yPosition);
       yPosition += 6;
 
-      // Patient details box background
       pdf.setFillColor(245, 253, 251);
       pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 28, 'F');
       pdf.setDrawColor(16, 185, 129);
@@ -130,7 +158,6 @@ const InvoicesPage = () => {
       pdf.setFont('Helvetica', 'normal');
       pdf.setFontSize(9);
 
-      // Left column
       pdf.text('Patient ID (MRN):', margin + 3, yPosition);
       pdf.text(`${invoice.mrn || 'N/A'}`, margin + 50, yPosition);
       
@@ -148,23 +175,47 @@ const InvoicesPage = () => {
 
       yPosition += 10;
 
+      // ============ APPOINTMENT INFO (if available) ============
+      if (invoice.appointment_date) {
+        pdf.setFont('Helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text('Appointment Information', margin, yPosition);
+        yPosition += 6;
+
+        pdf.setFillColor(245, 253, 251);
+        pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 18, 'F');
+        pdf.setDrawColor(16, 185, 129);
+        pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 18);
+
+        pdf.setFont('Helvetica', 'normal');
+        pdf.setFontSize(9);
+
+        pdf.text('Date & Time:', margin + 3, yPosition);
+        pdf.text(`${new Date(invoice.appointment_date).toLocaleDateString()} at ${invoice.appointment_time}`, margin + 50, yPosition);
+        
+        yPosition += 5;
+        pdf.text('Doctor:', margin + 3, yPosition);
+        pdf.text(`${invoice.doctor_first_name || ''} ${invoice.doctor_last_name || 'N/A'}`, margin + 50, yPosition);
+
+        yPosition += 8;
+      }
+
       // ============ SERVICES SECTION ============
       pdf.setFont('Helvetica', 'bold');
       pdf.setFontSize(11);
       pdf.text('Itemized Services', margin, yPosition);
       yPosition += 7;
 
-      // Define table column positions
       const tableLeft = margin;
-      const col1X = margin + 2;        // Service Description
-      const col2X = margin + 95;       // Quantity
-      const col3X = margin + 125;      // Price
-      const col4X = margin + 160;      // Total
+      const col1X = margin + 2;
+      const col2X = margin + 95;
+      const col3X = margin + 125;
+      const col4X = margin + 160;
       const tableRight = pageWidth - margin;
-      const colWidth1 = 93;            // Description width
-      const colWidth2 = 30;            // Quantity width
-      const colWidth3 = 35;            // Price width
-      const colWidth4 = 30;            // Total width
+      const colWidth1 = 93;
+      const colWidth2 = 30;
+      const colWidth3 = 35;
+      const colWidth4 = 30;
 
       // Table Header
       pdf.setFont('Helvetica', 'bold');
@@ -174,7 +225,6 @@ const InvoicesPage = () => {
       const tableTopY = yPosition - 4;
       pdf.rect(tableLeft, tableTopY, tableRight - tableLeft, 6, 'F');
       
-      // Header borders
       pdf.setDrawColor(16, 185, 129);
       pdf.line(col2X - 2, tableTopY, col2X - 2, tableTopY + 6);
       pdf.line(col3X - 2, tableTopY, col3X - 2, tableTopY + 6);
@@ -187,7 +237,6 @@ const InvoicesPage = () => {
 
       yPosition += 8;
 
-      // Service Items - Generate sample if needed
       const services = [
         { description: 'Medical Consultation & Assessment', quantity: 1, unitPrice: parseFloat(invoice.subtotal) * 0.4, total: parseFloat(invoice.subtotal) * 0.4 },
         { description: 'Diagnostic Tests & Lab Work', quantity: 2, unitPrice: parseFloat(invoice.subtotal) * 0.3, total: parseFloat(invoice.subtotal) * 0.6 },
@@ -199,26 +248,22 @@ const InvoicesPage = () => {
       pdf.setTextColor(6, 95, 70);
 
       services.forEach((service, idx) => {
-        // Wrap long text
         const descLines = pdf.splitTextToSize(service.description, colWidth1 - 2);
         const lineHeight = descLines.length > 1 ? 4 : 5;
         const rowHeight = lineHeight + 1;
         const rowTop = yPosition - 3;
         
-        // Row background (alternating light)
         if (idx % 2 === 1) {
           pdf.setFillColor(245, 253, 251);
           pdf.rect(tableLeft, rowTop, tableRight - tableLeft, rowHeight + 2, 'F');
         }
         
-        // Row borders
         pdf.setDrawColor(200, 220, 215);
-        pdf.line(tableLeft, rowTop, tableRight, rowTop); // Top border
-        pdf.line(col2X - 2, rowTop, col2X - 2, rowTop + rowHeight + 2); // Col separator
-        pdf.line(col3X - 2, rowTop, col3X - 2, rowTop + rowHeight + 2); // Col separator
-        pdf.line(col4X - 2, rowTop, col4X - 2, rowTop + rowHeight + 2); // Col separator
+        pdf.line(tableLeft, rowTop, tableRight, rowTop);
+        pdf.line(col2X - 2, rowTop, col2X - 2, rowTop + rowHeight + 2);
+        pdf.line(col3X - 2, rowTop, col3X - 2, rowTop + rowHeight + 2);
+        pdf.line(col4X - 2, rowTop, col4X - 2, rowTop + rowHeight + 2);
         
-        // Text content
         pdf.text(descLines, col1X, yPosition);
         pdf.text(service.quantity.toString(), col2X, yPosition, { align: 'center' });
         pdf.text(`$${service.unitPrice.toFixed(2)}`, col3X, yPosition, { align: 'center' });
@@ -227,7 +272,6 @@ const InvoicesPage = () => {
         yPosition += rowHeight + 2;
       });
 
-      // Bottom border of table
       pdf.setDrawColor(16, 185, 129);
       pdf.line(tableLeft, yPosition - 2, tableRight, yPosition - 2);
 
@@ -239,7 +283,6 @@ const InvoicesPage = () => {
       pdf.text('Amount Summary', margin, yPosition);
       yPosition += 7;
 
-      // Summary Box Background
       pdf.setFillColor(240, 253, 244);
       pdf.rect(margin, yPosition - 3, pageWidth - 2 * margin, 55, 'F');
 
@@ -259,7 +302,6 @@ const InvoicesPage = () => {
         yPosition += 5;
       });
 
-      // Total Amount (Bold & Larger)
       pdf.setFont('Helvetica', 'bold');
       pdf.setFontSize(12);
       pdf.setTextColor(16, 185, 129);
@@ -292,21 +334,6 @@ const InvoicesPage = () => {
 
       yPosition += 8;
 
-      // ============ NOTES SECTION ============
-      if (invoice.status?.toLowerCase() === 'pending' && parseFloat(invoice.outstanding_balance) > 0) {
-        pdf.setFont('Helvetica', 'bold');
-        pdf.setFontSize(10);
-        pdf.setFillColor(255, 244, 224);
-        pdf.rect(margin, yPosition - 3, pageWidth - 2 * margin, 12, 'F');
-        pdf.setTextColor(217, 119, 6);
-        pdf.text('⚠ Payment Due:', margin + 2, yPosition);
-        pdf.setFont('Helvetica', 'normal');
-        pdf.setFontSize(9);
-        const noteLines = pdf.splitTextToSize(`Please pay the outstanding balance of $${parseFloat(invoice.outstanding_balance).toFixed(2)} by ${new Date(invoice.due_date).toLocaleDateString()}`, pageWidth - 2 * margin - 4);
-        pdf.text(noteLines, margin + 2, yPosition + 5);
-        yPosition += 18;
-      }
-
       // ============ FOOTER ============
       pdf.setFont('Helvetica', 'italic');
       pdf.setFontSize(9);
@@ -314,7 +341,6 @@ const InvoicesPage = () => {
       pdf.text('Thank you for choosing our healthcare services', margin, pageHeight - 15);
       pdf.text('For inquiries, please contact billing@medcare.com | Phone: (555) 123-4567', margin, pageHeight - 10);
 
-      // Footer line
       pdf.setDrawColor(16, 185, 129);
       pdf.line(margin, pageHeight - 8, pageWidth - margin, pageHeight - 8);
 
@@ -326,14 +352,18 @@ const InvoicesPage = () => {
     }
   };
 
-  const filteredInvoices = invoices.filter((inv) => {
-    if (filter === 'all') return true;
-    if (filter === 'paid') return inv.status?.toLowerCase() === 'paid';
-    if (filter === 'pending') return inv.status?.toLowerCase() === 'pending';
-    if (filter === 'overdue')
-      return inv.status?.toLowerCase() === 'pending' && inv.days_overdue > 0;
-    return true;
-  });
+  const groupedInvoices = groupByAppointment();
+  
+  const filteredInvoices = groupedInvoices.map(group => ({
+    ...group,
+    invoices: group.invoices.filter((inv) => {
+      if (filter === 'all') return true;
+      if (filter === 'paid') return inv.status?.toLowerCase() === 'paid';
+      if (filter === 'pending') return ['pending', 'unpaid', 'partial'].includes(inv.status?.toLowerCase());
+      if (filter === 'overdue') return inv.status?.toLowerCase() === 'overdue';
+      return true;
+    }),
+  })).filter(group => group.invoices.length > 0);
 
   const stats = {
     totalAmount: invoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0),
@@ -343,7 +373,7 @@ const InvoicesPage = () => {
       0
     ),
     overdueAmount: invoices
-      .filter((inv) => inv.days_overdue > 0)
+      .filter((inv) => inv.status?.toLowerCase() === 'overdue')
       .reduce((sum, inv) => sum + (parseFloat(inv.outstanding_balance) || 0), 0),
   };
 
@@ -352,7 +382,7 @@ const InvoicesPage = () => {
       <div className="mb-8">
         <h2 className="text-3xl font-bold" style={{ color: '#065F46' }}>Invoices & Payments</h2>
         <p style={{ color: '#10B981' }} className="mt-2 font-medium">
-          View and manage your billing information
+          View and manage your billing information by appointment
         </p>
       </div>
 
@@ -526,120 +556,177 @@ const InvoicesPage = () => {
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredInvoices.map((invoice) => {
-            const isOverdue = invoice.days_overdue > 0 && invoice.status?.toLowerCase() !== 'paid';
-            const borderColor =
-              invoice.status?.toLowerCase() === 'paid'
-                ? '#10B981'
-                : isOverdue
-                  ? '#D97706'
-                  : '#F59E0B';
-            const statusColor = getStatusColor(invoice.status);
+        <div className="space-y-6">
+          {filteredInvoices.map((group, idx) => {
+            const appointmentTotal = group.invoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+            const appointmentPaid = group.invoices.reduce((sum, inv) => sum + (parseFloat(inv.amount_paid) || 0), 0);
+            const appointmentBalance = appointmentTotal - appointmentPaid;
 
             return (
               <div
-                key={invoice.invoice_id}
+                key={group.appointment?.appointment_id || `no-appt-${idx}`}
                 style={{
                   backgroundColor: '#FFFFFF',
-                  borderLeft: `4px solid ${borderColor}`,
+                  borderLeft: '4px solid #10B981',
                   boxShadow: '0 4px 15px rgba(16, 185, 129, 0.1)',
                 }}
-                className="rounded-lg p-6 hover:shadow-lg transition"
+                className="rounded-lg overflow-hidden"
               >
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  {/* Left Side */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div style={{ backgroundColor: '#E8F8F5' }} className="rounded-lg p-2">
-                        <FileText size={20} style={{ color: '#10B981' }} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold" style={{ color: '#065F46' }}>
-                          Invoice #{invoice.invoice_id}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm" style={{ color: '#10B981' }}>
-                          <Calendar size={14} />
-                          {new Date(invoice.invoice_date).toLocaleDateString()}
+                {/* Appointment Header */}
+                <div style={{ backgroundColor: '#F0FDF4', borderBottom: '2px solid #E8F8F5' }} className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex-1">
+                      {group.appointment?.appointment_date ? (
+                        <>
+                          <div className="flex items-center gap-3 mb-2">
+                            <Calendar size={20} style={{ color: '#10B981' }} />
+                            <h3 className="font-semibold text-lg" style={{ color: '#065F46' }}>
+                              {new Date(group.appointment.appointment_date).toLocaleDateString('en-US', { 
+                                weekday: 'long', 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric' 
+                              })}
+                            </h3>
+                            <Clock size={16} style={{ color: '#10B981' }} />
+                            <span style={{ color: '#065F46' }} className="font-medium">
+                              {group.appointment.appointment_time}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 ml-0 md:ml-6">
+                            <Stethoscope size={16} style={{ color: '#10B981' }} />
+                            <span style={{ color: '#065F46' }}>
+                              Dr. {group.appointment.doctor_first_name} {group.appointment.doctor_last_name}
+                            </span>
+                            {group.appointment.department_name && (
+                              <>
+                                <span style={{ color: '#D1D5DB' }}>•</span>
+                                <span style={{ color: '#10B981' }}>{group.appointment.department_name}</span>
+                              </>
+                            )}
+                          </div>
+                          {group.appointment.reason_for_visit && (
+                            <p style={{ color: '#6B7280', marginTop: '8px' }} className="text-sm">
+                              Reason: {group.appointment.reason_for_visit}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <div style={{ color: '#6B7280' }}>
+                          No appointment linked
                         </div>
-                      </div>
+                      )}
                     </div>
-
-                    {isOverdue && (
-                      <div style={{ color: '#D97706' }} className="mt-2 text-sm font-medium">
-                        ⚠️ Overdue by {invoice.days_overdue} days
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Middle - Amounts */}
-                  <div className="grid grid-cols-2 gap-4 md:w-auto">
-                    <div className="text-center">
+                    
+                    <div className="text-right">
                       <p style={{ color: '#10B981' }} className="text-xs font-medium">
-                        Total
+                        Appointment Total
                       </p>
-                      <p style={{ color: '#065F46' }} className="text-lg font-bold">
-                        ${(parseFloat(invoice.total_amount) || 0).toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p style={{ color: '#10B981' }} className="text-xs font-medium">
-                        Outstanding
-                      </p>
-                      <p style={{ color: '#065F46' }} className="text-lg font-bold">
-                        ${(parseFloat(invoice.outstanding_balance) || 0).toFixed(2)}
+                      <p style={{ color: '#065F46' }} className="text-2xl font-bold">
+                        ${appointmentTotal.toFixed(2)}
                       </p>
                     </div>
-                  </div>
-
-                  {/* Right Side - Status and Download */}
-                  <div className="flex items-center gap-3 md:justify-end">
-                    <span
-                      style={{
-                        backgroundColor: statusColor.bgColor,
-                        color: statusColor.textColor,
-                      }}
-                      className="inline-block px-3 py-1 rounded-full text-sm font-medium"
-                    >
-                      {invoice.status?.charAt(0).toUpperCase() +
-                        invoice.status?.slice(1).toLowerCase()}
-                    </span>
-                    <button
-                      onClick={() => downloadInvoicePDF(invoice)}
-                      disabled={downloadingId === invoice.invoice_id}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition hover:opacity-90"
-                      style={{
-                        backgroundColor: downloadingId === invoice.invoice_id ? '#10B98166' : '#10B981',
-                        color: '#FFFFFF',
-                      }}
-                      title="Download Invoice as PDF"
-                    >
-                      <Download size={18} />
-                      {downloadingId === invoice.invoice_id ? 'Generating...' : 'PDF'}
-                    </button>
                   </div>
                 </div>
 
-                {/* Payment Summary */}
-                <div
-                  style={{ borderTop: '1px solid #E8F8F5' }}
-                  className="mt-3 pt-3 grid grid-cols-2 gap-4 text-sm"
-                >
-                  <div>
-                    <p style={{ color: '#10B981' }} className="font-medium">
-                      Amount Paid:
-                    </p>
-                    <p style={{ color: '#065F46' }} className="font-semibold">
-                      ${(parseFloat(invoice.amount_paid) || 0).toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p style={{ color: '#10B981' }} className="font-medium">
-                      Due Date:
-                    </p>
-                    <p style={{ color: '#065F46' }} className="font-semibold">
-                      {new Date(invoice.due_date).toLocaleDateString()}
-                    </p>
+                {/* Invoices for this appointment */}
+                <div className="space-y-3 p-6">
+                  {group.invoices.map((invoice) => {
+                    const statusColor = getStatusColor(invoice.status);
+                    return (
+                      <div
+                        key={invoice.invoice_id}
+                        style={{ backgroundColor: '#F9FAFB', border: '1px solid #E8F8F5' }}
+                        className="p-4 rounded-lg"
+                      >
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <FileText size={16} style={{ color: '#10B981' }} />
+                              <h4 className="font-semibold" style={{ color: '#065F46' }}>
+                                Invoice #{invoice.invoice_id}
+                              </h4>
+                              <span
+                                style={{
+                                  backgroundColor: statusColor.bgColor,
+                                  color: statusColor.textColor,
+                                }}
+                                className="text-xs font-medium px-2 py-1 rounded"
+                              >
+                                {invoice.status?.charAt(0).toUpperCase() + invoice.status?.slice(1).toLowerCase()}
+                              </span>
+                            </div>
+                            <p style={{ color: '#6B7280' }} className="text-sm">
+                              Issued: {new Date(invoice.invoice_date).toLocaleDateString()} | Due: {new Date(invoice.due_date).toLocaleDateString()}
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-4 md:w-auto">
+                            <div className="text-right">
+                              <p style={{ color: '#10B981' }} className="text-xs font-medium">
+                                Total
+                              </p>
+                              <p style={{ color: '#065F46' }} className="font-bold">
+                                ${(parseFloat(invoice.total_amount) || 0).toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p style={{ color: '#10B981' }} className="text-xs font-medium">
+                                Balance
+                              </p>
+                              <p style={{ color: invoice.outstanding_balance > 0 ? '#D97706' : '#10B981' }} className="font-bold">
+                                ${(parseFloat(invoice.outstanding_balance) || 0).toFixed(2)}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => downloadInvoicePDF(invoice)}
+                              disabled={downloadingId === invoice.invoice_id}
+                              className="px-3 py-2 rounded font-medium text-sm transition"
+                              style={{
+                                backgroundColor: downloadingId === invoice.invoice_id ? '#10B98166' : '#10B981',
+                                color: '#FFFFFF',
+                              }}
+                              title="Download Invoice as PDF"
+                            >
+                              <Download size={16} className="inline" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Appointment Summary */}
+                  <div
+                    style={{ backgroundColor: '#E8F8F5', border: '1px solid #10B981' }}
+                    className="p-4 rounded-lg mt-4"
+                  >
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p style={{ color: '#10B981' }} className="text-xs font-medium">
+                          Total
+                        </p>
+                        <p style={{ color: '#065F46' }} className="text-lg font-bold">
+                          ${appointmentTotal.toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ color: '#10B981' }} className="text-xs font-medium">
+                          Paid
+                        </p>
+                        <p style={{ color: '#10B981' }} className="text-lg font-bold">
+                          ${appointmentPaid.toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ color: '#10B981' }} className="text-xs font-medium">
+                          Balance Due
+                        </p>
+                        <p style={{ color: appointmentBalance > 0 ? '#D97706' : '#10B981' }} className="text-lg font-bold">
+                          ${appointmentBalance.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

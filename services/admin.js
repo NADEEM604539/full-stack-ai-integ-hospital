@@ -509,6 +509,7 @@ export async function getAllInvoices() {
     const [invoices] = await connection.query(
       `SELECT 
         i.invoice_id,
+        i.appointment_id,
         i.patient_id,
         i.invoice_date,
         i.due_date,
@@ -518,13 +519,27 @@ export async function getAllInvoices() {
         (i.total_amount - COALESCE(SUM(p.amount), 0)) as balance_due,
         pa.first_name,
         pa.last_name,
-        pa.mrn
+        pa.mrn,
+        a.appointment_id,
+        a.appointment_date,
+        a.appointment_time,
+        a.status as appointment_status,
+        a.reason_for_visit,
+        d.doctor_id,
+        s.first_name as doctor_first_name,
+        s.last_name as doctor_last_name,
+        dept.department_name,
+        dept.department_id
        FROM invoices i
        LEFT JOIN patients pa ON i.patient_id = pa.patient_id
        LEFT JOIN payments p ON i.invoice_id = p.invoice_id
+       LEFT JOIN appointments a ON i.appointment_id = a.appointment_id
+       LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
+       LEFT JOIN staff s ON d.staff_id = s.staff_id
+       LEFT JOIN departments dept ON a.department_id = dept.department_id
        WHERE i.is_deleted = FALSE
        GROUP BY i.invoice_id
-       ORDER BY i.invoice_date DESC`
+       ORDER BY a.appointment_date DESC, i.invoice_date DESC`
     );
 
     // Calculate actual status based on due_date and balance
