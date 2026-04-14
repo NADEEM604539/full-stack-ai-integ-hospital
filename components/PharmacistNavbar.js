@@ -3,10 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
+import { UserButton } from '@clerk/nextjs';
 
 export default function PharmacistNavbar() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user } = useUser();
 
   const isActive = (path) => pathname === path;
 
@@ -53,6 +56,8 @@ export default function PharmacistNavbar() {
               >
                 👤 Profile
               </Link>
+              <div style={{ height: '24px', width: '1px', backgroundColor: 'rgba(255,255,255,0.3)' }} />
+              <UserButton />
             </nav>
 
             {/* Mobile Menu Button */}

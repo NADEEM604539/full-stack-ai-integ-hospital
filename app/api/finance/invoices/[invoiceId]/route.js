@@ -98,6 +98,7 @@ export async function GET(req, { params }) {
         p.phone_number as patient_phone,
         a.appointment_date,
         a.appointment_time,
+        a.department_id,
         CONCAT(s.first_name, ' ', s.last_name) AS doctor_name,
         dept.department_name,
         i.created_by
@@ -117,9 +118,12 @@ export async function GET(req, { params }) {
       invoiceParams.push(departmentId);
     }
 
+    console.log(`[Invoice GET] Looking for Invoice ${invoiceId}, UserID: ${userId}, RoleID: ${roleId}, DeptID: ${departmentId}`);
+
     const [invoices] = await connection.query(invoiceQuery, invoiceParams);
 
     if (!invoices.length) {
+      console.error(`[Invoice GET] No invoice found - ID: ${invoiceId}, UserID: ${userId}, RoleID: ${roleId}, DeptID: ${departmentId}`);
       connection.release();
       return NextResponse.json(
         { success: false, error: 'Invoice not found or access denied' },
@@ -132,14 +136,15 @@ export async function GET(req, { params }) {
     // Get line items
     const [items] = await connection.query(
       `SELECT 
-        invoice_line_item_id as id,
+        line_id as id,
         description,
         item_type,
         quantity,
-        unit_price
+        unit_price,
+        line_total
        FROM invoice_line_items
-       WHERE invoice_id = ? AND is_deleted = FALSE
-       ORDER BY invoice_line_item_id`,
+       WHERE invoice_id = ?
+       ORDER BY line_id`,
       [parseInt(invoiceId)]
     );
 

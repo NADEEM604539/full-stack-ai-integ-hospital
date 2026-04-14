@@ -2,10 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Home, LogOut, Calendar, FileText, Users, Menu, X } from 'lucide-react';
+import { Home, LogOut, Calendar, FileText, Users, Menu, X, User } from 'lucide-react';
+import { useUser } from '@clerk/nextjs';
+import { UserButton } from '@clerk/nextjs';
 
 const FinanceNavbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useUser();
 
   return (
     <nav
@@ -62,14 +65,15 @@ const FinanceNavbar = () => {
             <Users size={18} />
             Patients
           </Link>
-          <div style={{ height: '24px', width: '1px', backgroundColor: 'rgba(255,255,255,0.3)' }} />
           <Link
-            href="/"
+            href="/finance/profile"
             className="flex items-center gap-2 hover:bg-green-600 px-4 py-2 rounded transition"
           >
-            <LogOut size={18} />
-            Exit
+            <User size={18} />
+            Profile
           </Link>
+          <div style={{ height: '24px', width: '1px', backgroundColor: 'rgba(255,255,255,0.3)' }} />
+          <UserButton />
         </div>
       </div>
 
@@ -104,14 +108,17 @@ const FinanceNavbar = () => {
           >
             👥 Patients
           </Link>
-          <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.3)' }} className="my-2" />
           <Link
-            href="/"
+            href="/finance/profile"
             className="block px-4 py-2 rounded hover:bg-green-600 transition"
             onClick={() => setMobileOpen(false)}
           >
-            🚪 Exit
+            👤 Profile
           </Link>
+          <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.3)' }} className="my-2" />
+          <div className="px-4 py-2">
+            <UserButton />
+          </div>
         </div>
       )}
     </nav>

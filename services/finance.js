@@ -273,7 +273,7 @@ export async function generateInvoiceForAppointment(appointmentId, createdByUser
         [doctorId]
       );
 
-      const consultationFee = doctors.length > 0 ? doctors[0].consultation_fee : 500;
+      const consultationFee = Number(doctors.length > 0 ? doctors[0].consultation_fee : 500) || 500;
 
       // Get medicines total
       const [medicineOrders] = await connection.query(
@@ -284,8 +284,8 @@ export async function generateInvoiceForAppointment(appointmentId, createdByUser
         [appointmentId]
       );
 
-      const medicinesTotal = medicineOrders[0]?.total_medicines || 0;
-      const subtotal = consultationFee + medicinesTotal;
+      const medicinesTotal = Number(medicineOrders[0]?.total_medicines || 0) || 0;
+      const subtotal = Number(consultationFee) + Number(medicinesTotal);
       const taxAmount = subtotal * 0.10;
       const totalAmount = subtotal + taxAmount;
 
@@ -298,6 +298,8 @@ export async function generateInvoiceForAppointment(appointmentId, createdByUser
       );
 
       const invoiceId = invoiceResult.insertId;
+
+      console.log(`[Invoice Created] ID: ${invoiceId}, Appointment: ${appointmentId}, Patient: ${patientId}, Amount: ${totalAmount}, Department: ${departmentId}`);
 
       // Get doctor name
       const [doctorName] = await connection.query(
@@ -313,7 +315,7 @@ export async function generateInvoiceForAppointment(appointmentId, createdByUser
         `INSERT INTO invoice_line_items 
          (invoice_id, description, item_type, quantity, unit_price)
          VALUES (?, ?, 'Consultation', 1, ?)`,
-        [invoiceId, `Doctor Consultation - Dr. ${doctorName[0]?.name || 'Unknown'}`, consultationFee]
+        [invoiceId, `Doctor Consultation - Dr. ${doctorName[0]?.name || 'Unknown'}`, Number(consultationFee) || 500]
       );
 
       // Add medicine line items
@@ -331,7 +333,7 @@ export async function generateInvoiceForAppointment(appointmentId, createdByUser
             `INSERT INTO invoice_line_items 
              (invoice_id, description, item_type, quantity, unit_price)
              VALUES (?, ?, 'Medication', ?, ?)`,
-            [invoiceId, medicine.medicine_name, medicine.quantity, medicine.unit_price]
+            [invoiceId, medicine.medicine_name, Number(medicine.quantity) || 0, Number(medicine.unit_price) || 0]
           );
         }
       }
