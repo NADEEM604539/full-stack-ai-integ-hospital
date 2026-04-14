@@ -188,7 +188,6 @@ export async function getMedicineOrderDetail(orderId) {
     }
 
     // Get order items - simplified query first
-    console.log(`[getMedicineOrderDetail] Querying items for order_id: ${orderId}`);
     const [items] = await connection.query(`
       SELECT 
         omi.item_id,

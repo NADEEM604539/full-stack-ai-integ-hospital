@@ -19,8 +19,6 @@ export async function callClinicalAgent(clinicalData) {
       throw new Error('AI Agent configuration missing: AGENT_ENDPOINT or AGENT_API_KEY not set');
     }
 
-    console.log('📋 Calling Clinical AI Agent...');
-    console.log('Clinical Data:', clinicalData.substring(0, 200) + '...');
 
     // Set up timeout controller
     const controller = new AbortController();
@@ -51,7 +49,6 @@ export async function callClinicalAgent(clinicalData) {
       const result = await response.json();
       const agentResponse = extractAgentResponse(result);
 
-      console.log('✅ Agent response received successfully');
       return agentResponse;
     } catch (error) {
       clearTimeout(timeoutId);
@@ -119,8 +116,6 @@ export function parseSoapSuggestions(agentResponse) {
   try {
     let jsonString = agentResponse;
 
-    console.log("Analyzing Agent Response type:", typeof agentResponse);
-    console.log("Is Array?", Array.isArray(agentResponse));
 
     // Helper to extract text from a message model
     const extractFromMessage = (msg) => {
@@ -148,7 +143,6 @@ export function parseSoapSuggestions(agentResponse) {
       jsonString = JSON.stringify(agentResponse);
     }
 
-    console.log('📝 Extracted string length:', jsonString.length);
 
     // Initial parse of the string
     let parsed;
@@ -165,7 +159,6 @@ export function parseSoapSuggestions(agentResponse) {
     if (parsed.structured_soap && Array.isArray(parsed.structured_soap)) {
       const embeddedText = extractFromMessage(parsed.structured_soap);
       if (embeddedText) {
-        console.log('🔄 Found embedded AI message array inside parsed object, peeling layers...');
         try {
           parsed = JSON.parse(embeddedText);
         } catch(e) {
@@ -176,7 +169,6 @@ export function parseSoapSuggestions(agentResponse) {
     } else if (parsed && Array.isArray(parsed)) {
       const embeddedText = extractFromMessage(parsed);
       if (embeddedText) {
-        console.log('🔄 Found embedded AI message array directly, peeling layers...');
         try {
           parsed = JSON.parse(embeddedText);
         } catch(e) { }
@@ -186,8 +178,6 @@ export function parseSoapSuggestions(agentResponse) {
     // Extract structured_soap - this is what the frontend expects
     const soap = parsed.structured_soap || parsed;
     
-    console.log('📊 Final parsed keys:', Object.keys(parsed));
-    console.log('✅ Final Soap keys:', Object.keys(soap));
 
     // Return in the format the frontend expects: with structured_soap as the main payload
     return {

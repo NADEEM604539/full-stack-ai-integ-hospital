@@ -117,8 +117,6 @@ async function findOrCreateUserByEmail(email, connection) {
         const roleName = roleNames[user.role_id] || 'Unknown Role';
         throw new Error(`This email belongs to a ${roleName}. Only patient emails can be used for patient registration.`);
       }
-      
-      console.log(`Patient user found with email: ${email}, user_id: ${user.user_id}`);
       return user.user_id;
     }
 
@@ -131,8 +129,7 @@ async function findOrCreateUserByEmail(email, connection) {
     );
 
     const newUserId = insertResult.insertId;
-    console.log(`New patient user created with email: ${email}, user_id: ${newUserId}`);
-
+   
     return newUserId;
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
@@ -493,7 +490,6 @@ export async function createPatient(patientData) {
     let patientUserId = null;
     if (patientData.email) {
       patientUserId = await findOrCreateUserByEmail(patientData.email, connection);
-      console.log(`Patient will be linked to user_id: ${patientUserId}`);
     }
 
     const mrn = 'MRN-' + Date.now();
@@ -572,8 +568,7 @@ export async function updatePatient(patientId, patientData) {
     let newUserId = patient.user_id;
     if (patientData.email && patientData.email !== patient.email) {
       newUserId = await findOrCreateUserByEmail(patientData.email, connection);
-      console.log(`Email changed from ${patient.email} to ${patientData.email}, linked to user_id: ${newUserId}`);
-    }
+        }
 
     // Update patient record
     await connection.query(

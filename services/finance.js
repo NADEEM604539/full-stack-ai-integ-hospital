@@ -299,8 +299,6 @@ export async function generateInvoiceForAppointment(appointmentId, createdByUser
 
       const invoiceId = invoiceResult.insertId;
 
-      console.log(`[Invoice Created] ID: ${invoiceId}, Appointment: ${appointmentId}, Patient: ${patientId}, Amount: ${totalAmount}, Department: ${departmentId}`);
-
       // Get doctor name
       const [doctorName] = await connection.query(
         `SELECT CONCAT(s.first_name, ' ', s.last_name) AS name 
