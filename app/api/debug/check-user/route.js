@@ -14,7 +14,6 @@ import db from '@/lib/db';
 export async function GET(request) {
   try {
     // Step 1: Check Clerk authentication
-    console.log('1. Checking Clerk authentication...');
     let clerkUser = null;
     let clerkError = null;
 
@@ -31,7 +30,6 @@ export async function GET(request) {
     }
 
     // Step 2: Check database user record
-    console.log('2. Checking database user record...');
     let dbUser = null;
     let dbUserError = null;
 
@@ -55,7 +53,6 @@ export async function GET(request) {
     }
 
     // Step 3: Check staff/department assignment
-    console.log('3. Checking staff/department assignment...');
     let staffRecord = null;
     let staffError = null;
 
@@ -81,7 +78,6 @@ export async function GET(request) {
     }
 
     // Step 4: Check department details if staff exists
-    console.log('4. Checking department details...');
     let departmentRecord = null;
     let departmentError = null;
 
@@ -145,7 +141,6 @@ export async function GET(request) {
       },
     };
 
-    console.log('Debug report:', JSON.stringify(report, null, 2));
 
     return new Response(
       JSON.stringify(report, null, 2),

@@ -102,8 +102,6 @@ export async function POST(request) {
 
     // ========== STEP 3: DATABASE CONNECTION ==========
     connection = await db.getConnection();
-    
-    console.log(`[TRANSACTION_START] User creation for: ${email}`);
 
     // ========== STEP 4: CONFLICT DETECTION (Consistency) ==========
     // Check if user already exists (prevent duplicates)
@@ -154,7 +152,6 @@ export async function POST(request) {
     );
 
     const userId = insertResult[0].insertId;
-    console.log(`[USER_CREATED] user_id=${userId}, email=${email}, role=PATIENT(7)`);
 
     // ========== STEP 7: CREATE AUDIT LOG ENTRY (Durability + Compliance) ==========
     // Automatic audit trail of user creation for compliance and security audits
@@ -175,7 +172,6 @@ export async function POST(request) {
       [userId, 'CREATE', 'users', userId, auditValues, 'Success', clientIp, userAgent]
     );
 
-    console.log(`[AUDIT_LOGGED] audit entry created for user_id=${userId}`);
 
     // ========== STEP 8: CREATE SESSION LOG (Security Tracking) ==========
     // Track user login sessions for security audit trail
@@ -185,12 +181,9 @@ export async function POST(request) {
       [userId, clientIp, userAgent, 'Active']
     );
 
-    console.log(`[SESSION_CREATED] session_log created for user_id=${userId}`);
-
     // ========== STEP 9: COMMIT TRANSACTION (Durability) ==========
     // All-or-nothing commitment: if any step fails, entire transaction rolls back
     await connection.query('COMMIT');
-    console.log(`[TRANSACTION_COMMIT] User creation completed: user_id=${userId}`);
 
     // ========== STEP 10: RETURN SUCCESS RESPONSE ==========
     return NextResponse.json(

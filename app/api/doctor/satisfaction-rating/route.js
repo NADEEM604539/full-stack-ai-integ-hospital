@@ -17,8 +17,6 @@ export async function GET(request) {
   try {
     connection = await db.getConnection();
     const { doctorId } = await checkDoctorAccess(connection);
-    console.log(`Getting satisfaction rating for doctor ID: ${doctorId}`);
-
     // Get average satisfaction rating - ONLY include actual ratings (non-NULL, > 0)
     // Example: ratings [5, 3, 2] = (5+3+2)/3 = 3.33 (NOT including NULL/0 values)
     const [satisfactionData] = await connection.query(
@@ -30,8 +28,6 @@ export async function GET(request) {
        WHERE doctor_id = ? AND is_deleted = FALSE`,
       [doctorId]
     );
-
-    console.log('Raw satisfaction data:', satisfactionData);
 
     // Get rating breakdown (1-5 distribution) - only count non-NULL ratings
     const [ratingBreakdown] = await connection.query(
@@ -45,8 +41,6 @@ export async function GET(request) {
       [doctorId]
     );
 
-    console.log('Rating breakdown:', ratingBreakdown);
-
     connection.release();
 
     // Ensure avg_rating is properly formatted
@@ -55,8 +49,6 @@ export async function GET(request) {
       : null;
 
     const totalRatings = satisfactionData[0]?.total_ratings || 0;
-
-    console.log('Processed - avg_rating:', avgRating, 'total_ratings:', totalRatings);
 
     const breakdown = {};
     if (ratingBreakdown && ratingBreakdown.length > 0) {
@@ -74,8 +66,6 @@ export async function GET(request) {
         rating_breakdown: breakdown
       }
     };
-
-    console.log('Final response:', responseData);
 
     return NextResponse.json(responseData);
   } catch (error) {

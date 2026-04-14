@@ -21,16 +21,13 @@ export async function GET(request, { params }) {
     const { patientId } = await params;
 
     if (!patientId) {
-      console.log('GET /api/patient/[patientId]/profile - Missing patientId');
       return NextResponse.json(
         { success: false, error: 'Patient ID is required' },
         { status: 400 }
       );
     }
 
-    console.log(`GET /api/patient/${patientId}/profile - Starting fetch`);
     const patient = await getPatientProfile(parseInt(patientId));
-    console.log(`GET /api/patient/${patientId}/profile - Success`);
 
     return NextResponse.json({
       success: true,
