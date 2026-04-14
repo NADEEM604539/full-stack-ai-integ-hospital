@@ -41,22 +41,16 @@ export default function AppointmentDetailClient({ appointmentId }) {
       setLoading(true);
       setError(null);
       
-      const url = `/api/receptionist/appointments/${appointmentId}`;
-      console.log('Fetching from:', url);
-      
+      const url = `/api/receptionist/appointments/${appointmentId}`;      
       const response = await fetch(url);
-      
-      console.log('Response status:', response.status);
-      
+            
       if (!response.ok) {
         const errorData = await response.json();
         console.error('API Error:', errorData);
         throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch appointment`);
       }
 
-      const result = await response.json();
-      console.log('API Response:', result);
-      
+      const result = await response.json();      
       const apt = result.appointment || result.data;
       
       if (!apt) {
@@ -86,13 +80,9 @@ export default function AppointmentDetailClient({ appointmentId }) {
 
   const fetchDoctorsForDepartment = async (departmentId) => {
     try {
-      const url = `/api/receptionist/doctors?department_id=${departmentId}`;
-      console.log('Fetching doctors from:', url);
-      
+      const url = `/api/receptionist/doctors?department_id=${departmentId}`;      
       const response = await fetch(url);
-      const data = await response.json();
-      console.log('Doctors response:', data);
-      
+      const data = await response.json();      
       setDoctors(data.data || []);
     } catch (err) {
       console.error('Failed to fetch doctors:', err);

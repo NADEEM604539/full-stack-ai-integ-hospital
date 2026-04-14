@@ -31,31 +31,20 @@ const PatientMedicinesPage = () => {
     try {
       setLoading(true);
       setError(null);
-
-      console.log(`[Medicines Page] Fetching medicines for patientId: ${patientId}`);
       
       const response = await fetch(`/api/patient/${patientId}/medicines`);
       
-      console.log(`[Medicines Page] API Response Status: ${response.status}`);
-      console.log(`[Medicines Page] Response OK: ${response.ok}`);
-
       if (!response.ok) {
         let errorMessage = `API Error: ${response.status} ${response.statusText}`;
         try {
-          const errorData = await response.json();
-          console.log('[Medicines Page] Error data:', errorData);
-          errorMessage = errorData.error || errorMessage;
+          const errorData = await response.json();          errorMessage = errorData.error || errorMessage;
         } catch (parseErr) {
           console.error('[Medicines Page] Could not parse error response:', parseErr);
-          const textError = await response.text();
-          console.log('[Medicines Page] Response text:', textError.substring(0, 500));
-        }
+          const textError = await response.text();        }
         throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      console.log('[Medicines Page] Success! Response data:', data);
-      setMedicinesByAppointment(data.data || []);
+      const data = await response.json();      setMedicinesByAppointment(data.data || []);
     } catch (err) {
       console.error('[Medicines Page] Error fetching medicines:', err);
       setError(err.message || 'Failed to fetch medicines. Please check the console for details.');

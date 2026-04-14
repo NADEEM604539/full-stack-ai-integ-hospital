@@ -38,12 +38,9 @@ export default function PharmacistMedicinesPage() {
   // Fetch detailed order data when selectedOrder changes
   useEffect(() => {
     if (selectedOrder) {
-      console.log('Selected order changed:', selectedOrder);
       if (!selectedOrder.items) {
-        console.log('Items not present, fetching details for order:', selectedOrder.order_id);
         fetchOrderDetails(selectedOrder.order_id);
       } else {
-        console.log('Items already present:', selectedOrder.items);
         // Initialize medicine statuses as 'Pending' for new selections
         const newStatuses = {};
         selectedOrder.items.forEach(item => {
@@ -79,15 +76,11 @@ export default function PharmacistMedicinesPage() {
   async function fetchOrderDetails(orderId) {
     try {
       setLoadingOrderDetails(true);
-      console.log(`Fetching details for order: ${orderId}`);
       const response = await fetch(`/api/pharmacist/medicines/${orderId}`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: Failed to fetch order details`);
       }
       const data = await response.json();
-      console.log('Full API Response:', data);
-      console.log('Order data:', data.data);
-      console.log('Items:', data.data?.items);
       
       if (!data.data) {
         throw new Error('No data in response');

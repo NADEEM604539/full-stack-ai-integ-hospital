@@ -40,8 +40,6 @@ export default function DoctorDashboardClient() {
       const insightsData = await insightsRes.json();
       const satisfactionData = satisfactionRes.ok ? await satisfactionRes.json() : null;
 
-      console.log('Satisfaction Rating Data:', satisfactionData);
-
       setStats(statsData.stats);
       const today = new Date().toISOString().split('T')[0];
       const todayAppointments = (appointmentsData.data || [])
@@ -52,12 +50,8 @@ export default function DoctorDashboardClient() {
       setInsights(insightsData.insights);
       
       // Set satisfaction rating with proper data
-      if (satisfactionData?.success && satisfactionData?.data) {
-        console.log('Setting satisfaction rating:', satisfactionData.data);
-        setSatisfactionRating(satisfactionData.data);
-      } else {
-        console.log('No satisfaction data:', satisfactionData);
-        setSatisfactionRating(null);
+      if (satisfactionData?.success && satisfactionData?.data) {        setSatisfactionRating(satisfactionData.data);
+      } else {        setSatisfactionRating(null);
       }
     } catch (err) {
       console.error('Dashboard Error:', err);

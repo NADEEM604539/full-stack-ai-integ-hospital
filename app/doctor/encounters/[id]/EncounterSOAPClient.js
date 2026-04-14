@@ -205,18 +205,12 @@ export default function EncounterSOAPClient({ encounterId }) {
       }
 
       const data = await res.json();
-      console.log('🤖 RAW AI RESPONSE:', JSON.stringify(data, null, 2));
-
       // Parse AI response and populate textareas
       if (data.aiSuggestions) {
-        const suggestions = data.aiSuggestions;
-        console.log('📊 PARSING AI SUGGESTIONS...');
-        
+        const suggestions = data.aiSuggestions;        
         // Try to extract from structured_soap if available
         if (suggestions.structured_soap) {
           const soap = suggestions.structured_soap;
-          console.log('✅ Found structured_soap in response');
-
           // ============ SUBJECTIVE ============
           if (soap.subjective) {
             const subj = soap.subjective;
@@ -230,9 +224,7 @@ export default function EncounterSOAPClient({ encounterId }) {
               .filter(Boolean)
               .join('\n');
 
-            if (subjectiveText) {
-              console.log('📝 SETTING SUBJECTIVE:', subjectiveText);
-              setSubjectiveInput(subjectiveText);
+            if (subjectiveText) {              setSubjectiveInput(subjectiveText);
             }
           }
 
@@ -243,9 +235,7 @@ export default function EncounterSOAPClient({ encounterId }) {
             // Physical Examination
             let physicalExamText = '';
             if (obj.physical_examination && obj.physical_examination !== 'Not provided') {
-              physicalExamText = obj.physical_examination;
-              console.log('🔬 SETTING PHYSICAL EXAM:', physicalExamText);
-              setPhysicalExamInput(physicalExamText);
+              physicalExamText = obj.physical_examination;              setPhysicalExamInput(physicalExamText);
             }
 
             // Lab Findings & Imaging Results
@@ -256,57 +246,41 @@ export default function EncounterSOAPClient({ encounterId }) {
             if (obj.imaging_results && obj.imaging_results !== 'Not provided') {
               labText += (labText ? '\n' : '') + obj.imaging_results;
             }
-            if (labText) {
-              console.log('🧪 SETTING LAB FINDINGS:', labText);
-              setLabFindingsInput(labText);
+            if (labText) {              setLabFindingsInput(labText);
             }
 
             // Vital signs extraction (AUTO-FILL from AI response)
             if (obj.vital_signs) {
-              const vs = obj.vital_signs;
-              console.log('💉 EXTRACTING VITALS FROM AI RESPONSE:', vs);
-              
+              const vs = obj.vital_signs;              
               if (vs.temperature && vs.temperature !== 'Not provided') {
                 const tempMatch = vs.temperature.match(/(\d+(?:\.\d+)?)/);
-                if (tempMatch) {
-                  console.log('  • Temperature:', tempMatch[1]);
-                  setTemperature(tempMatch[1]);
+                if (tempMatch) {                  setTemperature(tempMatch[1]);
                 }
               }
               if (vs.blood_pressure && vs.blood_pressure !== 'Not provided') {
                 const bpMatch = vs.blood_pressure.match(/(\d+)\s*\/\s*(\d+)/);
-                if (bpMatch) {
-                  console.log('  • BP:', bpMatch[1], '/', bpMatch[2]);
-                  setBpSystolic(bpMatch[1]);
+                if (bpMatch) {                  setBpSystolic(bpMatch[1]);
                   setBpDiastolic(bpMatch[2]);
                 }
               }
               if (vs.heart_rate && vs.heart_rate !== 'Not provided') {
                 const hrMatch = vs.heart_rate.match(/(\d+)/);
-                if (hrMatch) {
-                  console.log('  • Heart Rate:', hrMatch[1]);
-                  setHeartRate(hrMatch[1]);
+                if (hrMatch) {                  setHeartRate(hrMatch[1]);
                 }
               }
               if (vs.oxygen_saturation && vs.oxygen_saturation !== 'Not provided') {
                 const o2Match = vs.oxygen_saturation.match(/(\d+(?:\.\d+)?)/);
-                if (o2Match) {
-                  console.log('  • O2 Saturation:', o2Match[1]);
-                  setOxygenSat(o2Match[1]);
+                if (o2Match) {                  setOxygenSat(o2Match[1]);
                 }
               }
               if (vs.weight && vs.weight !== 'Not provided') {
                 const weightMatch = vs.weight.match(/(\d+(?:\.\d+)?)/);
-                if (weightMatch) {
-                  console.log('  • Weight:', weightMatch[1]);
-                  setWeight(weightMatch[1]);
+                if (weightMatch) {                  setWeight(weightMatch[1]);
                 }
               }
               if (vs.height && vs.height !== 'Not provided') {
                 const heightMatch = vs.height.match(/(\d+(?:\.\d+)?)/);
-                if (heightMatch) {
-                  console.log('  • Height:', heightMatch[1]);
-                  setHeight(heightMatch[1]);
+                if (heightMatch) {                  setHeight(heightMatch[1]);
                 }
               }
             }
@@ -331,9 +305,7 @@ export default function EncounterSOAPClient({ encounterId }) {
 
             const assessmentText = assessmentParts.join('\n\n');
 
-            if (assessmentText) {
-              console.log('🎯 SETTING ASSESSMENT:', assessmentText);
-              setAssessmentInput(assessmentText);
+            if (assessmentText) {              setAssessmentInput(assessmentText);
             }
           }
 
@@ -361,16 +333,10 @@ export default function EncounterSOAPClient({ encounterId }) {
 
             const planText = planParts.join('\n\n');
 
-            if (planText) {
-              console.log('📋 SETTING PLAN:', planText);
-              setPlanInput(planText);
+            if (planText) {              setPlanInput(planText);
             }
           }
-
-          console.log('✅ ALL SECTIONS POPULATED FROM AI RESPONSE');
-        } else {
-          console.log('⚠️ No structured_soap found. Response structure:', Object.keys(suggestions));
-        }
+        } else {        }
 
         setAiResponse(data.aiSuggestions);
         setShowAISuggestions(true);
@@ -490,9 +456,7 @@ export default function EncounterSOAPClient({ encounterId }) {
         throw new Error(errorData.error || 'Failed to save SOAP notes');
       }
 
-      const data = await res.json();
-      console.log('✅ Save Response:', data);
-      alert('✅ SOAP notes saved successfully!');
+      const data = await res.json();      alert('✅ SOAP notes saved successfully!');
       setShowAISuggestions(false);
     } catch (err) {
       console.error('Error saving SOAP notes:', err);
@@ -545,9 +509,7 @@ export default function EncounterSOAPClient({ encounterId }) {
         throw new Error(errorData.error || 'Failed to complete encounter');
       }
 
-      const data = await completeRes.json();
-      console.log('✅ Encounter Completed:', data);
-      alert('✅ Encounter marked as complete and appointment updated!');
+      const data = await completeRes.json();      alert('✅ Encounter marked as complete and appointment updated!');
       
       // Redirect back to appointments
       setTimeout(() => {
