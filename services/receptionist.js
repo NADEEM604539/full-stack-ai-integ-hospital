@@ -762,32 +762,29 @@ export async function scheduleAppointment(appointmentData) {
 
     const departmentId = patientCheck[0].department_id;
 
+    // Use stored procedure for appointment booking with T1 trigger validation
     await connection.query(
-      `INSERT INTO appointments (
-        patient_id,
-        doctor_id,
-        department_id,
-        appointment_date,
-        appointment_time,
-        duration_minutes,
-        status,
-        reason_for_visit,
-        created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `CALL sp_book_appointment(?, ?, ?, ?, ?, ?, @appt_id, @msg)`,
       [
         appointmentData.patient_id,
         appointmentData.doctor_id,
-        departmentId,
         appointmentData.appointment_date,
         appointmentData.appointment_time,
-        appointmentData.duration_minutes || 30,
-        'Scheduled',
         appointmentData.reason_for_visit || null,
         userId
       ]
     );
 
-    return { success: true, message: 'Appointment scheduled successfully' };
+    // Get the result from the procedure
+    const [[result]] = await connection.query(
+      `SELECT @appt_id as appointment_id, @msg as message`
+    );
+
+    if (result.message.includes('ERROR')) {
+      throw new Error(result.message);
+    }
+
+    return { success: true, message: 'Appointment scheduled successfully', appointment_id: result.appointment_id };
   } catch (error) {
     throw new Error(`Failed to schedule appointment: ${error.message}`);
   } finally {
