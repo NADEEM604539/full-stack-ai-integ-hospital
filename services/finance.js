@@ -236,21 +236,27 @@ export async function generateInvoiceForAppointment(appointmentId, createdByUser
 
       const { patient_id: patientId, doctor_id: doctorId } = appointments[0];
 
-      // Check if invoice already exists
+      // Check if invoice already exists (may be created by T10 trigger)
       const [existingInvoices] = await connection.query(
-        `SELECT invoice_id FROM invoices 
-         WHERE appointment_id = ? AND is_deleted = FALSE`,
+        `SELECT invoice_id FROM invoices_active
+         WHERE appointment_id = ?`,
         [appointmentId]
       );
 
       if (existingInvoices.length > 0) {
-        throw new Error('Invoice already exists for this appointment');
+        // Invoice already created by T10 trigger - return it
+        const [existingInvoiceData] = await connection.query(
+          `SELECT * FROM invoices_active WHERE invoice_id = ?`,
+          [existingInvoices[0].invoice_id]
+        );
+        await connection.commit();
+        return existingInvoiceData[0];
       }
 
       // Get or create encounter
       const [encounters] = await connection.query(
-        `SELECT encounter_id FROM encounters 
-         WHERE appointment_id = ? AND is_deleted = FALSE`,
+        `SELECT encounter_id FROM encounters_active 
+         WHERE appointment_id = ?`,
         [appointmentId]
       );
 
