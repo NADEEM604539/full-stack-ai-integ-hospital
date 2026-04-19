@@ -7,7 +7,7 @@
 -- ==========================================
 -- 1. ROLES (7 roles)
 -- ==========================================
-use medsyncdb;
+use if0_41667319_medsyncdb;
 INSERT INTO roles (role_id, role, description) VALUES
 (1, 'ADMIN', 'System Administrator - Full access to all tables and system configuration'),
 (2, 'DOCTOR', 'Clinical Decision Maker - Access to assigned patients and prescriptions'),
