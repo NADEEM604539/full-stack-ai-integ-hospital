@@ -135,6 +135,7 @@ export async function getPatientProfile(patientId) {
       p.first_name,
       p.last_name,
       p.date_of_birth,
+      fn_calculate_age(p.date_of_birth) as age,
       p.gender,
       p.blood_type,
       p.phone_number,
@@ -146,9 +147,9 @@ export async function getPatientProfile(patientId) {
       p.department_id,
       d.department_name,
       p.created_at
-     FROM patients p
+     FROM patients_active p
      LEFT JOIN departments d ON p.department_id = d.department_id
-     WHERE p.patient_id = ? AND p.user_id = ? AND p.is_deleted = FALSE`;
+     WHERE p.patient_id = ? AND p.user_id = ?`;
     
     console.log(`getPatientProfile() - Executing query for patientId: ${patientId}, userId: ${authUserId}`);
     const [patients] = await connection.query(query, [patientId, authUserId]);
@@ -833,31 +834,27 @@ export async function bookAppointment(patientId, appointmentData) {
       throw new Error('Doctor not found or not in your department');
     }
 
-    // Insert the appointment
-    const [result] = await connection.query(
-      `INSERT INTO appointments (
-        patient_id,
-        doctor_id,
-        department_id,
-        appointment_date,
-        appointment_time,
-        duration_minutes,
-        status,
-        reason_for_visit,
-        created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    // Use stored procedure for appointment booking with T1 trigger validation
+    await connection.query(
+      `CALL sp_book_appointment(?, ?, ?, ?, ?, ?, @appt_id, @msg)`,
       [
         patientId,
         appointmentData.doctor_id,
-        departmentId,
         appointmentData.appointment_date,
         appointmentData.appointment_time,
-        appointmentData.duration_minutes || 30,
-        'Scheduled',
         appointmentData.reason_for_visit || null,
         userId // Patient created the appointment
       ]
     );
+
+    // Get the result from the procedure
+    const [[result]] = await connection.query(
+      `SELECT @appt_id as appointment_id, @msg as message`
+    );
+
+    if (result.message.includes('ERROR')) {
+      throw new Error(result.message);
+    }
 
     // Return the created appointment details
     const [appointment] = await connection.query(
@@ -870,15 +867,15 @@ export async function bookAppointment(patientId, appointmentData) {
         CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
         d.specialization,
         dept.department_name
-       FROM appointments a
+       FROM appointments_active a
        JOIN doctors d ON a.doctor_id = d.doctor_id
        JOIN staff s ON d.staff_id = s.staff_id
        JOIN departments dept ON s.department_id = dept.department_id
        WHERE a.appointment_id = ?`,
-      [result.insertId]
+      [result.appointment_id]
     );
 
-    return appointment[0] || { success: true, appointment_id: result.insertId };
+    return appointment[0] || { success: true, appointment_id: result.appointment_id };
   } catch (error) {
     console.error('Error booking appointment:', error.message);
     throw error;
