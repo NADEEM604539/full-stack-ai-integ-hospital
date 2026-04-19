@@ -213,12 +213,12 @@ export async function createEncounter(patientId, encounterType, chiefComplaint =
   try {
     connection = await db.getConnection();
     const access = await checkNurseAccess(connection);
-    const { departmentId } = access;
+    const { departmentId, userId } = access;
 
     // Verify patient belongs to nurse's department
     const [patientCheck] = await connection.query(
-      `SELECT patient_id FROM patients 
-       WHERE patient_id = ? AND department_id = ? AND is_deleted = FALSE`,
+      `SELECT patient_id FROM patients_active 
+       WHERE patient_id = ? AND department_id = ?`,
       [patientId, departmentId]
     );
 
@@ -226,22 +226,28 @@ export async function createEncounter(patientId, encounterType, chiefComplaint =
       throw new Error('Patient not found or access denied');
     }
 
-    // Insert encounter
+    // Get doctor for the patient (assuming primary doctor or create without)
+    const [doctorCheck] = await connection.query(
+      `SELECT doctor_id FROM doctors LIMIT 1`
+    );
+    const doctorId = doctorCheck.length > 0 ? doctorCheck[0].doctor_id : null;
+
+    // Use stored procedure for patient admission with transaction
     await connection.query(
-      `INSERT INTO encounters 
-       (patient_id, encounter_type, chief_complaint, admission_date, status, is_deleted)
-       VALUES (?, ?, ?, NOW(), 'Active', FALSE)`,
-      [patientId, encounterType, chiefComplaint]
+      `CALL sp_admit_patient(?, ?, ?, ?, ?, @enc_id, @msg)`,
+      [patientId, doctorId, encounterType, chiefComplaint, userId]
     );
 
-    const [result] = await connection.query(
-      `SELECT encounter_id FROM encounters 
-       WHERE patient_id = ? AND encounter_type = ? 
-       ORDER BY created_at DESC LIMIT 1`,
-      [patientId, encounterType]
+    // Get the result from the procedure
+    const [[result]] = await connection.query(
+      `SELECT @enc_id as encounter_id, @msg as message`
     );
 
-    return result[0].encounter_id;
+    if (result.message.includes('ERROR')) {
+      throw new Error(result.message);
+    }
+
+    return result.encounter_id;
   } catch (error) {
     console.error('Error creating encounter:', error.message);
     throw error;
