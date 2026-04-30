@@ -15,7 +15,7 @@ COLLATE utf8mb4_unicode_ci;
 USE medsyncdb;
 
 SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO';
-
+A
 -- ================================================================================
 -- SECTION 1: AUTHORIZATION & RBAC TABLES
 -- ================================================================================

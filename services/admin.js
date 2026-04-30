@@ -716,11 +716,13 @@ export async function getAllStaff() {
     await checkAdminAccess(connection);
 
     const [staff] = await connection.query(
-      `SELECT s.*, d.department_name, u.email, u.role_id, r.role 
+      `SELECT s.*, d.department_name, u.email, u.role_id, r.role,
+              doc.specialization, doc.consultation_fee, doc.max_appointments_per_day
        FROM staff s
        JOIN departments d ON s.department_id = d.department_id
        JOIN users u ON s.user_id = u.user_id
        JOIN roles r ON u.role_id = r.role_id
+       LEFT JOIN doctors doc ON s.staff_id = doc.staff_id
        ORDER BY s.first_name, s.last_name`
     );
 
@@ -745,11 +747,13 @@ export async function getStaffById(staffId) {
     await checkAdminAccess(connection);
 
     const [staff] = await connection.query(
-      `SELECT s.*, d.department_name, u.email, u.role_id, r.role 
+      `SELECT s.*, d.department_name, u.email, u.role_id, r.role, 
+              doc.specialization, doc.consultation_fee, doc.max_appointments_per_day
        FROM staff s
        JOIN departments d ON s.department_id = d.department_id
        JOIN users u ON s.user_id = u.user_id
        JOIN roles r ON u.role_id = r.role_id
+       LEFT JOIN doctors doc ON s.staff_id = doc.staff_id
        WHERE s.staff_id = ?`,
       [staffId]
     );
@@ -762,6 +766,100 @@ export async function getStaffById(staffId) {
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
     console.error('Error fetching staff:', errorMsg);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Update existing staff member (without role/department change)
+ * Updates staff record and doctor fields if applicable
+ */
+export async function updateStaff(staffId, email, firstName, lastName, employeeId, designation, departmentId, hireDate, phoneNumber, specialization, consultationFee) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    
+    await checkAdminAccess(connection);
+
+    if (!staffId) {
+      throw new Error('Staff ID is required for update');
+    }
+
+    await connection.beginTransaction();
+
+    try {
+      // Get current staff info to get user_id
+      const [currentStaff] = await connection.query(
+        'SELECT user_id, role_id FROM staff WHERE staff_id = ?',
+        [staffId]
+      );
+
+      if (!currentStaff || currentStaff.length === 0) {
+        throw new Error('Staff member not found');
+      }
+
+      const userId = currentStaff[0].user_id;
+      const roleId = currentStaff[0].role_id;
+
+      // Update user email if changed
+      if (email) {
+        await connection.query(
+          'UPDATE users SET email = ? WHERE user_id = ?',
+          [email, userId]
+        );
+      }
+
+      // Update staff record
+      await connection.query(
+        `UPDATE staff 
+         SET department_id = ?, first_name = ?, last_name = ?, employee_id = ?, designation = ?, hire_date = ?, phone_number = ?
+         WHERE staff_id = ?`,
+        [departmentId || null, firstName, lastName, employeeId, designation || null, hireDate || null, phoneNumber || null, staffId]
+      );
+
+      // If user is a Doctor (role_id = 2), update doctor record
+      if (roleId === 2) {
+        const [doctorRecord] = await connection.query(
+          'SELECT doctor_id FROM doctors WHERE staff_id = ?',
+          [staffId]
+        );
+
+        if (doctorRecord && doctorRecord.length > 0) {
+          // Update existing doctor record
+          await connection.query(
+            `UPDATE doctors 
+             SET specialization = ?, consultation_fee = ?
+             WHERE staff_id = ?`,
+            [specialization || 'General', consultationFee || 0, staffId]
+          );
+        } else {
+          // Create doctor record if it doesn't exist
+          await connection.query(
+            `INSERT INTO doctors (staff_id, specialization, consultation_fee, max_appointments_per_day, created_at)
+             VALUES (?, ?, ?, 10, NOW())`,
+            [staffId, specialization || 'General', consultationFee || 0]
+          );
+        }
+      }
+
+      await connection.commit();
+
+      return { 
+        staff_id: staffId,
+        user_id: userId,
+        email: email,
+        first_name: firstName,
+        last_name: lastName
+      };
+    } catch (txError) {
+      await connection.rollback();
+      throw txError;
+    }
+  } catch (error) {
+    const errorMsg = error?.message || String(error) || 'Unknown error';
+    console.error('Error updating staff:', errorMsg);
     throw error;
   } finally {
     if (connection) connection.release();
@@ -819,7 +917,7 @@ async function deleteStaffRelatedData(connection, doctorId) {
  * This is used when admin changes a staff member's role or department
  * It deletes the old user and creates a new one to maintain data integrity
  */
-export async function recreateStaffWithRoleChange(oldStaffId, email, firstName, lastName, employeeId, designation, departmentId, hireDate, phoneNumber, roleId, confirmDeletion = false) {
+export async function recreateStaffWithRoleChange(oldStaffId, email, firstName, lastName, employeeId, designation, departmentId, hireDate, phoneNumber, roleId, confirmDeletion = false, specialization, consultationFee) {
   let connection;
   try {
     connection = await db.getConnection();
@@ -891,8 +989,8 @@ export async function recreateStaffWithRoleChange(oldStaffId, email, firstName, 
       if (roleIdNum === 2) {
         await connection.query(
           `INSERT INTO doctors (staff_id, specialization, consultation_fee, max_appointments_per_day, created_at)
-           VALUES (?, 'General', 0, 10, NOW())`,
-          [newStaffId]
+           VALUES (?, ?, ?, 10, NOW())`,
+          [newStaffId, specialization || 'General', consultationFee || 0]
         );
       }
 
@@ -924,7 +1022,7 @@ export async function recreateStaffWithRoleChange(oldStaffId, email, firstName, 
  * Create new staff member
  * Creates or updates user record, creates staff record
  */
-export async function createStaff(email, firstName, lastName, employeeId, designation, departmentId, hireDate, phoneNumber, roleId) {
+export async function createStaff(email, firstName, lastName, employeeId, designation, departmentId, hireDate, phoneNumber, roleId, specialization, consultationFee) {
   let connection;
   try {
     connection = await db.getConnection();
@@ -986,6 +1084,29 @@ export async function createStaff(email, firstName, lastName, employeeId, design
         staffId = staffResult.insertId;
       }
 
+      // If user is a Doctor (role_id = 2) insert or update doctors table
+      if (roleIdNum === 2) {
+        const [existingDoctor] = await connection.query(
+          'SELECT doctor_id FROM doctors WHERE staff_id = ?',
+          [staffId]
+        );
+
+        if (existingDoctor && existingDoctor.length > 0) {
+          await connection.query(
+            `UPDATE doctors 
+             SET specialization = ?, consultation_fee = ?
+             WHERE staff_id = ?`,
+            [specialization || 'General', consultationFee || 0, staffId]
+          );
+        } else {
+          await connection.query(
+            `INSERT INTO doctors (staff_id, specialization, consultation_fee, max_appointments_per_day, created_at)
+             VALUES (?, ?, ?, 10, NOW())`,
+            [staffId, specialization || 'General', consultationFee || 0]
+          );
+        }
+      }
+
       await connection.commit();
 
       return { 
@@ -1002,57 +1123,6 @@ export async function createStaff(email, firstName, lastName, employeeId, design
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
     console.error('Error creating staff:', errorMsg);
-    throw error;
-  } finally {
-    if (connection) connection.release();
-  }
-}
-
-/**
- * Update staff member
- */
-export async function updateStaff(staffId, updates) {
-  let connection;
-  try {
-    connection = await db.getConnection();
-    
-    await checkAdminAccess(connection);
-
-    if (!staffId) {
-      throw new Error('Staff ID is required');
-    }
-
-    // Build dynamic update query
-    const allowed_fields = ['first_name', 'last_name', 'designation', 'department_id', 'hire_date', 'phone_number', 'status'];
-    const update_fields = [];
-    const update_values = [];
-
-    for (const [key, value] of Object.entries(updates)) {
-      if (allowed_fields.includes(key) && value !== undefined && value !== null) {
-        update_fields.push(`${key} = ?`);
-        update_values.push(value);
-      }
-    }
-
-    if (update_fields.length === 0) {
-      throw new Error('No valid fields to update');
-    }
-
-    update_values.push(staffId);
-
-    const [result] = await connection.query(
-      `UPDATE staff SET ${update_fields.join(', ')}, updated_at = NOW() WHERE staff_id = ?`,
-      update_values
-    );
-
-    if (result.affectedRows === 0) {
-      throw new Error('Staff member not found or update failed');
-    }
-
-    return { success: true, message: 'Staff member updated successfully' };
-  } catch (error) {
-    const errorMsg = error?.message || String(error) || 'Unknown error';
-    console.error('Error updating staff:', errorMsg);
     throw error;
   } finally {
     if (connection) connection.release();

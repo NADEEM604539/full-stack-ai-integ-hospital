@@ -1,0 +1,224 @@
+========================================
+SUMMARY OF CHANGES - DOCTOR STAFF MANAGEMENT FIX
+========================================
+
+ISSUE RESOLVED:
+When admin creates or edits a doctor staff member, the doctors table was NOT being populated with doctor-specific fields. Only the users and staff tables were filled, leaving the doctors table empty.
+
+========================================
+CHANGES MADE:
+========================================
+
+1. FRONTEND - app/admin/staff/page.js
+   =====================================
+   
+   a) Added doctor-specific fields to form state:
+      - specialization (string)
+      - consultation_fee (number)
+      These fields are conditionally shown only when role_id = 2 (Doctor)
+   
+   b) Added conditional rendering in the form:
+      - When user selects "Doctor" role, extra input fields appear:
+        * Specialization field (text input)
+        * Consultation Fee field (number input with min=0, step=0.01)
+   
+   c) Updated handleEdit() function:
+      - Now populates specialization and consultation_fee when editing a doctor
+      - Ensures doctor fields are preserved when loading existing doctor data
+   
+   d) Updated form reset in handleSubmit():
+      - Clears specialization and consultation_fee fields when form is reset
+   
+   e) Updated form reset in handleConfirmRoleChange():
+      - Clears specialization and consultation_fee fields when form is reset
+   
+   f) Updated button toggle for "Add Staff Member":
+      - Resets form with new fields when toggling form visibility
+
+
+2. API ROUTE - app/api/admin/staff/route.js
+   =========================================
+   
+   a) Updated imports:
+      - Added updateStaff to the imports from services/admin
+      - Changed: import { getAllStaff, createStaff, getStaffById, recreateStaffWithRoleChange }
+      - To:      import { getAllStaff, createStaff, updateStaff, getStaffById, recreateStaffWithRoleChange }
+   
+   b) Updated POST request destructuring:
+      - Added specialization and consultation_fee to the destructured parameters
+   
+   c) Added logic for simple update (no role/department change):
+      - When staff_id is provided AND role/department NOT changed:
+        * Call updateStaff() instead of createStaff()
+        * Return 200 status (update) instead of 201 (creation)
+        * This prevents creating duplicate staff records
+   
+   d) Updated recreateStaffWithRoleChange call:
+      - Pass specialization and consultation_fee parameters
+   
+   e) Updated createStaff call:
+      - Pass specialization and consultation_fee parameters
+
+
+3. BACKEND SERVICE - services/admin.js
+   ===================================
+   
+   a) Updated getStaffById() function:
+      - Added LEFT JOIN to doctors table
+      - Now retrieves: specialization, consultation_fee, max_appointments_per_day
+      - Allows frontend to load existing doctor data when editing
+   
+   b) Updated getAllStaff() function:
+      - Added LEFT JOIN to doctors table
+      - Now retrieves: specialization, consultation_fee, max_appointments_per_day
+      - Allows displaying doctor info in staff list
+   
+   c) Created NEW function: updateStaff()
+      - Handles updates WITHOUT role or department changes
+      - Updates user email if changed
+      - Updates staff record fields
+      - If user is a doctor (role_id = 2):
+        * Updates existing doctor record if it exists
+        * Creates new doctor record if it doesn't exist
+      - Uses transaction for data integrity
+      - Returns updated staff info
+   
+   d) Updated createStaff() function:
+      - Signature now includes: specialization, consultationFee
+      - If user is a doctor (role_id = 2):
+        * Creates or updates doctors table entry
+        * Sets specialization and consultation_fee
+        * Sets max_appointments_per_day = 10 as default
+      - Uses transaction for data integrity
+   
+   e) Updated recreateStaffWithRoleChange() function:
+      - Signature now includes: specialization, consultationFee
+      - If new role is doctor (role_id = 2):
+        * Creates doctor record with specialization and consultation_fee
+        * Sets max_appointments_per_day = 10 as default
+      - Uses transaction for data integrity
+
+
+========================================
+DATABASE SCHEMA ALIGNMENT:
+========================================
+
+The changes align with the actual doctors table schema which includes:
+- doctor_id (PRIMARY KEY, AUTO_INCREMENT)
+- staff_id (FOREIGN KEY, UNIQUE)
+- specialization (VARCHAR 100, NOT NULL)
+- consultation_fee (DECIMAL 10,2, NOT NULL)
+- max_appointments_per_day (INT, DEFAULT 10)
+- created_at (TIMESTAMP)
+
+Note: The following fields do NOT exist in the doctors table:
+- available_days (handled separately in doctor_availability table)
+- bio (not in current schema)
+
+
+========================================
+WORKFLOW FLOW:
+========================================
+
+CREATE NEW DOCTOR:
+1. Admin fills form with doctor fields
+2. Frontend sends POST with staff_id = null
+3. API receives request, checks staff_id
+4. staff_id is null/missing, so calls createStaff()
+5. createStaff() creates:
+   - users table entry
+   - staff table entry
+   - doctors table entry with specialization and consultation_fee
+
+EDIT DOCTOR (NO ROLE/DEPT CHANGE):
+1. Admin loads existing doctor, modifies fields
+2. Frontend sends POST with staff_id and existing data
+3. API receives request, checks staff_id
+4. Validates old role vs new role (same role = no change)
+5. Validates old dept vs new dept (same dept = no change)
+6. Both same, so calls updateStaff()
+7. updateStaff() updates:
+   - users table (email)
+   - staff table (name, designation, hire_date, etc.)
+   - doctors table (specialization, consultation_fee)
+8. Returns 200 status (update success)
+
+EDIT DOCTOR (WITH ROLE/DEPT CHANGE):
+1. Admin changes doctor's role or department
+2. Frontend sends POST with staff_id and new role/dept
+3. API receives request, checks staff_id
+4. Validates old role vs new role (DIFFERENT = change detected)
+5. OR validates old dept vs new dept (DIFFERENT = change detected)
+6. Shows confirmation warning to user
+7. If confirmed, calls recreateStaffWithRoleChange()
+8. Recreates entire staff record with new role/dept
+9. All appointments/encounters set to NULL (orphaned)
+10. Returns 201 status (new record created)
+
+
+========================================
+TRANSACTION SAFETY:
+========================================
+
+All operations now use MySQL transactions (BEGIN/COMMIT/ROLLBACK):
+
+- createStaff(): Uses transaction to ensure users + staff + doctors all created together
+- updateStaff(): Uses transaction to ensure users + staff + doctors all updated together
+- recreateStaffWithRoleChange(): Uses transaction to ensure old deleted + new created atomically
+
+This prevents partial updates and maintains data integrity.
+
+
+========================================
+VALIDATION:
+========================================
+
+- specialization: Optional, defaults to 'General' if not provided
+- consultation_fee: Optional, defaults to 0 if not provided
+- max_appointments_per_day: Always set to 10 (not configurable via admin form)
+
+
+========================================
+FILES MODIFIED:
+========================================
+
+1. app/admin/staff/page.js (Frontend form and logic)
+2. app/api/admin/staff/route.js (API endpoint)
+3. services/admin.js (Backend business logic)
+
+
+========================================
+TESTING INSTRUCTIONS:
+========================================
+
+1. Test CREATE DOCTOR:
+   - Go to /admin/staff
+   - Click "Add Staff Member"
+   - Select role "Doctor"
+   - Fill all fields including specialization and consultation fee
+   - Submit
+   - Verify staff created, and doctors table populated
+
+2. Test UPDATE DOCTOR (same role/dept):
+   - Go to /admin/staff
+   - Click Edit on an existing doctor
+   - Modify specialization or consultation fee
+   - Submit
+   - Verify doctors table updated (status 200)
+
+3. Test UPDATE DOCTOR (change role/dept):
+   - Go to /admin/staff
+   - Click Edit on a doctor
+   - Change role to Nurse or change department
+   - Confirm warning
+   - Verify old staff deleted, new staff created (status 201)
+
+4. Test API Directly:
+   - Create: POST /api/admin/staff { role_id: 2, specialization: "Cardiology", consultation_fee: 100 }
+   - Update: POST /api/admin/staff { staff_id: 5, specialization: "Neurology", consultation_fee: 150 }
+   - Change: POST /api/admin/staff { staff_id: 5, role_id: 3 } → Should require confirmation
+
+
+========================================
+END OF CHANGES SUMMARY
+========================================

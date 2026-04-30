@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllStaff, createStaff, getStaffById, recreateStaffWithRoleChange } from '@/services/admin';
+import { getAllStaff, createStaff, updateStaff, getStaffById, recreateStaffWithRoleChange } from '@/services/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +49,9 @@ export async function POST(request) {
       phone_number, 
       role_id,
       staff_id,
-      confirmRoleChange
+      confirmRoleChange,
+      specialization,
+      consultation_fee
     } = await request.json();
 
     // If staff_id provided, check if role or department changed
@@ -103,12 +105,34 @@ export async function POST(request) {
             hire_date,
             phone_number,
             role_id,
-            true // confirmDeletion
+            true, // confirmDeletion
+            specialization,
+            consultation_fee
           );
 
           return NextResponse.json(
             { success: true, message: result.message, data: result },
             { status: 201 }
+          );
+        } else {
+          // No role/department change - simple update
+          const result = await updateStaff(
+            staff_id,
+            email,
+            first_name,
+            last_name,
+            employee_id,
+            designation,
+            department_id,
+            hire_date,
+            phone_number,
+            specialization,
+            consultation_fee
+          );
+
+          return NextResponse.json(
+            { success: true, message: 'Staff member updated successfully', data: result },
+            { status: 200 }
           );
         }
       } catch (error) {
@@ -135,7 +159,9 @@ export async function POST(request) {
       department_id,
       hire_date,
       phone_number,
-      role_id
+      role_id,
+      specialization,
+      consultation_fee
     );
     
     return NextResponse.json(

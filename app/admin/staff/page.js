@@ -23,7 +23,9 @@ export default function StaffPage() {
     department_id: '',
     hire_date: new Date().toISOString().split('T')[0],
     phone_number: '',
-    role_id: 3
+    role_id: 3,
+    specialization: '',
+    consultation_fee: ''
   });
 
   useEffect(() => {
@@ -110,7 +112,9 @@ export default function StaffPage() {
         department_id: '',
         hire_date: new Date().toISOString().split('T')[0],
         phone_number: '',
-        role_id: 3
+        role_id: 3,
+        specialization: '',
+        consultation_fee: ''
       });
       fetchData();
     } catch (err) {
@@ -153,7 +157,9 @@ export default function StaffPage() {
         department_id: '',
         hire_date: new Date().toISOString().split('T')[0],
         phone_number: '',
-        role_id: 3
+        role_id: 3,
+        specialization: '',
+        consultation_fee: ''
       });
       fetchData();
     } catch (err) {
@@ -173,7 +179,9 @@ export default function StaffPage() {
       department_id: String(member.department_id),
       hire_date: member.hire_date ? (member.hire_date.includes('T') ? member.hire_date.split('T')[0] : member.hire_date) : new Date().toISOString().split('T')[0],
       phone_number: member.phone_number || '',
-      role_id: String(member.role_id)
+      role_id: String(member.role_id),
+      specialization: member.specialization || '',
+      consultation_fee: member.consultation_fee || ''
     };
     setFormData(cleanedData);
     setOriginalData(cleanedData);
@@ -220,7 +228,9 @@ export default function StaffPage() {
               department_id: '',
               hire_date: new Date().toISOString().split('T')[0],
               phone_number: '',
-              role_id: 3
+              role_id: 3,
+              specialization: '',
+              consultation_fee: ''
             });
           }}
           style={{
@@ -490,6 +500,52 @@ export default function StaffPage() {
                   <option value="6">Finance</option>
                 </select>
               </div>
+              
+              {/* Doctor specific fields */}
+              {String(formData.role_id) === '2' && (
+                <>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#065F46' }}>Specialization</label>
+                    <input
+                      type="text"
+                      name="specialization"
+                      value={formData.specialization || ''}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Cardiology"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        boxSizing: 'border-box',
+                        color: '#000',
+                        backgroundColor: '#fff'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#065F46' }}>Consultation Fee</label>
+                    <input
+                      type="number"
+                      name="consultation_fee"
+                      value={formData.consultation_fee || ''}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 50.00"
+                      min="0"
+                      step="0.01"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        boxSizing: 'border-box',
+                        color: '#000',
+                        backgroundColor: '#fff'
+                      }}
+                    />
+                  </div>
+                </>
+              )}
             </div>
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button
