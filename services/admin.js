@@ -790,9 +790,9 @@ export async function updateStaff(staffId, email, firstName, lastName, employeeI
     await connection.beginTransaction();
 
     try {
-      // Get current staff info to get user_id
+      // Get current staff info to get user_id and role_id (from users table)
       const [currentStaff] = await connection.query(
-        'SELECT user_id, role_id FROM staff WHERE staff_id = ?',
+        'SELECT s.staff_id, s.user_id, s.department_id, u.role_id FROM staff s JOIN users u ON s.user_id = u.user_id WHERE s.staff_id = ?',
         [staffId]
       );
 
@@ -802,6 +802,7 @@ export async function updateStaff(staffId, email, firstName, lastName, employeeI
 
       const userId = currentStaff[0].user_id;
       const roleId = currentStaff[0].role_id;
+      const currentDeptId = currentStaff[0].department_id;
 
       // Update user email if changed
       if (email) {
@@ -836,11 +837,32 @@ export async function updateStaff(staffId, email, firstName, lastName, employeeI
           );
         } else {
           // Create doctor record if it doesn't exist
-          await connection.query(
+          const [doctorResult] = await connection.query(
             `INSERT INTO doctors (staff_id, specialization, consultation_fee, max_appointments_per_day, created_at)
              VALUES (?, ?, ?, 10, NOW())`,
             [staffId, specialization || 'General', consultationFee || 0]
           );
+
+          const doctorId = doctorResult.insertId;
+
+          // Create default availability schedule for the new doctor (all 7 days)
+          const days = [
+            { day: 'Monday', working: 1, start: '09:00', end: '17:00' },
+            { day: 'Tuesday', working: 1, start: '09:00', end: '17:00' },
+            { day: 'Wednesday', working: 1, start: '09:00', end: '17:00' },
+            { day: 'Thursday', working: 1, start: '09:00', end: '17:00' },
+            { day: 'Friday', working: 1, start: '09:00', end: '17:00' },
+            { day: 'Saturday', working: 0, start: '00:00', end: '00:00' },
+            { day: 'Sunday', working: 0, start: '00:00', end: '00:00' },
+          ];
+
+          for (const day of days) {
+            await connection.query(
+              `INSERT INTO doctor_availability (doctor_id, department_id, day_of_week, shift_start_time, shift_end_time, is_working, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+              [doctorId, departmentId, day.day, day.start, day.end, day.working]
+            );
+          }
         }
       }
 
@@ -987,11 +1009,33 @@ export async function recreateStaffWithRoleChange(oldStaffId, email, firstName, 
 
       // If new role is doctor (role_id = 2), create doctor record
       if (roleIdNum === 2) {
-        await connection.query(
+        const [doctorResult] = await connection.query(
           `INSERT INTO doctors (staff_id, specialization, consultation_fee, max_appointments_per_day, created_at)
            VALUES (?, ?, ?, 10, NOW())`,
           [newStaffId, specialization || 'General', consultationFee || 0]
         );
+        
+        const doctorId = doctorResult.insertId;
+        const departmentId = parseInt(departmentId);
+
+        // Create default availability schedule for the new doctor (all 7 days)
+        const days = [
+          { day: 'Monday', working: 1, start: '09:00', end: '17:00' },
+          { day: 'Tuesday', working: 1, start: '09:00', end: '17:00' },
+          { day: 'Wednesday', working: 1, start: '09:00', end: '17:00' },
+          { day: 'Thursday', working: 1, start: '09:00', end: '17:00' },
+          { day: 'Friday', working: 1, start: '09:00', end: '17:00' },
+          { day: 'Saturday', working: 0, start: '00:00', end: '00:00' },
+          { day: 'Sunday', working: 0, start: '00:00', end: '00:00' },
+        ];
+
+        for (const day of days) {
+          await connection.query(
+            `INSERT INTO doctor_availability (doctor_id, department_id, day_of_week, shift_start_time, shift_end_time, is_working, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+            [doctorId, departmentId, day.day, day.start, day.end, day.working]
+          );
+        }
       }
 
       await connection.commit();
@@ -1099,11 +1143,33 @@ export async function createStaff(email, firstName, lastName, employeeId, design
             [specialization || 'General', consultationFee || 0, staffId]
           );
         } else {
-          await connection.query(
+          const [doctorResult] = await connection.query(
             `INSERT INTO doctors (staff_id, specialization, consultation_fee, max_appointments_per_day, created_at)
              VALUES (?, ?, ?, 10, NOW())`,
             [staffId, specialization || 'General', consultationFee || 0]
           );
+          
+          const doctorId = doctorResult.insertId;
+          const departmentId = deptId;
+
+          // Create default availability schedule for the new doctor (all 7 days)
+          const days = [
+            { day: 'Monday', working: 1, start: '09:00', end: '17:00' },
+            { day: 'Tuesday', working: 1, start: '09:00', end: '17:00' },
+            { day: 'Wednesday', working: 1, start: '09:00', end: '17:00' },
+            { day: 'Thursday', working: 1, start: '09:00', end: '17:00' },
+            { day: 'Friday', working: 1, start: '09:00', end: '17:00' },
+            { day: 'Saturday', working: 0, start: '00:00', end: '00:00' },
+            { day: 'Sunday', working: 0, start: '00:00', end: '00:00' },
+          ];
+
+          for (const day of days) {
+            await connection.query(
+              `INSERT INTO doctor_availability (doctor_id, department_id, day_of_week, shift_start_time, shift_end_time, is_working, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+              [doctorId, departmentId, day.day, day.start, day.end, day.working]
+            );
+          }
         }
       }
 

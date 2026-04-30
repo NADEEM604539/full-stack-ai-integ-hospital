@@ -157,7 +157,7 @@ export async function updateAppointmentDepartment(appointmentId) {
 
     // Verify appointment belongs to this doctor
     const [appointments] = await connection.query(
-      `SELECT a.appointment_id, a.doctor_id FROM appointments 
+      `SELECT a.appointment_id, a.doctor_id FROM appointments a
        WHERE a.appointment_id = ? AND a.doctor_id IN (
          SELECT d.doctor_id FROM doctors d 
          WHERE d.doctor_id = ?
