@@ -314,7 +314,42 @@ export async function getDoctorSchedule() {
     }
 
     const access = await checkDoctorAccess(connection);
+    const { doctorId, departmentId } = access;
 
+    // Check if doctor has any availability records
+    const [existingSchedule] = await connection.query(
+      `SELECT COUNT(*) as count FROM doctor_availability WHERE doctor_id = ?`,
+      [doctorId]
+    );
+
+    const hasSchedule = existingSchedule[0].count > 0;
+
+    // If no schedule exists, create default records for all 7 days
+    if (!hasSchedule) {
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const defaultStartTime = '09:00';
+      const defaultEndTime = '17:00';
+
+      await connection.beginTransaction();
+
+      try {
+        for (const day of days) {
+          await connection.query(
+            `INSERT INTO doctor_availability 
+             (doctor_id, department_id, day_of_week, shift_start_time, shift_end_time, is_working, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+            [doctorId, departmentId, day, defaultStartTime, defaultEndTime, day !== 'Saturday' && day !== 'Sunday']
+          );
+        }
+
+        await connection.commit();
+      } catch (txErr) {
+        await connection.rollback();
+        throw txErr;
+      }
+    }
+
+    // Fetch and return schedule
     const [schedule] = await connection.query(
       `SELECT 
         availability_id,
@@ -325,7 +360,7 @@ export async function getDoctorSchedule() {
       FROM doctor_availability
       WHERE doctor_id = ?
       ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')`,
-      [access.doctorId]
+      [doctorId]
     );
 
     connection.release();
@@ -340,6 +375,7 @@ export async function getDoctorSchedule() {
 /**
  * Update doctor's schedule
  * Doctor can ONLY update their own schedule
+ * Can both update existing records and create new ones
  */
 export async function updateDoctorSchedule(scheduleData) {
   try {
@@ -351,29 +387,47 @@ export async function updateDoctorSchedule(scheduleData) {
     }
 
     const access = await checkDoctorAccess(connection);
+    const { doctorId, departmentId } = access;
 
     // Start transaction
     await connection.beginTransaction();
 
     try {
       for (const item of scheduleData) {
-        const { availability_id, shift_start_time, shift_end_time, is_working } = item;
+        const { availability_id, day_of_week, shift_start_time, shift_end_time, is_working } = item;
 
-        // Validate input
-        if (!availability_id || !shift_start_time || !shift_end_time === undefined) {
-          throw new Error('Missing required schedule fields');
+        // Validate required time fields
+        if (!shift_start_time || !shift_end_time) {
+          throw new Error('Missing required schedule fields: shift_start_time and shift_end_time');
         }
 
-        // Update the schedule
-        await connection.query(
-          `UPDATE doctor_availability 
-           SET shift_start_time = ?, 
-               shift_end_time = ?,
-               is_working = ?,
-               updated_at = NOW()
-           WHERE availability_id = ? AND doctor_id = ?`,
-          [shift_start_time, shift_end_time, is_working, availability_id, access.doctorId]
-        );
+        // Two scenarios:
+        if (availability_id) {
+          // Update existing record
+          const [result] = await connection.query(
+            `UPDATE doctor_availability 
+             SET shift_start_time = ?, 
+                 shift_end_time = ?,
+                 is_working = ?,
+                 updated_at = NOW()
+             WHERE availability_id = ? AND doctor_id = ?`,
+            [shift_start_time, shift_end_time, is_working, availability_id, doctorId]
+          );
+
+          if (result.affectedRows === 0) {
+            throw new Error(`Availability record not found or access denied`);
+          }
+        } else if (day_of_week) {
+          // Create new record if availability_id doesn't exist but day_of_week is provided
+          await connection.query(
+            `INSERT INTO doctor_availability 
+             (doctor_id, department_id, day_of_week, shift_start_time, shift_end_time, is_working, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+            [doctorId, departmentId, day_of_week, shift_start_time, shift_end_time, is_working]
+          );
+        } else {
+          throw new Error('Either availability_id or day_of_week must be provided');
+        }
       }
 
       // Commit transaction
@@ -390,7 +444,7 @@ export async function updateDoctorSchedule(scheduleData) {
         FROM doctor_availability
         WHERE doctor_id = ?
         ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')`,
-        [access.doctorId]
+        [doctorId]
       );
 
       connection.release();

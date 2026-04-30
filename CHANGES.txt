@@ -220,5 +220,32 @@ TESTING INSTRUCTIONS:
 
 
 ========================================
+4. DOCTOR APPOINTMENT DEPARTMENT FIX
+========================================
+
+ISSUE FIXED:
+When doctor tried to move an appointment to their department using "Move to My Department" button, 
+the API returned: "Unknown column 'a.appointment_id' in 'field list'" error.
+
+ROOT CAUSE:
+In services/doctor.js, the updateAppointmentDepartment() function had a SELECT query that used 
+table alias 'a' but didn't define it in the FROM clause:
+  ❌ BROKEN: SELECT a.appointment_id, a.doctor_id FROM appointments 
+  ✅ FIXED:  SELECT a.appointment_id, a.doctor_id FROM appointments a
+
+FIX APPLIED:
+File: services/doctor.js (updateAppointmentDepartment function)
+- Line: Added table alias 'a' to the FROM clause
+- Changed: FROM appointments 
+- To:      FROM appointments a
+
+RESULT:
+- Doctor can now successfully move appointments to their department
+- Appointment department_id is updated to match doctor's department_id
+- Button "Move to My Department" now works without errors
+- Resolves the department mismatch warning when viewing appointments
+
+
+========================================
 END OF CHANGES SUMMARY
 ========================================
