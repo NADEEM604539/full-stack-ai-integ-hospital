@@ -203,8 +203,8 @@ export async function PUT(request) {
     // Audit log
     await connection.query(
       `INSERT INTO audit_logs 
-       (user_id, action, table_name, record_id, old_values, new_values, status, ip_address) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (user_id, action_type, table_name, record_id, old_data, new_data, ip_address) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         1,
         'UPDATE',
@@ -212,7 +212,6 @@ export async function PUT(request) {
         appointmentId,
         JSON.stringify({ status: oldStatus }),
         JSON.stringify({ status: body.status }),
-        'Success',
         clientIp
       ]
     );

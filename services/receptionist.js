@@ -225,7 +225,7 @@ export async function getTodayAppointments() {
           d.consultation_fee,
           a.department_id
         FROM appointments a
-        JOIN patients p ON a.patient_id = p.patient_id
+        LEFT JOIN patients p ON a.patient_id = p.patient_id
         LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
         LEFT JOIN staff s ON d.staff_id = s.staff_id
         WHERE a.appointment_date = ?
@@ -276,7 +276,7 @@ export async function getAllAppointments() {
           d.consultation_fee,
           a.department_id
         FROM appointments a
-        JOIN patients p ON a.patient_id = p.patient_id
+        LEFT JOIN patients p ON a.patient_id = p.patient_id
         LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
         LEFT JOIN staff s ON d.staff_id = s.staff_id
         WHERE a.department_id IN (${deptPlaceholders})

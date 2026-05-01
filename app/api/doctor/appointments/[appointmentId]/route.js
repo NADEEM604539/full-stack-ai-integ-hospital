@@ -246,11 +246,11 @@ export async function PUT(request, { params }) {
       );
 
       // Log to audit_logs
+      const clientIp = request.headers.get('x-forwarded-for') || 'unknown';
       await connection.query(
-        `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_data, timestamp)
-         VALUES (?, 'UPDATE', 'appointments', ?, 
-         JSON_OBJECT('status', ?), CURRENT_TIMESTAMP)`,
-        [userId, appointmentId, status]
+        `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_data, ip_address)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [userId, 'UPDATE', 'appointments', appointmentId, JSON.stringify({ status: status }), clientIp]
       );
 
       // Fetch and return updated appointment
