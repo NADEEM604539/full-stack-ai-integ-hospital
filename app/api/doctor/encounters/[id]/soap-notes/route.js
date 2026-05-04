@@ -311,9 +311,10 @@ export async function POST(request, { params }) {
       }
 
       // 6. Log to audit_logs
+      const clientIp = request.headers.get('x-forwarded-for') || 'unknown';
       await connection.query(
-        `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_data, timestamp)
-         VALUES (?, ?, ?, ?, ?, NOW())`,
+        `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_data, ip_address)
+         VALUES (?, ?, ?, ?, ?, ?)`,
         [
           userId,
           'UPDATE',
@@ -326,6 +327,7 @@ export async function POST(request, { params }) {
             plan: plan ? 'updated' : 'none',
             vitals: [temperature, bpSystolic, bpDiastolic, heartRate, oxygenSat, weight, height].some(v => v) ? 'updated' : 'none',
           }),
+          clientIp
         ]
       );
 

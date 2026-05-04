@@ -38,9 +38,7 @@ export async function PUT(request, { params }) {
     }
 
     const errors = [];
-    if (body.doctor_id === undefined || body.doctor_id === null) {
-      errors.push('doctor_id is required');
-    }
+    // doctor_id can be null (unassigned appointment)
     if (!body.appointment_date) {
       errors.push('appointment_date is required');
     }
@@ -92,28 +90,31 @@ export async function PUT(request, { params }) {
       body.appointment_date !== currentAppointment.appointment_date ||
       body.appointment_time !== currentAppointment.appointment_time;
 
-    // Step 2: Validate doctor exists
-    const [doctors] = await connection.query(
-      `SELECT d.doctor_id, d.specialization, d.consultation_fee, s.department_id, s.first_name, s.last_name
-       FROM doctors d
-       JOIN staff s ON d.staff_id = s.staff_id
-       WHERE d.doctor_id = ? AND s.status = 'Active'`,
-      [body.doctor_id]
-    );
-
-    if (!doctors.length) {
-      await connection.query('ROLLBACK');
-      return NextResponse.json(
-        { error: 'Doctor not found or not active' },
-        { status: 404 }
+    // Step 2: Validate doctor exists (only if doctor_id is provided)
+    let newDepartmentId = currentAppointment.department_id;
+    if (body.doctor_id !== null && body.doctor_id !== undefined) {
+      const [doctors] = await connection.query(
+        `SELECT d.doctor_id, d.specialization, d.consultation_fee, s.department_id, s.first_name, s.last_name
+         FROM doctors d
+         JOIN staff s ON d.staff_id = s.staff_id
+         WHERE d.doctor_id = ? AND s.status = 'Active'`,
+        [body.doctor_id]
       );
+
+      if (!doctors.length) {
+        await connection.query('ROLLBACK');
+        return NextResponse.json(
+          { error: 'Doctor not found or not active' },
+          { status: 404 }
+        );
+      }
+
+      const doctor = doctors[0];
+      newDepartmentId = doctor.department_id;
     }
 
-    const doctor = doctors[0];
-    const newDepartmentId = doctor.department_id;
-
-    // Step 3: Check for time slot conflicts (only if appointment details changed)
-    if (appointmentChanged) {
+    // Step 3: Check for time slot conflicts (only if appointment details changed AND doctor_id is provided)
+    if (appointmentChanged && body.doctor_id !== null && body.doctor_id !== undefined) {
       const [conflicts] = await connection.query(
         `SELECT appointment_id FROM appointments 
          WHERE doctor_id = ? 
@@ -212,10 +213,10 @@ export async function PUT(request, { params }) {
         d.consultation_fee,
         dept.department_name
        FROM appointments a
-       JOIN patients p ON a.patient_id = p.patient_id
-       JOIN doctors d ON a.doctor_id = d.doctor_id
-       JOIN staff s ON d.staff_id = s.staff_id
-       JOIN departments dept ON a.department_id = dept.department_id
+       LEFT JOIN patients p ON a.patient_id = p.patient_id
+       LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
+       LEFT JOIN staff s ON d.staff_id = s.staff_id
+       LEFT JOIN departments dept ON a.department_id = dept.department_id
        WHERE a.appointment_id = ?`,
       [appointmentId]
     );
@@ -322,15 +323,18 @@ export async function GET(request, { params }) {
           d.consultation_fee,
           dept.department_name
          FROM appointments a
-         JOIN patients p ON a.patient_id = p.patient_id
-         JOIN doctors d ON a.doctor_id = d.doctor_id
-         JOIN staff s ON d.staff_id = s.staff_id
-         JOIN departments dept ON a.department_id = dept.department_id
-         WHERE a.appointment_id = ? AND a.is_deleted = FALSE`,
+         LEFT JOIN patients p ON a.patient_id = p.patient_id
+         LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
+         LEFT JOIN staff s ON d.staff_id = s.staff_id
+         LEFT JOIN departments dept ON a.department_id = dept.department_id
+         WHERE a.appointment_id = ?`,
         [appointmentId]
       );
 
+      console.log('[GET_RESULT]', { appointmentId, foundCount: appointments.length, appointments });
+
       if (!appointments.length) {
+        console.error('[APPOINTMENT_NOT_FOUND]', { appointmentId });
         return NextResponse.json(
           { error: 'Appointment not found' },
           { status: 404 }

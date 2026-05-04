@@ -167,19 +167,11 @@ export async function POST(request) {
 
     await connection.query(
       `INSERT INTO audit_logs 
-       (user_id, action, table_name, record_id, new_values, status, ip_address, user_agent) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, 'CREATE', 'users', userId, auditValues, 'Success', clientIp, userAgent]
+       (user_id, action_type, table_name, record_id, new_data, ip_address) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [userId, 'CREATE', 'users', userId, auditValues, clientIp]
     );
 
-
-    // ========== STEP 8: CREATE SESSION LOG (Security Tracking) ==========
-    // Track user login sessions for security audit trail
-    await connection.query(
-      `INSERT INTO session_logs (user_id, ip_address, device_info, status) 
-       VALUES (?, ?, ?, ?)`,
-      [userId, clientIp, userAgent, 'Active']
-    );
 
     // ========== STEP 9: COMMIT TRANSACTION (Durability) ==========
     // All-or-nothing commitment: if any step fails, entire transaction rolls back

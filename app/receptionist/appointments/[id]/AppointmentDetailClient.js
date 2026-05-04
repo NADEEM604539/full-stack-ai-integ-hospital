@@ -111,8 +111,11 @@ export default function AppointmentDetailClient({ appointmentId }) {
   const handleDoctorChange = async (doctorId) => {
     setEditData(prev => ({ ...prev, doctor_id: doctorId, appointment_time: '' }));
     
-    if (editData.appointment_date) {
+    // Only fetch time slots if a doctor is selected
+    if (doctorId && editData.appointment_date) {
       await fetchTimeSlots(doctorId, editData.appointment_date);
+    } else {
+      setTimeSlots([]);
     }
   };
 
@@ -325,8 +328,8 @@ export default function AppointmentDetailClient({ appointmentId }) {
                 <div>
                   <label className="block text-sm font-semibold mb-3" style={{ color: '#065F46' }}>Doctor</label>
                   <select
-                    value={editData.doctor_id}
-                    onChange={(e) => handleDoctorChange(parseInt(e.target.value))}
+                    value={editData.doctor_id || ''}
+                    onChange={(e) => handleDoctorChange(e.target.value ? parseInt(e.target.value) : null)}
                     className="w-full px-4 py-3 rounded-lg border-2 outline-none"
                     style={{
                       borderColor: '#E5E7EB',
@@ -334,7 +337,7 @@ export default function AppointmentDetailClient({ appointmentId }) {
                       color: '#1F2937',
                     }}
                   >
-                    <option value="">Select a doctor</option>
+                    <option value="">No doctor assigned (Click to assign)</option>
                     {doctors.map(doc => (
                       <option key={doc.doctor_id} value={doc.doctor_id}>
                         {doc.staff_first_name} {doc.staff_last_name} - {doc.specialization}
@@ -458,16 +461,18 @@ export default function AppointmentDetailClient({ appointmentId }) {
                 <div>
                   <p className="text-sm font-semibold" style={{ color: '#6B7280' }}>Doctor</p>
                   <p className="text-lg font-bold mt-1" style={{ color: '#065F46' }}>
-                    {appointment.doctor_first_name} {appointment.doctor_last_name}
+                    {appointment.doctor_first_name && appointment.doctor_last_name 
+                      ? `${appointment.doctor_first_name} ${appointment.doctor_last_name}`
+                      : 'No doctor assigned'}
                   </p>
                   <p className="text-sm mt-1" style={{ color: '#6B7280' }}>
-                    {appointment.specialization}
+                    {appointment.specialization || 'N/A'}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold" style={{ color: '#6B7280' }}>Consultation Fee</p>
                   <p className="text-lg font-bold mt-1" style={{ color: '#065F46' }}>
-                    Rs. {appointment.consultation_fee}
+                    {appointment.consultation_fee ? `Rs. ${appointment.consultation_fee}` : 'N/A'}
                   </p>
                 </div>
                 <div>

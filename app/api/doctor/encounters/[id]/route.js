@@ -496,11 +496,11 @@ export async function POST(request, { params }) {
         );
 
         // Log to audit_logs
+        const clientIp = request.headers.get('x-forwarded-for') || 'unknown';
         await connection.query(
-          `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_data, timestamp)
-           VALUES (?, 'CREATE_OR_UPDATE', 'soap_notes', ?, 
-           JSON_OBJECT('sections', 'subjective,objective,assessment,plan'), CURRENT_TIMESTAMP)`,
-          [userId, encounterId]
+          `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_data, ip_address)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [userId, 'CREATE_OR_UPDATE', 'soap_notes', encounterId, JSON.stringify({sections: 'subjective,objective,assessment,plan'}), clientIp]
         );
 
         // Commit transaction
@@ -780,11 +780,11 @@ export async function DELETE(request, { params }) {
         await connection.query('DELETE FROM encounters WHERE encounter_id = ?', [encounterId]);
 
         // Log to audit_logs
+        const clientIp2 = request.headers.get('x-forwarded-for') || 'unknown';
         await connection.query(
-          `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_data, timestamp)
-           VALUES (?, 'DELETE', 'encounters', ?, 
-           JSON_OBJECT('action', 'hard_delete'), CURRENT_TIMESTAMP)`,
-          [userId, encounterId]
+          `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, new_data, ip_address)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [userId, 'DELETE', 'encounters', encounterId, JSON.stringify({action: 'hard_delete'}), clientIp2]
         );
 
         // Commit transaction
