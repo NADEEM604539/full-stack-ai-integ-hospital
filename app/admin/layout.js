@@ -19,14 +19,14 @@ export default function AdminLayout({ children }) {
       try {
         const response = await fetch('/api/auth/check-role');
         if (!response.ok) {
-          router.push('/login');
+          router.push('/');
           return;
         }
         const data = await response.json();
         
         // Check if user is ADMIN (role_id = 1)
         if (data.role_id !== 1) {
-          router.push('/unauthorized');
+          router.push('/');
           return;
         }
         
@@ -34,7 +34,7 @@ export default function AdminLayout({ children }) {
         setIsLoading(false);
       } catch (error) {
         console.error('Auth check failed:', error);
-        router.push('/login');
+        router.push('/');
       }
     };
 

@@ -493,10 +493,92 @@ export async function getInvoicesWithDetails(filters = {}) {
   }
 }
 
+/**
+ * Get finance staff's own profile
+ * Finance can ONLY view their own profile
+ */
+export async function getFinanceProfile() {
+  try {
+    let connection;
+    try {
+      connection = await db.getConnection();
+    } catch (dbError) {
+      throw new Error(`Database connection failed: ${dbError?.message || String(dbError)}`);
+    }
+
+    const access = await checkFinanceAccess(connection);
+
+    const [result] = await connection.query(
+      `SELECT 
+        s.staff_id,
+        s.first_name,
+        s.last_name,
+        u.email,
+        s.phone_number,
+        s.designation,
+        s.employee_id,
+        s.status,
+        s.hire_date,
+        dept.department_name,
+        dept.department_id
+      FROM staff s
+      JOIN users u ON s.user_id = u.user_id
+      LEFT JOIN departments dept ON s.department_id = dept.department_id
+      WHERE s.staff_id = ? AND s.user_id = ?`,
+      [access.financeId, access.userId]
+    );
+
+    connection.release();
+
+    if (!result || result.length === 0) {
+      throw new Error('Finance profile not found');
+    }
+
+    return result[0];
+  } catch (error) {
+    const errorMsg = error?.message || String(error) || 'Unknown error';
+    console.error(`Failed to fetch finance profile:`, errorMsg);
+    throw new Error(`Profile retrieval failed: ${errorMsg}`);
+  }
+}
+
+/**
+ * Update finance staff's phone number only
+ * Finance can ONLY update their own phone number
+ */
+export async function updateFinancePhone(phoneNumber) {
+  try {
+    let connection;
+    try {
+      connection = await db.getConnection();
+    } catch (dbError) {
+      throw new Error(`Database connection failed: ${dbError?.message || String(dbError)}`);
+    }
+
+    const access = await checkFinanceAccess(connection);
+
+    const [result] = await connection.query(
+      `UPDATE staff 
+       SET phone_number = ? 
+       WHERE staff_id = ? AND user_id = ?`,
+      [phoneNumber, access.financeId, access.userId]
+    );
+
+    connection.release();
+    return { success: true };
+  } catch (error) {
+    const errorMsg = error?.message || String(error) || 'Unknown error';
+    console.error(`Failed to update finance profile:`, errorMsg);
+    throw new Error(`Profile update failed: ${errorMsg}`);
+  }
+}
+
 export default {
   getCompletedAppointments,
   getAppointmentInvoiceDetails,
   generateInvoiceForAppointment,
   getFinancialSummary,
-  getInvoicesWithDetails
+  getInvoicesWithDetails,
+  getFinanceProfile,
+  updateFinancePhone
 };

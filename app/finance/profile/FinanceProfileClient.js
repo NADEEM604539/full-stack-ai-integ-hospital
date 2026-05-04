@@ -26,7 +26,7 @@ export default function FinanceProfileClient() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/admin/profile');
+      const response = await fetch('/api/finance/profile');
       if (!response.ok) {
         throw new Error('Failed to fetch profile');
       }
@@ -47,7 +47,7 @@ export default function FinanceProfileClient() {
       setSubmitting(true);
       setError(null);
 
-      const response = await fetch('/api/admin/profile', {
+      const response = await fetch('/api/finance/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editData),
