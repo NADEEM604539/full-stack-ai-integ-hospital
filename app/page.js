@@ -166,13 +166,13 @@ export default function Home() {
       `}</style>
 
       {/* HERO IMAGE SECTION - REDUCED HEIGHT */}
-      <section className="relative h-96 md:h-[800px] flex items-end justify-center overflow-hidden">
+      <section className="relative h-96 md:h-[1000px] flex items-end justify-center overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <img 
             src="/img.png" 
             alt="Hospital Background" 
-            className="w-full h-full object-cover"
+            className="w-full h-250 object-cover"
           />
           {/* Premium Overlay Gradients */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-transparent"></div>
