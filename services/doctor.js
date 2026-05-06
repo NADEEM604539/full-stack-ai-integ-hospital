@@ -991,3 +991,59 @@ export async function getDoctorClinicalInsights() {
     if (connection) connection.release();
   }
 }
+
+/**
+ * Get doctor's appointment count for today using database function
+ * Uses: fn_doctor_appointment_count function
+ * @param {number} doctorId - Doctor ID
+ * @param {string} date - Date in YYYY-MM-DD format (default: today)
+ * @returns {Promise<number>} Count of scheduled appointments
+ */
+export async function getDoctorAppointmentCountForDate(doctorId, date = null) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    const queryDate = date || 'CURDATE()';
+    const params = date ? [doctorId, date] : [doctorId];
+
+    const [[result]] = await connection.query(
+      `SELECT fn_doctor_appointment_count(?, ${date ? '?' : 'CURDATE()'}) as appointment_count`,
+      params
+    );
+
+    return result.appointment_count || 0;
+  } catch (error) {
+    console.error('Error getting doctor appointment count:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Check if doctor is available at specific time using database function
+ * Uses: fn_is_doctor_available function
+ * @param {number} doctorId - Doctor ID
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {string} time - Time in HH:MM format
+ * @returns {Promise<boolean>} Availability status
+ */
+export async function checkDoctorAvailability(doctorId, date, time) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    const [[result]] = await connection.query(
+      `SELECT fn_is_doctor_available(?, ?, ?) as is_available`,
+      [doctorId, date, time]
+    );
+
+    return result.is_available === 1; // MySQL returns 1 for TRUE
+  } catch (error) {
+    console.error('Error checking doctor availability:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}

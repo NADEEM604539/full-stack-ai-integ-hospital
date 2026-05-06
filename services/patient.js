@@ -1303,3 +1303,120 @@ export async function getPatientMedicinesByAppointment(patientId) {
     if (connection) connection.release();
   }
 }
+
+/**
+ * Calculate patient age using database function
+ * Uses: fn_calculate_age function
+ * @param {number} patientId - Patient ID
+ * @returns {Promise<number>} Patient age in years
+ */
+export async function getPatientAge(patientId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    const [patients] = await connection.query(
+      `SELECT p.date_of_birth, fn_calculate_age(p.date_of_birth) as age
+       FROM patients p
+       WHERE p.patient_id = ? AND p.is_deleted = FALSE`,
+      [patientId]
+    );
+
+    if (!patients.length) {
+      throw new Error('Patient not found');
+    }
+
+    return patients[0].age;
+  } catch (error) {
+    console.error('Error calculating patient age:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get days since patient's last encounter using database function
+ * Uses: fn_days_since_last_encounter function
+ * @param {number} patientId - Patient ID
+ * @returns {Promise<number|null>} Days since last encounter or null if no encounters
+ */
+export async function getDaysSinceLastEncounter(patientId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    const [[result]] = await connection.query(
+      `SELECT fn_days_since_last_encounter(?) as days_since_encounter`,
+      [patientId]
+    );
+
+    return result.days_since_encounter;
+  } catch (error) {
+    console.error('Error calculating days since last encounter:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get comprehensive patient summary with functions
+ * Uses: fn_calculate_age, fn_patient_balance, fn_days_since_last_encounter
+ * @param {number} patientId - Patient ID
+ * @returns {Promise<Object>} Comprehensive patient summary
+ */
+export async function getComprehensivePatientSummary(patientId) {
+  const { userId } = await checkPatientAccess();
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    // Verify patient ownership
+    const [patients] = await connection.query(
+      `SELECT patient_id FROM patients 
+       WHERE patient_id = ? AND user_id = ? AND is_deleted = FALSE`,
+      [patientId, userId]
+    );
+
+    if (!patients.length) {
+      throw new Error('Patient not found or access denied');
+    }
+
+    // Get comprehensive summary with all functions
+    const [summary] = await connection.query(`
+      SELECT 
+        p.patient_id,
+        p.mrn,
+        CONCAT(p.first_name, ' ', p.last_name) AS full_name,
+        fn_calculate_age(p.date_of_birth) AS age,
+        p.blood_type,
+        p.phone_number,
+        p.email,
+        p.address,
+        p.city,
+        fn_patient_balance(p.patient_id) AS outstanding_balance,
+        fn_days_since_last_encounter(p.patient_id) AS days_since_last_visit,
+        COUNT(DISTINCT e.encounter_id) AS total_encounters,
+        MAX(e.admission_date) AS last_visit_date,
+        p.ai_readmission_risk,
+        p.is_active
+      FROM patients p
+      LEFT JOIN encounters e ON p.patient_id = e.patient_id AND e.is_deleted = FALSE
+      WHERE p.patient_id = ?
+      GROUP BY p.patient_id
+    `, [patientId]);
+
+    if (!summary.length) {
+      throw new Error('Patient summary not found');
+    }
+
+    return summary[0];
+  } catch (error) {
+    console.error('Error fetching comprehensive patient summary:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}

@@ -573,6 +573,195 @@ export async function updateFinancePhone(phoneNumber) {
   }
 }
 
+/**
+ * Generate invoice using stored procedure (SP3: sp_generate_invoice)
+ * RBAC: Finance can only generate invoices for encounters in their department
+ * Uses: T5 trigger to auto-calculate totals, T9 trigger to validate
+ * @param {number} encounterId - Encounter ID to generate invoice for
+ * @param {number} patientId - Patient ID
+ * @returns {Promise<Object>} Generated invoice details
+ */
+export async function generateInvoiceFromEncounter(encounterId, patientId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkFinanceAccess(connection);
+    const { financeId, departmentId } = access;
+
+    // Verify encounter belongs to this department
+    const [encounterCheck] = await connection.query(`
+      SELECT e.encounter_id, e.patient_id, a.department_id
+      FROM encounters e
+      LEFT JOIN appointments a ON e.appointment_id = a.appointment_id
+      WHERE e.encounter_id = ? AND e.is_deleted = FALSE
+    `, [encounterId]);
+
+    if (!encounterCheck.length) {
+      throw new Error('Encounter not found');
+    }
+
+    if (encounterCheck[0].department_id !== departmentId) {
+      throw new Error('Access Denied: Encounter belongs to a different department');
+    }
+
+    // Call stored procedure for invoice generation with transaction
+    await connection.query(
+      `CALL sp_generate_invoice(?, ?, ?, @inv_id, @msg)`,
+      [encounterId, patientId, financeId]
+    );
+
+    // Get the result from the procedure
+    const [[result]] = await connection.query(
+      `SELECT @inv_id as invoice_id, @msg as message`
+    );
+
+    if (result.message.includes('ERROR')) {
+      throw new Error(result.message);
+    }
+
+    // Return generated invoice details
+    const [invoiceDetails] = await connection.query(`
+      SELECT 
+        i.invoice_id,
+        i.appointment_id,
+        i.encounter_id,
+        i.patient_id,
+        i.invoice_date,
+        i.due_date,
+        i.subtotal,
+        i.tax_amount,
+        i.discount_amount,
+        i.total_amount,
+        i.status,
+        CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+        p.mrn,
+        p.phone_number
+      FROM invoices i
+      JOIN patients p ON i.patient_id = p.patient_id
+      WHERE i.invoice_id = ?
+    `, [result.invoice_id]);
+
+    return {
+      success: true,
+      message: result.message,
+      data: invoiceDetails[0]
+    };
+  } catch (error) {
+    console.error('Error generating invoice:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Calculate patient outstanding balance using function
+ * Uses: fn_patient_balance function
+ * @param {number} patientId - Patient ID
+ * @returns {Promise<number>} Outstanding balance amount
+ */
+export async function getPatientBalance(patientId) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    
+    const [[result]] = await connection.query(
+      `SELECT fn_patient_balance(?) as balance`,
+      [patientId]
+    );
+
+    return result.balance || 0;
+  } catch (error) {
+    console.error('Error calculating patient balance:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get outstanding bills for collections (from view)
+ * Uses: vw_outstanding_bills view
+ * @returns {Promise<Array>} List of outstanding bills
+ */
+export async function getOutstandingBills() {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkFinanceAccess(connection);
+    const { departmentId } = access;
+
+    const [bills] = await connection.query(`
+      SELECT 
+        i.invoice_id,
+        p.patient_id,
+        CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+        p.phone_number,
+        i.total_amount,
+        i.amount_paid,
+        (i.total_amount - i.amount_paid) AS balance_due,
+        i.due_date,
+        DATEDIFF(CURDATE(), i.due_date) AS days_overdue,
+        i.status
+      FROM invoices i
+      JOIN patients p ON i.patient_id = p.patient_id
+      JOIN appointments a ON i.appointment_id = a.appointment_id
+      WHERE a.department_id = ? 
+        AND i.status IN ('Unpaid', 'Partial', 'Overdue') 
+        AND i.is_deleted = FALSE
+      ORDER BY i.due_date ASC
+    `, [departmentId]);
+
+    return bills;
+  } catch (error) {
+    console.error('Error fetching outstanding bills:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Get billing analytics using view
+ * Uses: vw_billing_analytics view
+ * @param {string} startDate - Start date (YYYY-MM-DD)
+ * @param {string} endDate - End date (YYYY-MM-DD)
+ * @returns {Promise<Array>} Billing analytics
+ */
+export async function getBillingAnalytics(startDate, endDate) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkFinanceAccess(connection);
+    const { departmentId } = access;
+
+    const [analytics] = await connection.query(`
+      SELECT 
+        DATE(i.invoice_date) AS billing_date,
+        COUNT(DISTINCT i.invoice_id) AS total_invoices,
+        SUM(i.total_amount) AS total_revenue,
+        SUM(i.amount_paid) AS amount_collected,
+        SUM(i.total_amount - i.amount_paid) AS outstanding,
+        ROUND(SUM(i.amount_paid) / NULLIF(SUM(i.total_amount), 0) * 100, 2) AS collection_rate
+      FROM invoices i
+      JOIN appointments a ON i.appointment_id = a.appointment_id
+      WHERE i.is_deleted = FALSE 
+        AND i.status != 'Cancelled'
+        AND a.department_id = ?
+        AND DATE(i.invoice_date) BETWEEN ? AND ?
+      GROUP BY DATE(i.invoice_date)
+      ORDER BY DATE(i.invoice_date) DESC
+    `, [departmentId, startDate, endDate]);
+
+    return analytics;
+  } catch (error) {
+    console.error('Error fetching billing analytics:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
 export default {
   getCompletedAppointments,
   getAppointmentInvoiceDetails,
@@ -580,5 +769,9 @@ export default {
   getFinancialSummary,
   getInvoicesWithDetails,
   getFinanceProfile,
-  updateFinancePhone
+  updateFinancePhone,
+  generateInvoiceFromEncounter,
+  getPatientBalance,
+  getOutstandingBills,
+  getBillingAnalytics
 };

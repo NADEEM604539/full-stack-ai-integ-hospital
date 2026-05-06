@@ -563,3 +563,156 @@ export async function getPharmacistDashboard() {
     if (connection) connection.release();
   }
 }
+
+/**
+ * Get all dispensable prescriptions (pending) - RLS View
+ * RBAC: Pharmacist can only see prescriptions for their department
+ * Uses: vw_pharmacist_dispensable_rx view
+ */
+export async function getDispensablePrescriptions() {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkPharmacistAccess(connection);
+    const { departmentId } = access;
+
+    const [prescriptions] = await connection.query(`
+      SELECT 
+        p.prescription_id,
+        CONCAT(pat.first_name, ' ', pat.last_name) AS patient_name,
+        pat.mrn,
+        GROUP_CONCAT(CONCAT(ii.item_name, ' (', pd.dosage, ' x ', pd.quantity, ')') SEPARATOR ', ') AS medications,
+        p.issue_date,
+        p.ai_interaction_alerts,
+        p.ai_reviewed,
+        d.doctor_id,
+        CONCAT(s.first_name, ' ', s.last_name) AS doctor_name,
+        s.department_id
+      FROM prescriptions p
+      JOIN patients pat ON p.patient_id = pat.patient_id
+      JOIN doctors d ON p.doctor_id = d.doctor_id
+      JOIN staff s ON d.staff_id = s.staff_id
+      JOIN prescription_details pd ON p.prescription_id = pd.prescription_id
+      JOIN inventory_items ii ON pd.item_id = ii.item_id
+      WHERE p.status = 'Pending' 
+        AND p.is_deleted = FALSE 
+        AND pat.is_deleted = FALSE 
+        AND s.department_id = ?
+      GROUP BY p.prescription_id
+      ORDER BY p.issue_date ASC
+    `, [departmentId]);
+
+    return prescriptions;
+  } catch (error) {
+    console.error('Error fetching dispensable prescriptions:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Dispense medication using stored procedure (SP2: sp_dispense_medication)
+ * RBAC: Pharmacist can only dispense prescriptions from their department
+ * Uses: T3 trigger to auto-deduct inventory
+ * @param {number} prescriptionDetailId - Prescription detail ID to dispense
+ * @param {number} quantity - Quantity to dispense
+ * @returns {Promise<Object>} Dispensing result
+ */
+export async function dispenseMedication(prescriptionDetailId, quantity) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const access = await checkPharmacistAccess(connection);
+    const { pharmacistId, departmentId } = access;
+
+    // Verify prescription belongs to this department
+    const [prescriptionCheck] = await connection.query(`
+      SELECT pd.detail_id, pd.prescription_id, p.doctor_id, p.is_deleted
+      FROM prescription_details pd
+      JOIN prescriptions p ON pd.prescription_id = p.prescription_id
+      JOIN doctors d ON p.doctor_id = d.doctor_id
+      JOIN staff s ON d.staff_id = s.staff_id
+      WHERE pd.detail_id = ? AND s.department_id = ?
+    `, [prescriptionDetailId, departmentId]);
+
+    if (!prescriptionCheck.length) {
+      throw new Error('Prescription not found or access denied');
+    }
+
+    if (prescriptionCheck[0].is_deleted) {
+      throw new Error('Cannot dispense deleted prescription');
+    }
+
+    // Call stored procedure for medication dispensing with transaction
+    await connection.query(
+      `CALL sp_dispense_medication(?, ?, ?, @msg)`,
+      [prescriptionDetailId, quantity, pharmacistId]
+    );
+
+    // Get the result from the procedure
+    const [[result]] = await connection.query(
+      `SELECT @msg as message`
+    );
+
+    if (result.message.includes('ERROR')) {
+      throw new Error(result.message);
+    }
+
+    // Return dispensing details
+    const [dispensedDetails] = await connection.query(`
+      SELECT 
+        pd.detail_id,
+        pd.prescription_id,
+        pd.item_id,
+        ii.item_name,
+        pd.dosage,
+        pd.dispensed_quantity,
+        ii.quantity_in_stock,
+        p.patient_id,
+        CONCAT(pat.first_name, ' ', pat.last_name) AS patient_name
+      FROM prescription_details pd
+      JOIN prescriptions p ON pd.prescription_id = p.prescription_id
+      JOIN patients pat ON p.patient_id = pat.patient_id
+      JOIN inventory_items ii ON pd.item_id = ii.item_id
+      WHERE pd.detail_id = ?
+    `, [prescriptionDetailId]);
+
+    return {
+      success: true,
+      message: result.message,
+      data: dispensedDetails[0]
+    };
+  } catch (error) {
+    console.error('Error dispensing medication:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
+ * Check if medication is available for dispensing
+ * Uses: fn_is_stock_available function
+ * @param {number} itemId - Inventory item ID
+ * @param {number} requiredQty - Quantity needed
+ * @returns {Promise<boolean>} Stock availability status
+ */
+export async function checkMedicationStock(itemId, requiredQty) {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    
+    const [[result]] = await connection.query(
+      `SELECT fn_is_stock_available(?, ?) as stock_available`,
+      [itemId, requiredQty]
+    );
+
+    return result.stock_available === 1; // MySQL returns 1 for TRUE
+  } catch (error) {
+    console.error('Error checking medication stock:', error.message);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
