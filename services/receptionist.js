@@ -762,6 +762,31 @@ export async function scheduleAppointment(appointmentData) {
 
     const departmentId = patientCheck[0].department_id;
 
+    // Enforce doctor daily appointment cap (must be < 10 scheduled appointments)
+    const [[appointmentCountResult]] = await connection.query(
+      `SELECT fn_doctor_appointment_count(?, ?) as appointment_count`,
+      [appointmentData.doctor_id, appointmentData.appointment_date]
+    );
+
+    const appointmentCount = appointmentCountResult?.appointment_count || 0;
+    if (appointmentCount >= 10) {
+      throw new Error('Doctor has reached the daily booking limit (10 scheduled appointments)');
+    }
+
+    // Validate doctor availability for the requested slot
+    const [[availabilityResult]] = await connection.query(
+      `SELECT fn_is_doctor_available(?, ?, ?) as is_available`,
+      [
+        appointmentData.doctor_id,
+        appointmentData.appointment_date,
+        appointmentData.appointment_time,
+      ]
+    );
+
+    if (!availabilityResult?.is_available) {
+      throw new Error('Doctor is not available at the selected date/time');
+    }
+
     // Use stored procedure for appointment booking with T1 trigger validation
     await connection.query(
       `CALL sp_book_appointment(?, ?, ?, ?, ?, ?, @appt_id, @msg)`,

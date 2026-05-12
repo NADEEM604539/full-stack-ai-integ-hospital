@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import db from '@/lib/db';
+import { getUserId } from '@/services/auth';
 import { getDoctorEncounters, createEncounterForAppointment } from '@/services/doctor';
 
 export const dynamic = 'force-dynamic';

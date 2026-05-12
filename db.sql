@@ -988,7 +988,17 @@ BEGIN
             (invoice_id, description, item_type, quantity, unit_price)
             VALUES (
                 v_invoice_id,
-                CONCAT('Doctor Consultation - Dr. ', (SELECT CONCAT(first_name, ' ', last_name) FROM doctors WHERE doctor_id = NEW.doctor_id)),
+                CONCAT(
+                    'Doctor Consultation - Dr. ',
+                    COALESCE(
+                        (SELECT CONCAT(s.first_name, ' ', s.last_name)
+                         FROM doctors d
+                         JOIN staff s ON d.staff_id = s.staff_id
+                         WHERE d.doctor_id = NEW.doctor_id
+                         LIMIT 1),
+                        'Doctor'
+                    )
+                ),
                 'Consultation',
                 1,
                 v_doctor_fee
@@ -1302,174 +1312,44 @@ DELIMITER ;
 -- SECTION 11: VIEWS (10 Analytical & Security Views)
 -- ================================================================================
 
--- VW1: Patient Summary with encounter count
-CREATE OR REPLACE VIEW vw_patient_summary AS
-SELECT 
-    p.patient_id,
-    p.mrn,
-    CONCAT(p.first_name, ' ', p.last_name) AS full_name,
-    fn_calculate_age(p.date_of_birth) AS age,
-    p.blood_type,
-    COUNT(DISTINCT e.encounter_id) AS total_encounters,
-    fn_patient_balance(p.patient_id) AS outstanding_balance,
-    MAX(e.admission_date) AS last_visit
-FROM patients p
-LEFT JOIN encounters e ON p.patient_id = e.patient_id AND e.is_deleted = FALSE
-WHERE p.is_active = TRUE AND p.is_deleted = FALSE
-GROUP BY p.patient_id;
-
--- VW2: Doctor Performance Dashboard
-CREATE OR REPLACE VIEW vw_doctor_performance AS
-SELECT 
-    d.doctor_id,
-    CONCAT(s.first_name, ' ', s.last_name) AS doctor_name,
-    d.specialization,
-    COUNT(DISTINCT a.appointment_id) AS total_appointments,
-    COUNT(DISTINCT CASE WHEN a.status = 'Completed' THEN a.appointment_id END) AS completed,
-    COUNT(DISTINCT CASE WHEN a.status = 'No Show' THEN a.appointment_id END) AS no_shows,
-    COUNT(DISTINCT e.encounter_id) AS total_encounters
-FROM doctors d
-JOIN staff s ON d.staff_id = s.staff_id
-LEFT JOIN appointments a ON d.doctor_id = a.doctor_id AND a.is_deleted = FALSE
-LEFT JOIN encounters e ON d.doctor_id = e.doctor_id AND e.is_deleted = FALSE
-GROUP BY d.doctor_id;
-
--- VW3: Low Stock Items for Reordering
-CREATE OR REPLACE VIEW vw_low_stock_items AS
-SELECT 
-    item_id,
-    item_name,
-    quantity_in_stock,
-    reorder_level,
-    (reorder_level - quantity_in_stock) AS shortage,
-    unit_price
-FROM inventory_items
-WHERE quantity_in_stock <= reorder_level AND quantity_in_stock > 0
-ORDER BY shortage DESC;
-
--- VW4: Active Inpatients Census
-CREATE OR REPLACE VIEW vw_active_inpatients AS
-SELECT 
+-- VW11: Patient Vitals View
+CREATE OR REPLACE VIEW view_vitals AS
+SELECT
+    v.vital_id,
     e.encounter_id,
-    p.patient_id,
+    e.patient_id,
+    e.doctor_id,
+    v.recorded_by,
     p.mrn,
     CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
-    e.admission_date,
-    DATEDIFF(CURDATE(), DATE(e.admission_date)) AS length_of_stay,
-    CONCAT(s.first_name, ' ', s.last_name) AS attending_doctor,
-    d.specialization,
-    e.chief_complaint
-FROM encounters e
-JOIN patients p ON e.patient_id = p.patient_id AND p.is_deleted = FALSE
-JOIN doctors d ON e.doctor_id = d.doctor_id
-JOIN staff s ON d.staff_id = s.staff_id
-WHERE e.status = 'Active' AND e.encounter_type = 'Inpatient' AND e.is_deleted = FALSE
-ORDER BY e.admission_date ASC;
-
--- VW5: Outstanding Bills for Collections
-CREATE OR REPLACE VIEW vw_outstanding_bills AS
-SELECT 
-    i.invoice_id,
-    p.patient_id,
-    CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
-    p.phone_number,
-    i.total_amount,
-    i.amount_paid,
-    (i.total_amount - i.amount_paid) AS balance_due,
-    i.due_date,
-    DATEDIFF(CURDATE(), i.due_date) AS days_overdue,
-    i.status
-FROM invoices i
-JOIN patients p ON i.patient_id = p.patient_id AND p.is_deleted = FALSE
-WHERE i.status IN ('Unpaid', 'Partial', 'Overdue') AND i.is_deleted = FALSE
-ORDER BY i.due_date ASC;
-
--- VW6: Doctor Schedule with Availability
-CREATE OR REPLACE VIEW vw_doctor_schedule AS
-SELECT 
-    d.doctor_id,
+    p.first_name AS patient_first_name,
+    p.last_name AS patient_last_name,
     CONCAT(s.first_name, ' ', s.last_name) AS doctor_name,
-    d.specialization,
-    da.day_of_week,
-    TIME_FORMAT(da.shift_start_time, '%H:%i') AS shift_start,
-    TIME_FORMAT(da.shift_end_time, '%H:%i') AS shift_end,
-    da.is_working,
-    fn_doctor_appointment_count(d.doctor_id, CURDATE()) AS appointments_today
-FROM doctors d
-JOIN staff s ON d.staff_id = s.staff_id
-JOIN doctor_availability da ON d.doctor_id = da.doctor_id
-ORDER BY d.doctor_id, FIELD(da.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday');
-
--- VW7: Prescription Pending Dispensing
-CREATE OR REPLACE VIEW vw_prescriptions_pending_dispensing AS
-SELECT 
-    p.prescription_id,
-    CONCAT(pat.first_name, ' ', pat.last_name) AS patient_name,
-    CONCAT(s.first_name, ' ', s.last_name) AS prescribed_by,
-    GROUP_CONCAT(CONCAT(i.item_name, ' (', pd.dosage, ' x ', pd.quantity, ')') SEPARATOR ', ') AS medications,
-    p.issue_date,
-    p.status
-FROM prescriptions p
-JOIN patients pat ON p.patient_id = pat.patient_id
-JOIN doctors d ON p.doctor_id = d.doctor_id
-JOIN staff s ON d.staff_id = s.staff_id
-JOIN prescription_details pd ON p.prescription_id = pd.prescription_id
-JOIN inventory_items i ON pd.item_id = i.item_id
-WHERE p.status = 'Pending' AND p.is_deleted = FALSE
-GROUP BY p.prescription_id;
-
--- VW8: Patient Medical Summary
-CREATE OR REPLACE VIEW vw_patient_medical_summary AS
-SELECT 
-    p.patient_id,
-    CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
-    p.mrn,
-    p.blood_type,
-    GROUP_CONCAT(DISTINCT mh.description SEPARATOR '; ') AS allergies_conditions,
-    COUNT(DISTINCT e.encounter_id) AS encounter_count,
-    MAX(e.admission_date) AS last_visit,
-    fn_days_since_last_encounter(p.patient_id) AS days_since_visit
-FROM patients p
-LEFT JOIN medical_history mh ON p.patient_id = mh.patient_id AND mh.condition_type = 'Allergy'
-LEFT JOIN encounters e ON p.patient_id = e.patient_id AND e.is_deleted = FALSE
-WHERE p.is_active = TRUE AND p.is_deleted = FALSE
-GROUP BY p.patient_id;
-
--- VW9: Billing Analytics
-CREATE OR REPLACE VIEW vw_billing_analytics AS
-SELECT 
-    DATE(i.invoice_date) AS billing_date,
-    COUNT(DISTINCT i.invoice_id) AS total_invoices,
-    SUM(i.total_amount) AS total_revenue,
-    SUM(i.amount_paid) AS amount_collected,
-    SUM(i.total_amount - i.amount_paid) AS outstanding,
-    ROUND(SUM(i.amount_paid) / NULLIF(SUM(i.total_amount), 0) * 100, 2) AS collection_rate
-FROM invoices i
-WHERE i.is_deleted = FALSE AND i.status != 'Cancelled'
-GROUP BY DATE(i.invoice_date);
-
--- VW10: SOAP Clinical Documentation Status
-CREATE OR REPLACE VIEW vw_soap_documentation_status AS
-SELECT 
-    e.encounter_id,
-    CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
-    CONCAT(s.first_name, ' ', s.last_name) AS doctor_name,
+    dep.department_name,
+    e.encounter_type,
     e.admission_date,
-    CASE WHEN sn.subjective_id IS NOT NULL THEN 'Y' ELSE 'N' END AS subjective_complete,
-    CASE WHEN ob.objective_id IS NOT NULL THEN 'Y' ELSE 'N' END AS objective_complete,
-    CASE WHEN a.assessment_id IS NOT NULL THEN 'Y' ELSE 'N' END AS assessment_complete,
-    CASE WHEN pl.plan_id IS NOT NULL THEN 'Y' ELSE 'N' END AS plan_complete,
-    CASE WHEN sn.subjective_id IS NOT NULL AND ob.objective_id IS NOT NULL 
-         AND a.assessment_id IS NOT NULL AND pl.plan_id IS NOT NULL THEN 'COMPLETE' ELSE 'INCOMPLETE' END AS soap_status
-FROM encounters e
+    e.chief_complaint,
+    e.status AS encounter_status,
+    v.temperature_c,
+    v.blood_pressure_systolic,
+    v.blood_pressure_diastolic,
+    v.heart_rate,
+    v.oxygen_saturation,
+    v.weight_kg,
+    v.height_cm,
+    v.ai_risk_score,
+    v.ai_risk_category,
+    v.ai_alerts,
+    v.recorded_at,
+    v.updated_at
+FROM vitals v
+JOIN encounters e ON v.encounter_id = e.encounter_id
+LEFT JOIN appointments a ON e.appointment_id = a.appointment_id
 JOIN patients p ON e.patient_id = p.patient_id
-JOIN doctors d ON e.doctor_id = d.doctor_id
-JOIN staff s ON d.staff_id = s.staff_id
-LEFT JOIN subjective_notes sn ON e.encounter_id = sn.encounter_id
-LEFT JOIN objective_notes ob ON e.encounter_id = ob.encounter_id
-LEFT JOIN assessment_notes a ON e.encounter_id = a.encounter_id
-LEFT JOIN plan_notes pl ON e.encounter_id = pl.encounter_id
-WHERE e.is_deleted = FALSE;
+LEFT JOIN doctors d ON e.doctor_id = d.doctor_id
+LEFT JOIN staff s ON d.staff_id = s.staff_id
+LEFT JOIN departments dep ON a.department_id = dep.department_id
+WHERE e.is_deleted = FALSE AND p.is_deleted = FALSE;
 
 -- ================================================================================
 -- DATABASE SUMMARY - COMPREHENSIVE ADBMS FEATURES FOR CS236
@@ -1481,7 +1361,7 @@ WHERE e.is_deleted = FALSE;
 -- TRIGGERS:         9 comprehensive data integrity triggers
 -- STORED PROCEDURES: 4 complex ACID transaction procedures
 -- FUNCTIONS:        6 reusable deterministic functions
--- VIEWS:            13 total (3 RLS + 5 soft-delete enforcement + 5 analytical)
+-- VIEWS:            14 total (3 RLS + 5 soft-delete enforcement + 6 analytical)
 -- NORMALIZATION:    Third Normal Form (3NF)
 -- SOFT DELETES:     Implemented with enforcement views
 -- USER TRACKING:    created_by/updated_by on all records

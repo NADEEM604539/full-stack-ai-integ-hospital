@@ -623,35 +623,40 @@ export async function getPatientVitals(patientId) {
       throw new Error('Patient not found or access denied');
     }
 
-    // Try to fetch vitals - if table doesn't exist, return empty array
+    // Try to fetch vitals from the patient-facing view - if it doesn't exist yet, return empty array
     let vitals = [];
     try {
       const [vitalData] = await connection.query(
         `SELECT 
-          v.vital_id,
-          v.encounter_id,
-          v.temperature_c,
-          v.blood_pressure_systolic,
-          v.blood_pressure_diastolic,
-          v.heart_rate,
-          v.oxygen_saturation,
-          v.weight_kg,
-          v.height_cm,
-          v.ai_risk_score,
-          v.recorded_at,
-          e.encounter_type,
-          e.admission_date,
-          e.chief_complaint,
-          CONCAT(s.first_name, ' ', s.last_name) as doctor_name
-         FROM vitals v
-         LEFT JOIN encounters e ON v.encounter_id = e.encounter_id
-         LEFT JOIN doctors doc ON e.doctor_id = doc.doctor_id
-         LEFT JOIN staff s ON doc.staff_id = s.staff_id
-         WHERE v.encounter_id IN (
-           SELECT encounter_id FROM encounters 
-           WHERE patient_id = ? AND is_deleted = FALSE
-         )
-         ORDER BY v.recorded_at DESC
+          vital_id,
+          encounter_id,
+          patient_id,
+          doctor_id,
+          mrn,
+          patient_name,
+          patient_first_name,
+          patient_last_name,
+          doctor_name,
+          department_name,
+          encounter_type,
+          admission_date,
+          chief_complaint,
+          encounter_status,
+          temperature_c,
+          blood_pressure_systolic,
+          blood_pressure_diastolic,
+          heart_rate,
+          oxygen_saturation,
+          weight_kg,
+          height_cm,
+          ai_risk_score,
+          ai_risk_category,
+          ai_alerts,
+          recorded_at,
+          updated_at
+         FROM view_vitals
+         WHERE patient_id = ?
+         ORDER BY recorded_at DESC
          LIMIT 50`,
         [patientId]
       );
@@ -836,6 +841,31 @@ export async function bookAppointment(patientId, appointmentData) {
 
     if (!doctorCheck.length) {
       throw new Error('Doctor not found or not in your department');
+    }
+
+    // Enforce doctor daily appointment cap (must be < 10 scheduled appointments)
+    const [[appointmentCountResult]] = await connection.query(
+      `SELECT fn_doctor_appointment_count(?, ?) as appointment_count`,
+      [appointmentData.doctor_id, appointmentData.appointment_date]
+    );
+
+    const appointmentCount = appointmentCountResult?.appointment_count || 0;
+    if (appointmentCount >= 10) {
+      throw new Error('Doctor has reached the daily booking limit (10 scheduled appointments)');
+    }
+
+    // Validate doctor availability for the requested slot
+    const [[availabilityResult]] = await connection.query(
+      `SELECT fn_is_doctor_available(?, ?, ?) as is_available`,
+      [
+        appointmentData.doctor_id,
+        appointmentData.appointment_date,
+        appointmentData.appointment_time,
+      ]
+    );
+
+    if (!availabilityResult?.is_available) {
+      throw new Error('Doctor is not available at the selected date/time');
     }
 
     // Use stored procedure for appointment booking with T1 trigger validation

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Calendar, Clock, User, FileText, Loader, AlertCircle, 
   CheckCircle, Plus, Edit, ArrowRight, ChevronRight, Save, X
@@ -8,6 +9,7 @@ import {
 import Link from 'next/link';
 
 export default function AppointmentDetailClient({ appointmentId }) {
+  const router = useRouter();
   const [appointment, setAppointment] = useState(null);
   const [encounter, setEncounter] = useState(null);
   const [soapStatus, setSoapStatus] = useState({
@@ -57,6 +59,7 @@ export default function AppointmentDetailClient({ appointmentId }) {
         assessment: false,
         plan: false,
       });
+      router.push(`/doctor/encounters/${data.encounter_id}`);
     } catch (err) {
       console.error('Error creating encounter:', err);
       alert(`Failed to create encounter: ${err.message}`);

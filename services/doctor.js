@@ -348,6 +348,17 @@ export async function createEncounterForAppointment(appointmentId, encounterType
       doctorId = doctorRows[0].doctor_id;
     }
 
+    // Check if encounter already exists for this appointment
+    const [existingEncounter] = await connection.query(
+      `SELECT encounter_id FROM encounters WHERE appointment_id = ? LIMIT 1`,
+      [appointmentId]
+    );
+
+    if (existingEncounter.length) {
+      // Encounter already exists, return existing encounter_id
+      return existingEncounter[0].encounter_id;
+    }
+
     let appointmentQuery = `
       SELECT a.patient_id, a.doctor_id, a.reason_for_visit
       FROM appointments a

@@ -19,14 +19,14 @@ export default function AdminLayout({ children }) {
       try {
         const response = await fetch('/api/auth/check-role');
         if (!response.ok) {
-          router.push('/');
+          router.push('/login');
           return;
         }
         const data = await response.json();
         
         // Check if user is ADMIN (role_id = 1)
         if (data.role_id !== 1) {
-          router.push('/');
+          router.push('/unauthorized');
           return;
         }
         
@@ -34,7 +34,7 @@ export default function AdminLayout({ children }) {
         setIsLoading(false);
       } catch (error) {
         console.error('Auth check failed:', error);
-        router.push('/');
+        router.push('/login');
       }
     };
 
@@ -125,6 +125,25 @@ export default function AdminLayout({ children }) {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}>
                 👥 Staff Members
+              </Link>
+            </li>
+            <li>
+              <Link href="/admin/users" style={{
+                display: 'block',
+                padding: '1rem 1.5rem',
+                color: '#FFFFFF',
+                textDecoration: 'none',
+                borderLeft: '4px solid transparent',
+                transition: 'all 0.3s ease',
+                fontSize: '0.95rem'
+              }} onMouseEnter={(e) => {
+                e.currentTarget.style.borderLeftColor = '#F59E0B';
+                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
+              }} onMouseLeave={(e) => {
+                e.currentTarget.style.borderLeftColor = 'transparent';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}>
+                👥 All Users
               </Link>
             </li>
             <li>
