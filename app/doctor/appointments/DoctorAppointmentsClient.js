@@ -150,6 +150,10 @@ export default function DoctorAppointmentsClient() {
               return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
             })();
 
+            const patientDeptMismatch = apt.appointment_department_id !== apt.patient_department_id;
+            const doctorDeptMismatch = apt.appointment_department_id !== apt.doctor_department_id;
+            const showMismatchWarning = patientDeptMismatch || doctorDeptMismatch;
+
             return (
               <div
                 key={apt.appointment_id}
@@ -191,22 +195,33 @@ export default function DoctorAppointmentsClient() {
                   )}
 
                   {/* Department Mismatch Warning */}
-                  {apt.appointment_department_id !== apt.doctor_department_id && (
+                  {showMismatchWarning && (
                     <div className="mb-3 p-3 rounded-lg bg-red-50 border-l-4 border-red-400">
                       <div className="flex items-start gap-2">
                         <div style={{ color: '#DC2626', marginTop: '2px' }}>⚠️</div>
                         <div className="flex-1">
                           <p className="text-xs font-bold" style={{ color: '#7F1D1D' }}>Department Mismatch</p>
                           <p className="text-xs mt-1" style={{ color: '#991B1B' }}>
-                            Appointment is in <strong>{apt.appointment_department_name}</strong> but you are in <strong>{apt.department_name}</strong>
+                            Appointment is in <strong>{apt.appointment_department_name}</strong>
+                            {patientDeptMismatch && doctorDeptMismatch && (
+                              <> but patient is in <strong>{apt.patient_department_name}</strong> and you are in <strong>{apt.department_name}</strong>.</>
+                            )}
+                            {patientDeptMismatch && !doctorDeptMismatch && (
+                              <> but patient is in <strong>{apt.patient_department_name}</strong>.</>
+                            )}
+                            {!patientDeptMismatch && doctorDeptMismatch && (
+                              <> but you are in <strong>{apt.department_name}</strong>.</>
+                            )}
                           </p>
-                          <button
-                            onClick={() => handleMoveToMyDepartment(apt.appointment_id)}
-                            disabled={movingDept === apt.appointment_id}
-                            className="mt-2 text-xs font-bold px-3 py-1.5 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition"
-                          >
-                            {movingDept === apt.appointment_id ? 'Moving...' : 'Move to My Department'}
-                          </button>
+                          {doctorDeptMismatch && (
+                            <button
+                              onClick={() => handleMoveToMyDepartment(apt.appointment_id)}
+                              disabled={movingDept === apt.appointment_id}
+                              className="mt-2 text-xs font-bold px-3 py-1.5 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition"
+                            >
+                              {movingDept === apt.appointment_id ? 'Moving...' : 'Move to My Department'}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

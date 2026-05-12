@@ -15,7 +15,6 @@ COLLATE utf8mb4_unicode_ci;
 USE medsyncdb;
 
 SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO';
-A
 -- ================================================================================
 -- SECTION 1: AUTHORIZATION & RBAC TABLES
 -- ================================================================================
@@ -1018,6 +1017,7 @@ CREATE PROCEDURE sp_book_appointment(
     OUT p_message VARCHAR(255)
 )
 BEGIN
+    DECLARE v_department_id INT;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -1026,11 +1026,21 @@ BEGIN
     END;
     
     START TRANSACTION;
+
+    SELECT s.department_id INTO v_department_id
+    FROM doctors d
+    JOIN staff s ON d.staff_id = s.staff_id
+    WHERE d.doctor_id = p_doctor_id
+    LIMIT 1;
+
+    IF v_department_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: Doctor department not found';
+    END IF;
     
     -- Trigger handles all validation (availability + conflicts)
     INSERT INTO appointments 
-    (patient_id, doctor_id, appointment_date, appointment_time, reason_for_visit, status, created_by)
-    VALUES (p_patient_id, p_doctor_id, p_date, p_time, p_reason, 'Scheduled', p_created_by);
+    (patient_id, doctor_id, department_id, appointment_date, appointment_time, reason_for_visit, status, created_by)
+    VALUES (p_patient_id, p_doctor_id, v_department_id, p_date, p_time, p_reason, 'Scheduled', p_created_by);
     
     SET p_appointment_id = LAST_INSERT_ID();
     COMMIT;

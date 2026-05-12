@@ -87,6 +87,8 @@ export async function GET(request, { params }) {
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
         p.mrn,
+        p.department_id as patient_department_id,
+        patient_dept.department_name as patient_department_name,
         d.doctor_id,
         s.first_name as doctor_first_name,
         s.last_name as doctor_last_name,
@@ -100,6 +102,7 @@ export async function GET(request, { params }) {
       JOIN patients p ON a.patient_id = p.patient_id
       JOIN departments dept ON s.department_id = dept.department_id
       LEFT JOIN departments apt_dept ON a.department_id = apt_dept.department_id
+      LEFT JOIN departments patient_dept ON p.department_id = patient_dept.department_id
       WHERE a.appointment_id = ?
     `;
 

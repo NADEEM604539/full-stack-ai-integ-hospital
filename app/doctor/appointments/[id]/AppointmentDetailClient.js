@@ -217,6 +217,10 @@ export default function AppointmentDetailClient({ appointmentId }) {
     return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
   })();
 
+  const patientDeptMismatch = appointment.appointment_department_id !== appointment.patient_department_id;
+  const doctorDeptMismatch = appointment.appointment_department_id !== appointment.doctor_department_id;
+  const showMismatchWarning = patientDeptMismatch || doctorDeptMismatch;
+
   return (
     <div style={{ backgroundColor: '#F9FAFB', minHeight: '100vh' }} className="p-8">
       {/* Header with Back Button */}
@@ -340,33 +344,44 @@ export default function AppointmentDetailClient({ appointmentId }) {
             </div>
 
             {/* Department Mismatch Warning */}
-            {appointment.appointment_department_id !== appointment.doctor_department_id && (
+            {showMismatchWarning && (
               <div className="mb-6 p-4 rounded-lg bg-red-50 border-l-4 border-red-400">
                 <div className="flex items-start gap-3">
                   <div style={{ color: '#DC2626', marginTop: '2px' }}>⚠️</div>
                   <div className="flex-1">
                     <p className="text-sm font-bold" style={{ color: '#7F1D1D' }}>Department Mismatch</p>
                     <p className="text-sm mt-2" style={{ color: '#991B1B' }}>
-                      This appointment is in <strong>{appointment.appointment_department_name}</strong> but you are assigned to <strong>{appointment.doctor_department_name}</strong> department.
-                    </p>
-                    <button
-                      onClick={handleMoveToMyDepartment}
-                      disabled={movingDept}
-                      className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
-                      style={{
-                        backgroundColor: '#DC2626',
-                        opacity: movingDept ? 0.6 : 1,
-                      }}
-                    >
-                      {movingDept ? (
-                        <span className="flex items-center gap-2">
-                          <Loader size={14} className="animate-spin" />
-                          Moving...
-                        </span>
-                      ) : (
-                        'Move to My Department'
+                      This appointment is in <strong>{appointment.appointment_department_name}</strong>
+                      {patientDeptMismatch && doctorDeptMismatch && (
+                        <> but patient is in <strong>{appointment.patient_department_name}</strong> and you are assigned to <strong>{appointment.doctor_department_name}</strong>.</>
                       )}
-                    </button>
+                      {patientDeptMismatch && !doctorDeptMismatch && (
+                        <> but patient is in <strong>{appointment.patient_department_name}</strong>.</>
+                      )}
+                      {!patientDeptMismatch && doctorDeptMismatch && (
+                        <> but you are assigned to <strong>{appointment.doctor_department_name}</strong>.</>
+                      )}
+                    </p>
+                    {doctorDeptMismatch && (
+                      <button
+                        onClick={handleMoveToMyDepartment}
+                        disabled={movingDept}
+                        className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
+                        style={{
+                          backgroundColor: '#DC2626',
+                          opacity: movingDept ? 0.6 : 1,
+                        }}
+                      >
+                        {movingDept ? (
+                          <span className="flex items-center gap-2">
+                            <Loader size={14} className="animate-spin" />
+                            Moving...
+                          </span>
+                        ) : (
+                          'Move to My Department'
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

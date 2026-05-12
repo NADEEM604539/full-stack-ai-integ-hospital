@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Calendar, Clock, User, MapPin, AlertCircle, CheckCircle as Check, ChevronLeft, Stethoscope, Phone, Plus, Star, Edit2 } from 'lucide-react';
 import PatientAppointmentBookingClient from './PatientAppointmentBookingClient';
 
+export const dynamic = 'force-dynamic';
+
 const AppointmentsPage = () => {
   const { patientId } = useParams();
   const router = useRouter();
@@ -179,26 +181,26 @@ const AppointmentsPage = () => {
           background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
         }}
       >
-          <div className="max-w-7xl mx-auto px-6 py-10">
+          <div className="px-4 lg:px-8 py-6 lg:py-10">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-emerald-100 hover:text-white transition mb-6 font-semibold"
+              className="flex items-center gap-2 text-emerald-100 hover:text-white transition mb-4 font-semibold text-sm lg:text-base"
             >
               <ChevronLeft size={20} />
               Back
             </button>
-            <div className="flex justify-between items-start">
+            <div className="flex flex-col lg:flex-row justify-between items-start gap-4 lg:gap-0 lg:items-center">
               <div>
-                <h1 className="text-5xl font-bold text-white mb-2">
+                <h1 className="text-2xl lg:text-5xl font-bold text-white mb-1 lg:mb-2">
                   Your Appointments
                 </h1>
-                <p className="text-emerald-100 text-lg">
+                <p className="text-emerald-100 text-sm lg:text-lg">
                   View and manage your scheduled medical visits
                 </p>
               </div>
               <button
                 onClick={() => setShowBookingModal(true)}
-                className="flex items-center gap-2 text-white px-6 py-3 rounded-full font-semibold transition hover:bg-emerald-700 hover:shadow-lg bg-emerald-600"
+                className="flex items-center gap-2 text-white px-4 lg:px-6 py-2 lg:py-3 rounded-full font-semibold transition hover:bg-emerald-700 hover:shadow-lg bg-emerald-600 text-sm lg:text-base w-full lg:w-auto justify-center"
               >
                 <Plus size={20} />
                 Book Appointment
@@ -208,7 +210,8 @@ const AppointmentsPage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-5xl mx-auto px-6 py-12">
+        <div className="px-4 lg:px-8 py-6 lg:py-12">
+          <div className="max-w-4xl mx-auto">
           {/* Error Message */}
           {error && (
             <div
@@ -593,7 +596,8 @@ const AppointmentsPage = () => {
           />
         )}
       </div>
-    );
+    </div>
+  );
 }
 
 export default AppointmentsPage;

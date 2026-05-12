@@ -200,13 +200,17 @@ export async function getPatientAppointments(patientId) {
         CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
         a.department_id as appointment_department_id,
         apt_dept.department_name as appointment_department_name,
+        p.department_id as patient_department_id,
+        patient_dept.department_name as patient_department_name,
         s.department_id as doctor_department_id,
         doc_dept.department_name as doctor_department_name
        FROM appointments a
        JOIN doctors d ON a.doctor_id = d.doctor_id
        JOIN staff s ON d.staff_id = s.staff_id
+       JOIN patients p ON a.patient_id = p.patient_id
        JOIN departments apt_dept ON a.department_id = apt_dept.department_id
        JOIN departments doc_dept ON s.department_id = doc_dept.department_id
+       LEFT JOIN departments patient_dept ON p.department_id = patient_dept.department_id
        WHERE a.patient_id = ? AND a.is_deleted = FALSE
        ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
       [patientId]
