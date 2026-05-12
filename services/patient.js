@@ -197,7 +197,7 @@ export async function getPatientAppointments(patientId) {
         a.satisfaction_rating,
         a.created_at,
         d.doctor_id,
-        CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
+        CONCAT(COALESCE(s.first_name, ''), ' ', COALESCE(s.last_name, '')) as doctor_name,
         a.department_id as appointment_department_id,
         apt_dept.department_name as appointment_department_name,
         p.department_id as patient_department_id,
@@ -207,15 +207,20 @@ export async function getPatientAppointments(patientId) {
        FROM appointments a
        JOIN doctors d ON a.doctor_id = d.doctor_id
        JOIN staff s ON d.staff_id = s.staff_id
+<<<<<<< HEAD
        JOIN patients p ON a.patient_id = p.patient_id
        JOIN departments apt_dept ON a.department_id = apt_dept.department_id
        JOIN departments doc_dept ON s.department_id = doc_dept.department_id
        LEFT JOIN departments patient_dept ON p.department_id = patient_dept.department_id
+=======
+       LEFT JOIN departments apt_dept ON a.department_id = apt_dept.department_id
+       LEFT JOIN departments doc_dept ON s.department_id = doc_dept.department_id
+>>>>>>> 29ec2d7c25d2a657016388f58eeaedaf82623935
        WHERE a.patient_id = ? AND a.is_deleted = FALSE
        ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
       [patientId]
     );
-
+    console.log(appointments);
     return appointments;
   } catch (error) {
     console.error('Error fetching patient appointments:', error.message);
@@ -866,6 +871,7 @@ export async function bookAppointment(patientId, appointmentData) {
         a.appointment_id,
         a.appointment_date,
         a.appointment_time,
+        s.department_id,
         a.status,
         a.reason_for_visit,
         CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
@@ -878,6 +884,7 @@ export async function bookAppointment(patientId, appointmentData) {
        WHERE a.appointment_id = ?`,
       [result.appointment_id]
     );
+    console.log(appointment)
 
     return appointment[0] || { success: true, appointment_id: result.appointment_id };
   } catch (error) {

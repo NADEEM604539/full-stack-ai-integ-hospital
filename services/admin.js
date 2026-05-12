@@ -1016,7 +1016,7 @@ export async function recreateStaffWithRoleChange(oldStaffId, email, firstName, 
         );
         
         const doctorId = doctorResult.insertId;
-        const departmentId = parseInt(departmentId);
+        const deptIdForSchedule = parseInt(departmentId);
 
         // Create default availability schedule for the new doctor (all 7 days)
         const days = [
@@ -1033,7 +1033,7 @@ export async function recreateStaffWithRoleChange(oldStaffId, email, firstName, 
           await connection.query(
             `INSERT INTO doctor_availability (doctor_id, department_id, day_of_week, shift_start_time, shift_end_time, is_working, created_at)
              VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-            [doctorId, departmentId, day.day, day.start, day.end, day.working]
+            [doctorId, deptIdForSchedule, day.day, day.start, day.end, day.working]
           );
         }
       }
@@ -1150,7 +1150,6 @@ export async function createStaff(email, firstName, lastName, employeeId, design
           );
           
           const doctorId = doctorResult.insertId;
-          const departmentId = deptId;
 
           // Create default availability schedule for the new doctor (all 7 days)
           const days = [
@@ -1167,7 +1166,7 @@ export async function createStaff(email, firstName, lastName, employeeId, design
             await connection.query(
               `INSERT INTO doctor_availability (doctor_id, department_id, day_of_week, shift_start_time, shift_end_time, is_working, created_at)
                VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-              [doctorId, departmentId, day.day, day.start, day.end, day.working]
+              [doctorId, deptId, day.day, day.start, day.end, day.working]
             );
           }
         }

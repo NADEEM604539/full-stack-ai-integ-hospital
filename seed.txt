@@ -39,6 +39,8 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 -- ADMIN USERS (2 admins - NO staff records)
 (1, 'admin', 'programmingworlld360@gmail.com', 'Admin User', 1, TRUE),
 (2, 'clerk_admin_002', 'nadeem.admin@hospital.com', 'Nadeem Admin', 1, TRUE),
+(3, 'abdul', 'hadimalikm3@gmail.com', 'abdul', 1, TRUE),
+
 
 -- DOCTOR USERS (6 doctors - Will have staff records with department_id)
 (10, 'nadeem doc', 'ullahasmut310@gmail.com', 'Dr. Ahmed Hassan', 2, TRUE),
@@ -82,7 +84,9 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (112, 'clerk_patient_013', 'hina.khan@email.com', 'Hina Khan', 7, TRUE),
 (113, 'clerk_patient_014', 'usman.ahmed@email.com', 'Usman Ahmed', 7, TRUE),
 (114, 'clerk_patient_015', 'nida.malik@email.com', 'Nida Malik', 7, TRUE),
-(115, 'clerk_patient_016', 'karim.hassan@email.com', 'Karim Hassan', 7, TRUE);
+(115, 'clerk_patient_016', 'karim.hassan@email.com', 'Karim Hassan', 7, TRUE),
+(116, 'clerk_patient_017', 'ab.hadi8.ah@gmail.com', 'Abdul Hadi', 7, TRUE);
+
 
 -- ==========================================
 -- 4. STAFF (Staff with department_id FK)
