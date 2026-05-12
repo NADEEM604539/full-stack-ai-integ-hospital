@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request, { params }) {
   try {
-    const { patientId } = await params;
+    const { patientId } = params;
 
     if (!patientId) {
       return NextResponse.json(
@@ -60,9 +60,9 @@ export async function GET(request, { params }) {
  *   status: "Active" | "Resolved" | "Archived" (optional, defaults to "Active")
  * }
  */
-export async function POST(request, { params }) {
+export async function POST(request, context) {
   try {
-    const { patientId } = await params;
+    const { patientId } = context.params;
 
     if (!patientId) {
       return NextResponse.json(

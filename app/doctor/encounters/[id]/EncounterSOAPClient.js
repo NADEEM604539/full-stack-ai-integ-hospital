@@ -1408,19 +1408,6 @@ export default function EncounterSOAPClient({ encounterId }) {
               </div>
             )}
 
-            {/* Delete Button - Always Visible */}
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="w-full mt-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
-              style={{
-                backgroundColor: '#FEE2E2',
-                color: '#DC2626',
-                border: '1px solid #FCA5A5',
-              }}
-              disabled={isEditingEncounter}
-            >
-              🗑️ Delete Encounter
-            </button>
           </div>
         </div>
       </div>

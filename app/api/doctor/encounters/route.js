@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
-import { getDoctorEncounters } from '@/services/doctor';
-import { getUserId } from '@/services/auth';
+import { getDoctorEncounters, createEncounterForAppointment } from '@/services/doctor';
 
 export const dynamic = 'force-dynamic';
 
@@ -174,87 +172,12 @@ export async function POST(request) {
       );
     }
 
-    let connection;
-    try {
-      connection = await db.getConnection();
-    } catch (dbError) {
-      throw new Error(`Database connection failed: ${dbError?.message || String(dbError)}`);
-    }
-
-    // Get current user
-    let userId;
-    try {
-      userId = await getUserId();
-    } catch (authError) {
-      throw new Error(`Authentication failed: ${authError?.message || String(authError)}`);
-    }
-
-    // Get user role and doctor_id
-    const [userRows] = await connection.query(
-      `SELECT role_id FROM users WHERE user_id = ?`,
-      [userId]
-    );
-
-    if (!userRows.length) {
-      throw new Error(`User ${userId} not found in database`);
-    }
-
-    const roleId = userRows[0].role_id;
-
-    if (roleId !== 2 && roleId !== 1) {
-      throw new Error(`Access Denied: Required role DOCTOR (2) or ADMIN (1), got ${roleId}`);
-    }
-
-    let doctorId = null;
-    if (roleId === 2) {
-      const [doctorRows] = await connection.query(
-        `SELECT d.doctor_id 
-         FROM doctors d
-         JOIN staff s ON d.staff_id = s.staff_id
-         WHERE s.user_id = ?`,
-        [userId]
-      );
-
-      if (!doctorRows.length) {
-        throw new Error(`Doctor profile not found for user ${userId}`);
-      }
-      doctorId = doctorRows[0].doctor_id;
-    }
-
-    // Fetch appointment to get patient_id and verify access
-    let aptQuery = `
-      SELECT a.patient_id, a.doctor_id, a.reason_for_visit
-      FROM appointments a
-      WHERE a.appointment_id = ?
-    `;
-
-    if (roleId === 2) {
-      aptQuery += ` AND a.doctor_id = ?`;
-    }
-
-    const apt_params = roleId === 2 ? [appointmentId, doctorId] : [appointmentId];
-    const [appointments] = await connection.query(aptQuery, apt_params);
-
-    if (!appointments.length) {
-      throw new Error('Appointment not found or access denied');
-    }
-
-    const { patient_id, doctor_id: apt_doctor_id, reason_for_visit } = appointments[0];
-
-    // Create encounter
-    const [result] = await connection.query(
-      `INSERT INTO encounters 
-       (patient_id, doctor_id, appointment_id, encounter_type, admission_date, chief_complaint, status, created_by)
-       VALUES (?, ?, ?, ?, NOW(), ?, 'Active', ?)`,
-      [patient_id, apt_doctor_id, appointmentId, encounterType, reason_for_visit || null, userId]
-    );
-
-    connection.release();
+    const encounterId = await createEncounterForAppointment(appointmentId, encounterType);
 
     return NextResponse.json(
       {
         success: true,
-        encounter_id: result.insertId,
+        encounter_id: encounterId,
         message: 'Encounter created successfully',
       },
       { status: 201 }

@@ -18,18 +18,32 @@ export default function DoctorMedicalHistorySection({ patientId }) {
   });
 
   useEffect(() => {
-    fetchMedicalHistory();
+    if (patientId) {
+      fetchMedicalHistory();
+    } else {
+      setLoading(false);
+      setError('Patient ID is required');
+    }
   }, [patientId]);
 
   const fetchMedicalHistory = async () => {
     try {
+      if (!patientId) {
+        throw new Error('Patient ID is required');
+      }
+
       setLoading(true);
       setError(null);
       const response = await fetch(`/api/doctor/patients/${patientId}/medical-history`);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch medical history');
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch medical history');
+        }
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch medical history: ${errorText}`);
       }
 
       const data = await response.json();

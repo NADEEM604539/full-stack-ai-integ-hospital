@@ -305,6 +305,97 @@ export async function getDoctorEncounters() {
 }
 
 /**
+ * Create a new encounter for a doctor's appointment using SP4: sp_admit_patient
+ * Doctor can start an encounter for their own appointment. Admin can start an encounter for any appointment.
+ */
+export async function createEncounterForAppointment(appointmentId, encounterType = 'Outpatient') {
+  let connection;
+  try {
+    connection = await db.getConnection();
+
+    const userId = await getUserId();
+    if (!userId) {
+      throw new Error('Authentication failed: No user ID');
+    }
+
+    const [userRows] = await connection.query(
+      `SELECT role_id FROM users WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (!userRows.length) {
+      throw new Error(`User ${userId} not found`);
+    }
+
+    const roleId = userRows[0].role_id;
+    if (roleId !== 2 && roleId !== 1) {
+      throw new Error(`Access Denied: Required role DOCTOR (2) or ADMIN (1), got ${roleId}`);
+    }
+
+    let doctorId = null;
+    if (roleId === 2) {
+      const [doctorRows] = await connection.query(
+        `SELECT d.doctor_id 
+         FROM doctors d
+         JOIN staff s ON d.staff_id = s.staff_id
+         WHERE s.user_id = ?`,
+        [userId]
+      );
+
+      if (!doctorRows.length) {
+        throw new Error(`Doctor profile not found for user ${userId}`);
+      }
+      doctorId = doctorRows[0].doctor_id;
+    }
+
+    let appointmentQuery = `
+      SELECT a.patient_id, a.doctor_id, a.reason_for_visit
+      FROM appointments a
+      WHERE a.appointment_id = ?
+    `;
+    const aptParams = [appointmentId];
+
+    if (roleId === 2) {
+      appointmentQuery += ` AND a.doctor_id = ?`;
+      aptParams.push(doctorId);
+    }
+
+    const [appointments] = await connection.query(appointmentQuery, aptParams);
+    if (!appointments.length) {
+      throw new Error('Appointment not found or access denied');
+    }
+
+    const { patient_id, doctor_id: appointmentDoctorId, reason_for_visit } = appointments[0];
+    const spDoctorId = appointmentDoctorId ?? doctorId;
+
+    await connection.query(
+      `CALL sp_admit_patient(?, ?, ?, ?, ?, @enc_id, @msg)`,
+      [patient_id, spDoctorId, encounterType, reason_for_visit || null, userId]
+    );
+
+    const [[result]] = await connection.query(
+      `SELECT @enc_id as encounter_id, @msg as message`
+    );
+
+    if (!result || result.message?.includes('ERROR') || !result.encounter_id) {
+      throw new Error(result?.message || 'Failed to admit patient');
+    }
+
+    await connection.query(
+      `UPDATE encounters SET appointment_id = ? WHERE encounter_id = ?`,
+      [appointmentId, result.encounter_id]
+    );
+
+    return result.encounter_id;
+  } catch (error) {
+    console.error('Error creating encounter for appointment:', error?.message || error);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+/**
  * Get doctor's own schedule
  */
 export async function getDoctorSchedule() {

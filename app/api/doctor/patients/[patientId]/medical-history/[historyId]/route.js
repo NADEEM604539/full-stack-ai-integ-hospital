@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function PUT(request, { params }) {
   try {
-    const { patientId, historyId } = await params;
+    const { patientId, historyId } = params;
 
     if (!patientId || !historyId) {
       return NextResponse.json(
@@ -72,7 +72,7 @@ export async function PUT(request, { params }) {
  */
 export async function DELETE(request, { params }) {
   try {
-    const { patientId, historyId } = await params;
+    const { patientId, historyId } = params;
 
     if (!patientId || !historyId) {
       return NextResponse.json(
