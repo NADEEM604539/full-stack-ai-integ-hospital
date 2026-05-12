@@ -207,15 +207,10 @@ export async function getPatientAppointments(patientId) {
        FROM appointments a
        JOIN doctors d ON a.doctor_id = d.doctor_id
        JOIN staff s ON d.staff_id = s.staff_id
-<<<<<<< HEAD
        JOIN patients p ON a.patient_id = p.patient_id
        JOIN departments apt_dept ON a.department_id = apt_dept.department_id
        JOIN departments doc_dept ON s.department_id = doc_dept.department_id
        LEFT JOIN departments patient_dept ON p.department_id = patient_dept.department_id
-=======
-       LEFT JOIN departments apt_dept ON a.department_id = apt_dept.department_id
-       LEFT JOIN departments doc_dept ON s.department_id = doc_dept.department_id
->>>>>>> 29ec2d7c25d2a657016388f58eeaedaf82623935
        WHERE a.patient_id = ? AND a.is_deleted = FALSE
        ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
       [patientId]
