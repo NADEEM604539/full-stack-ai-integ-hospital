@@ -62,15 +62,15 @@ export async function GET(request, { params }) {
  * 
  * Request Body (optional fields):
  * {
- *   firstName, lastName, phone, email, address, city, state, 
- *   postalCode, country, bloodType, emergencyContactName,
- *   emergencyContactPhone, medicalHistory, allergies, currentMedications
+ *   firstName, lastName, phoneNumber, email, address, city, 
+ *   emergencyContact, emergencyPhone, bloodType
  * }
  * 
  * Features:
- * ✓ Selective field updates
+ * ✓ Selective field updates via stored procedure
  * ✓ User isolation verification
  * ✓ Automatic timestamp update
+ * ✓ NULL-safe parameter handling
  */
 export async function PUT(request, { params }) {
   try {
@@ -85,21 +85,28 @@ export async function PUT(request, { params }) {
 
     const body = await request.json();
 
+    console.log(`[PUT /api/patient/${patientId}/profile] Request body:`, body);
+
     const result = await updatePatientProfile(parseInt(patientId), body);
+
+    console.log(`[PUT /api/patient/${patientId}/profile] Update successful`);
 
     return NextResponse.json({
       success: true,
-      message: 'Patient profile updated successfully',
-      data: result,
+      message: result.message || 'Patient profile updated successfully',
+      data: result.data || result,
     });
   } catch (error) {
-    console.error('Update Patient Profile API Error:', error?.message);
+    console.error(`[PUT /api/patient/${params.patientId}/profile] Error:`, {
+      message: error?.message,
+      stack: error?.stack?.split('\n').slice(0, 3).join('\n'),
+    });
     
     const statusCode =
       error?.message?.includes('Authentication failed') ? 401 :
       error?.message?.includes('Access Denied') ? 403 :
       error?.message?.includes('not found') ? 404 :
-      error?.message?.includes('No valid fields') ? 400 :
+      error?.message?.includes('Failed to update') ? 500 :
       500;
 
     return NextResponse.json(

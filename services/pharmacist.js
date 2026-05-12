@@ -250,6 +250,31 @@ export async function approveMedicineOrder(orderId) {
       throw new Error('Access Denied: Order belongs to a different department');
     }
 
+    // Get all items in the order before approval
+    const [orderItems] = await connection.query(`
+      SELECT omi.item_id, omi.medicine_id, omi.medicine_name, omi.quantity, ii.item_id as inventory_item_id
+      FROM order_medicine_items omi
+      LEFT JOIN inventory_items ii ON omi.medicine_id = ii.item_id
+      WHERE omi.order_id = ?
+    `, [orderId]);
+
+    if (!orderItems || orderItems.length === 0) {
+      throw new Error('No items found in this medicine order');
+    }
+
+    // Check stock availability for each item
+    for (const item of orderItems) {
+      const stockAvailable = await checkMedicationStock(item.medicine_id, item.quantity);
+      if (!stockAvailable) {
+        throw new Error(
+          `Insufficient stock for medication "${item.medicine_name}". ` +
+          `Required: ${item.quantity} units. Please check inventory and restock if needed.`
+        );
+      }
+    }
+
+    console.log(`[approveMedicineOrder] Stock validation passed for all ${orderItems.length} items in order ${orderId}`);
+
     // Update order status to Accepted
     await connection.query(
       `UPDATE order_medicine 

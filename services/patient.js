@@ -127,29 +127,32 @@ export async function getPatientProfile(patientId) {
     connection = await db.getConnection();
     console.log(`getPatientProfile() - Database connected`);
 
-    // Single efficient query with access verification and department info
+    // Use view_patient_profile for comprehensive patient data
     const query = `SELECT 
-      p.patient_id,
-      p.user_id,
-      p.mrn,
-      p.first_name,
-      p.last_name,
-      p.date_of_birth,
-      fn_calculate_age(p.date_of_birth) as age,
-      p.gender,
-      p.blood_type,
-      p.phone_number,
-      p.email,
-      p.address,
-      p.city,
-      p.emergency_contact,
-      p.emergency_phone,
-      p.department_id,
-      d.department_name,
-      p.created_at
-     FROM patients_active p
-     LEFT JOIN departments d ON p.department_id = d.department_id
-     WHERE p.patient_id = ? AND p.user_id = ?`;
+      patient_id,
+      user_id,
+      mrn,
+      first_name,
+      last_name,
+      date_of_birth,
+      age,
+      gender,
+      blood_type,
+      phone_number,
+      email,
+      address,
+      city,
+      emergency_contact,
+      emergency_phone,
+      department_id,
+      department_name,
+      created_at,
+      updated_at,
+      patient_full_name,
+      days_member,
+      member_year
+     FROM view_patient_profile
+     WHERE patient_id = ? AND user_id = ?`;
     
     console.log(`getPatientProfile() - Executing query for patientId: ${patientId}, userId: ${authUserId}`);
     const [patients] = await connection.query(query, [patientId, authUserId]);
@@ -167,102 +170,6 @@ export async function getPatientProfile(patientId) {
       patientId,
       authUserId,
     });
-    throw error;
-  } finally {
-    if (connection) connection.release();
-  }
-}
-
-/**
- * Get all appointments for a patient
- * RBAC: User can only access appointments for their owned patients
- * @param {number} patientId - The patient whose appointments to fetch
- * @returns {Promise<Array>} List of appointments
- */
-export async function getPatientAppointments(patientId) {
-  let connection;
-  try {
-    connection = await db.getConnection();
-    const { userId } = await verifyPatientAccess(patientId, connection);
-
-    const [appointments] = await connection.query(
-      `SELECT 
-        a.appointment_id,
-        a.appointment_date,
-        a.appointment_time,
-        a.duration_minutes,
-        a.status,
-        a.reason_for_visit,
-        a.notes,
-        a.satisfaction_rating,
-        a.created_at,
-        d.doctor_id,
-        CONCAT(COALESCE(s.first_name, ''), ' ', COALESCE(s.last_name, '')) as doctor_name,
-        a.department_id as appointment_department_id,
-        apt_dept.department_name as appointment_department_name,
-        p.department_id as patient_department_id,
-        patient_dept.department_name as patient_department_name,
-        s.department_id as doctor_department_id,
-        doc_dept.department_name as doctor_department_name
-       FROM appointments a
-       JOIN doctors d ON a.doctor_id = d.doctor_id
-       JOIN staff s ON d.staff_id = s.staff_id
-       JOIN patients p ON a.patient_id = p.patient_id
-       JOIN departments apt_dept ON a.department_id = apt_dept.department_id
-       JOIN departments doc_dept ON s.department_id = doc_dept.department_id
-       LEFT JOIN departments patient_dept ON p.department_id = patient_dept.department_id
-       WHERE a.patient_id = ? AND a.is_deleted = FALSE
-       ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
-      [patientId]
-    );
-    console.log(appointments);
-    return appointments;
-  } catch (error) {
-    console.error('Error fetching patient appointments:', error.message);
-    throw error;
-  } finally {
-    if (connection) connection.release();
-  }
-}
-
-/**
- * Get all encounters (visits) for a patient
- * RBAC: User can only access encounters for their owned patients
- * @param {number} patientId - The patient whose encounters to fetch
- * @returns {Promise<Array>} List of encounters with clinical data
- */
-export async function getPatientEncounters(patientId) {
-  let connection;
-  try {
-    connection = await db.getConnection();
-    const { userId } = await verifyPatientAccess(patientId, connection);
-
-    const [encounters] = await connection.query(
-      `SELECT 
-        e.encounter_id,
-        e.appointment_id,
-        e.admission_date,
-        e.discharge_date,
-        e.encounter_type,
-        e.chief_complaint,
-        e.status,
-        e.created_at,
-        doc.doctor_id,
-        CONCAT(s.first_name, ' ', s.last_name) as doctor_name,
-        doc.specialization,
-        dept.department_name
-       FROM encounters e
-       LEFT JOIN doctors doc ON e.doctor_id = doc.doctor_id
-       LEFT JOIN staff s ON doc.staff_id = s.staff_id
-       LEFT JOIN departments dept ON s.department_id = dept.department_id
-       WHERE e.patient_id = ? AND e.is_deleted = FALSE
-       ORDER BY e.admission_date DESC`,
-      [patientId]
-    );
-
-    return encounters;
-  } catch (error) {
-    console.error('Error fetching patient encounters:', error.message);
     throw error;
   } finally {
     if (connection) connection.release();
@@ -1390,67 +1297,6 @@ export async function getDaysSinceLastEncounter(patientId) {
     return result.days_since_encounter;
   } catch (error) {
     console.error('Error calculating days since last encounter:', error.message);
-    throw error;
-  } finally {
-    if (connection) connection.release();
-  }
-}
-
-/**
- * Get comprehensive patient summary with functions
- * Uses: fn_calculate_age, fn_patient_balance, fn_days_since_last_encounter
- * @param {number} patientId - Patient ID
- * @returns {Promise<Object>} Comprehensive patient summary
- */
-export async function getComprehensivePatientSummary(patientId) {
-  const { userId } = await checkPatientAccess();
-
-  let connection;
-  try {
-    connection = await db.getConnection();
-
-    // Verify patient ownership
-    const [patients] = await connection.query(
-      `SELECT patient_id FROM patients 
-       WHERE patient_id = ? AND user_id = ? AND is_deleted = FALSE`,
-      [patientId, userId]
-    );
-
-    if (!patients.length) {
-      throw new Error('Patient not found or access denied');
-    }
-
-    // Get comprehensive summary with all functions
-    const [summary] = await connection.query(`
-      SELECT 
-        p.patient_id,
-        p.mrn,
-        CONCAT(p.first_name, ' ', p.last_name) AS full_name,
-        fn_calculate_age(p.date_of_birth) AS age,
-        p.blood_type,
-        p.phone_number,
-        p.email,
-        p.address,
-        p.city,
-        fn_patient_balance(p.patient_id) AS outstanding_balance,
-        fn_days_since_last_encounter(p.patient_id) AS days_since_last_visit,
-        COUNT(DISTINCT e.encounter_id) AS total_encounters,
-        MAX(e.admission_date) AS last_visit_date,
-        p.ai_readmission_risk,
-        p.is_active
-      FROM patients p
-      LEFT JOIN encounters e ON p.patient_id = e.patient_id AND e.is_deleted = FALSE
-      WHERE p.patient_id = ?
-      GROUP BY p.patient_id
-    `, [patientId]);
-
-    if (!summary.length) {
-      throw new Error('Patient summary not found');
-    }
-
-    return summary[0];
-  } catch (error) {
-    console.error('Error fetching comprehensive patient summary:', error.message);
     throw error;
   } finally {
     if (connection) connection.release();

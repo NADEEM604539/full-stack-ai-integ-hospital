@@ -615,73 +615,6 @@ CREATE TABLE ai_logs (
     INDEX idx_ip_address (ip_address)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='AI decision audit trail with forensic tracking + governance approval';
 
--- ================================================================================
--- SECTION 7B: ROW-LEVEL SECURITY VIEWS (Backend Filtering Support)
--- ================================================================================
-
--- VW_RLS1: Patient sees only their own data
-CREATE OR REPLACE VIEW vw_patient_own_records AS
-SELECT 
-    p.patient_id,
-    p.mrn,
-    CONCAT(p.first_name, ' ', p.last_name) AS full_name,
-    p.blood_type,
-    p.phone_number,
-    p.email,
-    p.ai_readmission_risk
-FROM patients p
-WHERE p.is_deleted = FALSE;
-
--- VW_RLS2: Doctor sees assigned patients only
-CREATE OR REPLACE VIEW vw_doctor_assigned_patients AS
-SELECT 
-    p.patient_id,
-    p.mrn,
-    CONCAT(p.first_name, ' ', p.last_name) AS full_name,
-    p.blood_type,
-    COUNT(DISTINCT e.encounter_id) AS encounters_with_doctor,
-    MAX(e.admission_date) AS last_visit
-FROM patients p
-JOIN encounters e ON p.patient_id = e.patient_id AND e.is_deleted = FALSE
-WHERE p.is_deleted = FALSE
-GROUP BY p.patient_id;
-
--- VW_RLS3: Pharmacist sees dispensable prescriptions only
-CREATE OR REPLACE VIEW vw_pharmacist_dispensable_rx AS
-SELECT 
-    pr.prescription_id,
-    CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
-    p.mrn,
-    GROUP_CONCAT(CONCAT(ii.item_name, ' (', pd.dosage, ' x ', pd.quantity, ')') SEPARATOR ', ') AS medications,
-    pr.issue_date,
-    pr.ai_interaction_alerts,
-    pr.ai_reviewed
-FROM prescriptions pr
-JOIN patients p ON pr.patient_id = p.patient_id
-JOIN prescription_details pd ON pr.prescription_id = pd.prescription_id
-JOIN inventory_items ii ON pd.item_id = ii.item_id
-WHERE pr.status = 'Pending' AND pr.is_deleted = FALSE AND p.is_deleted = FALSE
-GROUP BY pr.prescription_id;
-
--- ================================================================================
--- SECTION 7C: SOFT-DELETE ENFORCEMENT VIEWS (Active Records Only)
--- ================================================================================
--- Use these views in backend queries to ensure soft-deleted records are never returned
-
-CREATE OR REPLACE VIEW patients_active AS
-SELECT * FROM patients WHERE is_deleted = FALSE;
-
-CREATE OR REPLACE VIEW appointments_active AS
-SELECT * FROM appointments WHERE is_deleted = FALSE;
-
-CREATE OR REPLACE VIEW encounters_active AS
-SELECT * FROM encounters WHERE is_deleted = FALSE;
-
-CREATE OR REPLACE VIEW prescriptions_active AS
-SELECT * FROM prescriptions WHERE is_deleted = FALSE;
-
-CREATE OR REPLACE VIEW invoices_active AS
-SELECT * FROM invoices WHERE is_deleted = FALSE;
 
 -- ================================================================================
 -- SECTION 8: TRIGGERS (8 Advanced Triggers)
@@ -851,23 +784,6 @@ BEGIN
         JSON_OBJECT('first_name', OLD.first_name, 'last_name', OLD.last_name, 'phone', OLD.phone_number),
         JSON_OBJECT('first_name', NEW.first_name, 'last_name', NEW.last_name, 'phone', NEW.phone_number)
     );
-END //
-
--- T7: Check inventory reorder alert
-CREATE TRIGGER trg_check_reorder_level
-AFTER UPDATE ON inventory_items
-FOR EACH ROW
-BEGIN
-    IF (NEW.quantity_in_stock <= NEW.reorder_level AND OLD.quantity_in_stock > NEW.reorder_level) THEN
-        INSERT INTO audit_logs 
-        (action_type, table_name, record_id, new_data)
-        VALUES (
-            'ALERT',
-            'inventory_items',
-            NEW.item_id,
-            JSON_OBJECT('item_name', NEW.item_name, 'quantity', NEW.quantity_in_stock, 'alert', 'REORDER_REQUIRED')
-        );
-    END IF;
 END //
 
 -- T8: Prevent SOAP notes from being deleted
@@ -1294,17 +1210,7 @@ BEGIN
 END //
 
 -- FN6: Calculate days since last encounter
-CREATE FUNCTION fn_days_since_last_encounter(p_patient_id INT) 
-RETURNS INT
-DETERMINISTIC
-READS SQL DATA
-BEGIN
-    DECLARE v_days INT;
-    SELECT DATEDIFF(CURDATE(), MAX(DATE(admission_date))) INTO v_days
-    FROM encounters
-    WHERE patient_id = p_patient_id AND is_deleted = FALSE;
-    RETURN IFNULL(v_days, NULL);
-END //
+
 
 DELIMITER ;
 
@@ -1351,198 +1257,33 @@ LEFT JOIN staff s ON d.staff_id = s.staff_id
 LEFT JOIN departments dep ON a.department_id = dep.department_id
 WHERE e.is_deleted = FALSE AND p.is_deleted = FALSE;
 
--- ================================================================================
--- DATABASE SUMMARY - COMPREHENSIVE ADBMS FEATURES FOR CS236
--- ================================================================================
--- 
--- TABLES:           23 tables with 3NF normalization
--- RELATIONSHIPS:    25+ Foreign Key constraints
--- INDEXES:          40+ B-Tree & Full-Text indexes
--- TRIGGERS:         9 comprehensive data integrity triggers
--- STORED PROCEDURES: 4 complex ACID transaction procedures
--- FUNCTIONS:        6 reusable deterministic functions
--- VIEWS:            14 total (3 RLS + 5 soft-delete enforcement + 6 analytical)
--- NORMALIZATION:    Third Normal Form (3NF)
--- SOFT DELETES:     Implemented with enforcement views
--- USER TRACKING:    created_by/updated_by on all records
--- AUDIT LOGGING:    Complete modification history with JSON + forensic tracking
---
--- CS236 ADBMS FEATURES DEMONSTRATED:
--- ? ACID Transactions (explicit START TRANSACTION/COMMIT/ROLLBACK)
--- ? Trigger Cascading (inventory, invoice, audit automations)
--- ? Referential Integrity (25+ foreign keys with constraints)
--- ? B-Tree Indexing (composite indexes on join paths)
--- ? Full-Text Search (medical notes, patient names)
--- ? Computed Columns (line_total using GENERATED ALWAYS AS)
--- ? Temporal Data (created_at, updated_at, deleted_at tracking)
--- ? Complex Query Logic (aggregations, subqueries, CASE statements)
--- ? View-Based Abstraction (13 views for various access patterns)
--- ? JSON Support (audit logs with before/after data)
--- ? Error Handling (SIGNAL SQLSTATE for validation)
--- ? Deterministic Functions (repeatable results for optimization)
--- ? Row-Level Locking (FOR UPDATE in procedures for ACID isolation)
--- ? Multi-Level Constraints (CHECK, UNIQUE, FOREIGN KEY, view-based)
---
--- ADVANCED FEATURES (10/10 Polish):
--- ? Doctor Daily Appointment Limit Enforcement (trigger T1)
--- ? Invoice Total Calculation Integrity (trigger T9)
--- ? Inventory Race Condition Detection (trigger T3)
--- ? Soft-Delete Enforcement Views (5 views - patients_active, appointments_active, etc)
--- ? Dynamic Duration Availability Checking (FN4 updated)
--- ? Forensic IP + User Agent Tracking (ai_logs, audit_logs)
--- ? Clinical Governance Approval Workflow (ai_logs.approval_status)
--- ? Patient Satisfaction Rating System (appointments.satisfaction_rating: 0-5, DEFAULT 5, CHECK constraint)
--- ? Doctor Performance Analytics (avg satisfaction, rating breakdown, total ratings)
--- ? Frontend Satisfaction Integration (patient rating UI, doctor rating display in booking flows)
---
--- AI FEATURES MONITORING:
---
--- Database columns support AI integration:
--- ? assessment_notes.ai_suggestion & ai_confidence
--- ? prescription_details.ai_recommended_dosage & ai_alternative_drugs
--- ? prescriptions.ai_interaction_alerts
--- ? invoices.ai_billing_optimization
--- ? vitals.ai_risk_score
--- ? patients.ai_readmission_risk
--- ? ai_logs table for complete audit trail with compliance tracking + governance
--- ? appointments.satisfaction_rating - Patient satisfaction for AI analytics & doctor performance tracking
---
--- All AI suggestions tracked with confidence scores for compliance & analytics.
--- Patient satisfaction data used for doctor performance analytics and booking recommendations.
---
--- ================================================================================
--- SECTION 12: PARTITIONING STRATEGY (Production Optimization)
--- ================================================================================
---
--- PARTITION BY DATE (Time-Series Data):
--- Recommended for rapid growth and archive strategies:
---
--- 1. appointments ? PARTITION BY RANGE(YEAR(appointment_date))
---    Rationale: High-frequency inserts, quarterly analysis
---    Archive Strategy: Move old partitions to cold storage after 2 years
---    IMPLEMENTATION:
---
---    ALTER TABLE appointments PARTITION BY RANGE(YEAR(appointment_date)) (
---        PARTITION p2024 VALUES LESS THAN (2025),
---        PARTITION p2025 VALUES LESS THAN (2026),
---        PARTITION p2026 VALUES LESS THAN (2027),
---        PARTITION p_future VALUES LESS THAN MAXVALUE
---    );
---
--- 2. audit_logs ? PARTITION BY RANGE(YEAR(timestamp))
---    Rationale: Compliance keeps 7 years, audit requires fast date searches
---    Storage: Old partitions read-only, compressed for cost
---    IMPLEMENTATION:
---
---    ALTER TABLE audit_logs PARTITION BY RANGE(YEAR(timestamp)) (
---        PARTITION p2020 VALUES LESS THAN (2021),
---        PARTITION p2021 VALUES LESS THAN (2022),
---        PARTITION p2022 VALUES LESS THAN (2023),
---        PARTITION p2023 VALUES LESS THAN (2024),
---        PARTITION p2024 VALUES LESS THAN (2025),
---        PARTITION p2025 VALUES LESS THAN (2026),
---        PARTITION p2026 VALUES LESS THAN (2027),
---        PARTITION p_future VALUES LESS THAN MAXVALUE
---    );
---
--- 3. ai_logs ? PARTITION BY RANGE(YEAR(created_at))
---    Rationale: Training data for ML models, separates by year
---    Usage: Historical analysis without impacting current operations
---
--- 4. invoices ? PARTITION BY RANGE(YEAR(invoice_date))
---    Rationale: Fiscal year archive, regulatory requirement
---    Query Pattern: Reports filter by invoice_date year
---
--- 5. inventory_transactions ? PARTITION BY RANGE(YEAR(transaction_date))
---    Rationale: Stock history grows unbounded, need fast date range queries
---    Archive: Move to compressed historical table after 1 year
---
--- ================================================================================
--- SECTION 13: ROW-LEVEL SECURITY (Backend Enforcement)
--- ================================================================================
---
--- Backend filtering patterns:
---
--- PATIENT ACCESS:
--- SELECT * FROM vw_patient_own_records WHERE patient_id = :user_patient_id
---
--- DOCTOR ACCESS:
--- SELECT * FROM vw_doctor_assigned_patients WHERE doctor_id = :user_doctor_id
---
--- PHARMACIST ACCESS:
--- SELECT * FROM vw_pharmacist_dispensable_rx WHERE pharmacy_department = :user_dept
---
--- Note: Views provide structure; backend middleware enforces actual filtering
--- using user_id, role_id, and department from Clerk + MySQL users table
---
--- ================================================================================
--- SECTION 14: ADVANCED FEATURES (OPTIONAL ENHANCEMENTS)
--- ================================================================================
---
--- 1. AUTO-MARK OVERDUE INVOICES (Event Scheduler):
---
--- CREATE EVENT ev_mark_overdue
--- ON SCHEDULE EVERY 1 DAY
--- STARTS CURRENT_TIMESTAMP
--- DO
--- UPDATE invoices
--- SET status = 'Overdue'
--- WHERE due_date < CURDATE()
---   AND status IN ('Unpaid','Partial')
---   AND is_deleted = FALSE;
---
--- 2. JSON INDEXING FOR AI FIELDS (MySQL 5.7.13+):
---
--- ALTER TABLE ai_logs
--- ADD INDEX idx_ai_suggestion_type ((CAST(ai_suggestion->>'$.type' AS CHAR(50))));
---
--- 3. MATERIALIZED VIEW SIMULATION (for heavy analytics):
---
--- CREATE TABLE mv_doctor_monthly_stats (
---     month_year YEAR_MONTH,
---     doctor_id INT,
---     total_appointments INT,
---     completed_count INT,
---     revenue_generated DECIMAL(12,2),
---     PRIMARY KEY (month_year, doctor_id)
--- ) ENGINE=InnoDB;
---
--- Populate via event scheduler monthly.
---
--- 4. PATIENT SATISFACTION RATING SYSTEM (NEW FEATURE):
---
--- appointments.satisfaction_rating: DECIMAL(3,1) DEFAULT 5.0
--- - Range: 0 to 5.0 stars
--- - Default: 5.0 (optimistic default)
--- - Nullable: No (always has a value)
--- - Editable: Yes (patients can update after appointment)
--- - CHECK Constraint: satisfaction_rating >= 0 AND satisfaction_rating <= 5
--- - Indexed: idx_satisfaction_rating for fast filtering/sorting
---
--- Features:
--- ? Patient API: PUT /api/patient/[patientId]/appointments/[appointmentId]/satisfaction
--- ? Doctor API: GET /api/doctor/satisfaction-rating (view own stats)
--- ? Doctor API: GET /api/doctor/[doctorId]/average-satisfaction (public rating)
--- ? Admin API: GET /api/admin/appointments/satisfaction (full list with filters)
---
--- Frontend Implementation:
--- ? Patients: Rate completed appointments with star UI (1-5)
--- ? Patients: View/edit ratings in appointment list
--- ? Booking Flow: Show doctor's average rating when booking (patient & receptionist)
--- ? Doctor Dashboard: Satisfaction card with breakdown (avg rating, total ratings, distribution)
--- ? Admin: Appointments satisfaction page with filters, sorting, pagination
---
--- Query Example:
--- SELECT AVG(satisfaction_rating) as avg_rating, COUNT(*) as total_ratings
--- FROM appointments
--- WHERE doctor_id = ? AND satisfaction_rating IS NOT NULL AND is_deleted = FALSE;
---
--- 5. MULTI-HOSPITAL SUPPORT (Future Scalability):
---
--- ALTER TABLE patients ADD COLUMN hospital_id INT AFTER patient_id;
--- ALTER TABLE appointments ADD COLUMN hospital_id INT AFTER appointment_id;
--- ALTER TABLE encounters ADD COLUMN hospital_id INT AFTER encounter_id;
--- ALTER TABLE invoices ADD COLUMN hospital_id INT AFTER invoice_id;
--- (Add hospital_id FK reference and INDEX)
---
--- ================================================================================ 
+
+
+CREATE OR REPLACE VIEW view_patient_profile AS
+SELECT
+    p.patient_id,
+    p.user_id,
+    p.mrn,
+    p.first_name,
+    p.last_name,
+    p.date_of_birth,
+    fn_calculate_age(p.date_of_birth) AS age,
+    p.gender,
+    p.blood_type,
+    p.phone_number,
+    p.email,
+    p.address,
+    p.city,
+    p.emergency_contact,
+    p.emergency_phone,
+    p.department_id,
+    d.department_name,
+    p.created_at,
+    p.updated_at,
+    CONCAT(p.first_name, ' ', p.last_name) AS patient_full_name,
+    DATEDIFF(CURDATE(), p.created_at) AS days_member,
+    YEAR(p.created_at) AS member_year
+FROM patients p
+LEFT JOIN departments d ON p.department_id = d.department_id
+WHERE p.is_deleted = FALSE;
+
