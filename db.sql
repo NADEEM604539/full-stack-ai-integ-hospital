@@ -572,52 +572,9 @@ CREATE TABLE payments (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- ================================================================================
--- SECTION 2B: AI DECISION TRACKING (Placed After Encounters for FK Validity)
--- ================================================================================
-
-CREATE TABLE ai_logs (
-    ai_log_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    ai_model_name VARCHAR(100) NOT NULL COMMENT 'OpenAI GPT-4, Custom ML Model, etc.',
-    ai_feature VARCHAR(100) NOT NULL COMMENT 'DIAGNOSIS_SUPPORT, MEDICATION_RECOMMENDATION, RISK_PREDICTION, etc.',
-    patient_id INT,
-    encounter_id INT,
-    user_id_doctor INT COMMENT 'Doctor/clinician who reviewed AI suggestion',
-    ai_suggestion JSON NOT NULL COMMENT 'Original AI recommendation data',
-    ai_confidence DECIMAL(5,2) COMMENT 'AI confidence score (0-100%)',
-    human_decision VARCHAR(500) COMMENT 'What the professional actually chose',
-    decision_matches_ai BOOLEAN COMMENT 'Whether human followed AI suggestion',
-    override_reason TEXT COMMENT 'Why human overrode AI (if applicable)',
-    approved_by INT COMMENT 'Clinical governance: Who approved this AI usage',
-    approval_status ENUM('Pending','Approved','Rejected') DEFAULT 'Pending' COMMENT 'Clinical governance approval status',
-    input_data JSON COMMENT 'Summarized input data sent to AI (scrubbed of PHI)',
-    token_usage_input INT COMMENT 'OpenAI API tokens used for input',
-    token_usage_output INT COMMENT 'OpenAI API tokens used for output',
-    api_response_time_ms INT COMMENT 'API response time in milliseconds',
-    feedback_rating INT COMMENT 'Human rating of AI suggestion quality (1-5)',
-    feedback_comment TEXT COMMENT 'Clinician feedback on AI recommendation',
-    ip_address VARCHAR(45) COMMENT 'IP address of user making AI decision (forensic tracking)',
-    user_agent VARCHAR(500) COMMENT 'User agent/browser info (passed from frontend, application tracking)',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE SET NULL,
-    FOREIGN KEY (encounter_id) REFERENCES encounters(encounter_id) ON DELETE SET NULL,
-    FOREIGN KEY (user_id_doctor) REFERENCES users(user_id) ON DELETE SET NULL,
-    FOREIGN KEY (approved_by) REFERENCES users(user_id) ON DELETE SET NULL,
-    CHECK (feedback_rating IS NULL OR (feedback_rating >= 1 AND feedback_rating <= 5)),
-    INDEX idx_patient (patient_id),
-    INDEX idx_feature (ai_feature),
-    INDEX idx_model (ai_model_name),
-    INDEX idx_timestamp (created_at),
-    INDEX idx_decision_match (decision_matches_ai),
-    INDEX idx_confidence (ai_confidence),
-    INDEX idx_approval_status (approval_status),
-    INDEX idx_approved_by (approved_by),
-    INDEX idx_ip_address (ip_address)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='AI decision audit trail with forensic tracking + governance approval';
-
 
 -- ================================================================================
--- SECTION 8: TRIGGERS (8 Advanced Triggers)
+-- SECTION 9: TRIGGERS (9 Advanced Triggers)
 -- ================================================================================
 
 -- T1: Prevent doctor double-booking + Validate doctor availability + Enforce daily limit
@@ -786,7 +743,7 @@ BEGIN
     );
 END //
 
--- T8: Prevent SOAP notes from being deleted
+-- T7: Prevent SOAP notes from being deleted
 CREATE TRIGGER trg_prevent_soap_deletion
 BEFORE DELETE ON subjective_notes
 FOR EACH ROW
@@ -794,7 +751,7 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: SOAP notes cannot be deleted, only updated';
 END //
 
--- T9: Enforce invoice total calculation integrity
+-- T8: Enforce invoice total calculation integrity
 CREATE TRIGGER trg_validate_invoice_total
 BEFORE UPDATE ON invoices
 FOR EACH ROW
@@ -815,7 +772,7 @@ BEGIN
     END IF;
 END //
 
--- T10: Auto-create invoice when appointment is marked as Completed
+-- T9: Auto-create invoice when appointment is marked as Completed
 CREATE TRIGGER trg_auto_create_invoice_on_completion
 AFTER UPDATE ON appointments
 FOR EACH ROW
@@ -973,53 +930,6 @@ BEGIN
     SET p_message = 'SUCCESS: Appointment booked';
 END //
 
--- SP2: Dispense medication with row-level locking (prevents race conditions)
-CREATE PROCEDURE sp_dispense_medication(
-    IN p_prescription_detail_id INT,
-    IN p_quantity INT,
-    IN p_performed_by INT,
-    OUT p_message VARCHAR(255)
-)
-BEGIN
-    DECLARE v_item_id INT;
-    DECLARE v_current_stock INT;
-    DECLARE v_prescription_id INT;
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SET p_message = 'ERROR: Failed to dispense medication';
-    END;
-    
-    START TRANSACTION;
-    
-    SELECT item_id, prescription_id INTO v_item_id, v_prescription_id 
-    FROM prescription_details pd
-    JOIN prescriptions p ON pd.prescription_id = p.prescription_id
-    WHERE pd.detail_id = p_prescription_detail_id;
-    
-    -- Row-level lock prevents concurrent dispensing of same item (ACID isolation)
-    SELECT quantity_in_stock INTO v_current_stock 
-    FROM inventory_items 
-    WHERE item_id = v_item_id
-    FOR UPDATE;
-    
-    IF v_current_stock < p_quantity THEN
-        SET p_message = CONCAT('ERROR: Insufficient stock. Available: ', v_current_stock);
-        ROLLBACK;
-    ELSE
-        UPDATE prescription_details 
-        SET dispensed_quantity = p_quantity 
-        WHERE detail_id = p_prescription_detail_id;
-        
-        UPDATE prescriptions 
-        SET status = 'Dispensed' 
-        WHERE prescription_id = v_prescription_id;
-        
-        COMMIT;
-        SET p_message = 'SUCCESS: Medication dispensed';
-    END IF;
-END //
-
 -- SP3: Generate invoice from encounter
 CREATE PROCEDURE sp_generate_invoice(
     IN p_encounter_id INT,
@@ -1113,7 +1023,7 @@ END //
 DELIMITER ;
 
 -- ================================================================================
--- SECTION 10: FUNCTIONS (6 Deterministic Functions)
+-- SECTION 10: FUNCTIONS (5 Deterministic Functions)
 -- ================================================================================
 
 DELIMITER //
@@ -1209,13 +1119,12 @@ BEGIN
     RETURN v_count;
 END //
 
--- FN6: Calculate days since last encounter
 
 
 DELIMITER ;
 
 -- ================================================================================
--- SECTION 11: VIEWS (10 Analytical & Security Views)
+-- SECTION 2: VIEWS (10 Analytical & Security Views)
 -- ================================================================================
 
 -- VW11: Patient Vitals View
