@@ -1,7 +1,6 @@
 -- ================================================================================
 -- MedSync HMS - MYSQL DATABASE SCHEMA (COMPREHENSIVE)
 -- Hospital Management System with ADBMS Features for CS236
--- 3NF Normalized | 9 Triggers | 4 Procedures | 6 Functions | 13 Views | AI Integration
 -- ================================================================================
 
 -- ================================================================================
