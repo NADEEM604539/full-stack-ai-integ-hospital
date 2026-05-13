@@ -136,14 +136,6 @@ const NurseEncountersPage = () => {
                 View and manage patient encounters
               </p>
             </div>
-            <button
-              onClick={() => setShowNewEncounterModal(true)}
-              className="flex items-center gap-2 text-white px-6 py-3 rounded-full font-semibold transition hover:bg-purple-700 hover:shadow-lg"
-              style={{ backgroundColor: '#8B5CF6' }}
-            >
-              <Plus size={20} />
-              Start Encounter
-            </button>
           </div>
         </div>
       </div>
