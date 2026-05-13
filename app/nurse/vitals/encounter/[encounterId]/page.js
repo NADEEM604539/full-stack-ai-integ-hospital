@@ -413,7 +413,7 @@ const VitalDetailPage = () => {
                       backgroundColor: '#F9FAFB',
                       border: '2px solid #E5E7EB',
                     }}
-                    className="w-full px-4 py-2 rounded-lg focus:outline-none focus:border-purple-400"
+                    className="w-full px-4 py-2 rounded-lg text-black focus:outline-none focus:border-purple-400"
                   />
                 </div>
 
@@ -431,7 +431,7 @@ const VitalDetailPage = () => {
                       backgroundColor: '#F9FAFB',
                       border: '2px solid #E5E7EB',
                     }}
-                    className="w-full px-4 py-2 rounded-lg focus:outline-none focus:border-purple-400"
+                    className="w-full px-4 py-2 rounded-lg text-black focus:outline-none focus:border-purple-400"
                   />
                 </div>
 
@@ -449,7 +449,7 @@ const VitalDetailPage = () => {
                       backgroundColor: '#F9FAFB',
                       border: '2px solid #E5E7EB',
                     }}
-                    className="w-full px-4 py-2 rounded-lg focus:outline-none focus:border-purple-400"
+                    className="w-full px-4 py-2 rounded-lg text-black focus:outline-none focus:border-purple-400"
                   />
                 </div>
 
@@ -467,7 +467,7 @@ const VitalDetailPage = () => {
                       backgroundColor: '#F9FAFB',
                       border: '2px solid #E5E7EB',
                     }}
-                    className="w-full px-4 py-2 rounded-lg focus:outline-none focus:border-purple-400"
+                    className="w-full px-4 py-2 rounded-lg text-black focus:outline-none focus:border-purple-400"
                   />
                 </div>
 
@@ -487,7 +487,7 @@ const VitalDetailPage = () => {
                       backgroundColor: '#F9FAFB',
                       border: '2px solid #E5E7EB',
                     }}
-                    className="w-full px-4 py-2 rounded-lg focus:outline-none focus:border-purple-400"
+                    className="w-full px-4 py-2 rounded-lg text-black focus:outline-none focus:border-purple-400"
                   />
                 </div>
 
@@ -506,7 +506,7 @@ const VitalDetailPage = () => {
                       backgroundColor: '#F9FAFB',
                       border: '2px solid #E5E7EB',
                     }}
-                    className="w-full px-4 py-2 rounded-lg focus:outline-none focus:border-purple-400"
+                    className="w-full px-4 py-2 rounded-lg text-black focus:outline-none focus:border-purple-400"
                   />
                 </div>
 
@@ -525,7 +525,7 @@ const VitalDetailPage = () => {
                       backgroundColor: '#F9FAFB',
                       border: '2px solid #E5E7EB',
                     }}
-                    className="w-full px-4 py-2 rounded-lg focus:outline-none focus:border-purple-400"
+                    className="w-full px-4 py-2 rounded-lg text-black focus:outline-none focus:border-purple-400"
                   />
                 </div>
               </div>
