@@ -21,10 +21,14 @@ export default function AdminProfilePage() {
       
       const data = await response.json();
       setProfile(data);
-      setFormData({ email: data.email, username: data.username || '' });
+      // Initialize form data with fetched profile data
+      setFormData({ 
+        email: data.email || '', 
+        username: data.username || '' 
+      });
+      setLoading(false);
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -141,7 +145,7 @@ export default function AdminProfilePage() {
               <input
                 type="email"
                 name="email"
-                value={formData.email}
+                value={formData.email ?? ''}
                 onChange={handleInputChange}
                 required
                 style={{
@@ -161,7 +165,7 @@ export default function AdminProfilePage() {
               <input
                 type="text"
                 name="username"
-                value={formData.username}
+                value={formData.username ?? ''}
                 onChange={handleInputChange}
                 style={{
                   width: '100%',

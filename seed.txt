@@ -7,7 +7,7 @@
 -- ==========================================
 -- 1. ROLES (7 roles)
 -- ==========================================
-use if0_41667319_medsyncdb;
+use medsyncdb;
 INSERT INTO roles (role_id, role, description) VALUES
 (1, 'ADMIN', 'System Administrator - Full access to all tables and system configuration'),
 (2, 'DOCTOR', 'Clinical Decision Maker - Access to assigned patients and prescriptions'),
@@ -37,10 +37,8 @@ INSERT INTO departments (department_id, department_name, department_head_name, c
 
 INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) VALUES
 -- ADMIN USERS (2 admins - NO staff records)
-(1, 'admin', 'programmingworlld360@gmail.com', 'Admin User', 1, TRUE),
+(1, 'admin', 'programmingworld360@gmail.com', 'Admin User', 1, TRUE),
 (2, 'clerk_admin_002', 'nadeem.admin@hospital.com', 'Nadeem Admin', 1, TRUE),
-(3, 'abdul', 'hadimalikm3@gmail.com', 'abdul', 1, TRUE),
-
 
 -- DOCTOR USERS (6 doctors - Will have staff records with department_id)
 (10, 'nadeem doc', 'ullahasmut310@gmail.com', 'Dr. Ahmed Hassan', 2, TRUE),
@@ -51,12 +49,12 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (15, 'clerk_doctor_006', 'dr.maryam@hospital.com', 'Dr. Maryam Saif', 2, TRUE),
 
 -- RECEPTIONIST USERS (3 receptionists)
-(20, 'nadeem recep', 'nmushtaq.bscs24seecss@seecss.edu.pk', 'Receptionist Aisha', 4, TRUE),
+(20, 'nadeem recep', 'nmushtaq.bscs24seecss@seecs.edu.pk', 'Receptionist Aisha', 4, TRUE),
 (21, 'clerk_receptionist_002', 'receptionist2@hospital.com', 'Receptionist Hina', 4, TRUE),
 (22, 'clerk_receptionist_003', 'receptionist3@hospital.com', 'Receptionist Ali', 4, TRUE),
 
 -- NURSE USERS (3 nurses)
-(30, 'nadeem nurse', 'programmingworld360@gmail.com', 'Nurse Saira', 3, TRUE),
+(30, 'nadeem nurse', 'programmingworld3jkjkkj60@gmail.com', 'Nurse Saira', 3, TRUE),
 (31, 'clerk_nurse_002', 'nurse2@hospital.com', 'Nurse Amina', 3, TRUE),
 (32, 'clerk_nurse_003', 'nurse3@hospital.com', 'Nurse Rizwan', 3, TRUE),
 
@@ -65,7 +63,7 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (41, 'clerk_pharmacist_002', 'pharmacist2@hospital.com', 'Pharmacist Zainab', 5, TRUE),
 
 -- FINANCE USERS (2 finance officers)
-(50, 'clerk_finance_001', 'nmushtaq.bscs24seecs@seecs.edu.pk', 'Finance Officer Bilal', 6, TRUE),
+(50, 'clerk_finance_001', 'ndmm604539@gmail.com', 'Finance Officer Bilal', 6, TRUE),
 (51, 'clerk_finance_002', 'finance2@hospital.com', 'Finance Officer Rana', 6, TRUE),
 
 -- PATIENT USERS (16 patients - NO staff records)
@@ -84,9 +82,7 @@ INSERT INTO users (user_id, clerk_user_id, email, username, role_id, is_active) 
 (112, 'clerk_patient_013', 'hina.khan@email.com', 'Hina Khan', 7, TRUE),
 (113, 'clerk_patient_014', 'usman.ahmed@email.com', 'Usman Ahmed', 7, TRUE),
 (114, 'clerk_patient_015', 'nida.malik@email.com', 'Nida Malik', 7, TRUE),
-(115, 'clerk_patient_016', 'karim.hassan@email.com', 'Karim Hassan', 7, TRUE),
-(116, 'clerk_patient_017', 'ab.hadi8.ah@gmail.com', 'Abdul Hadi', 7, TRUE);
-
+(115, 'clerk_patient_016', 'karim.hassan@email.com', 'Karim Hassan', 7, TRUE);
 
 -- ==========================================
 -- 4. STAFF (Staff with department_id FK)
@@ -388,21 +384,3 @@ INSERT INTO invoice_line_items (invoice_id, description, item_type, quantity, un
 INSERT INTO payments (invoice_id, patient_id, amount, payment_method, status, processed_by, payment_date) VALUES
 (1, 1, 1650.00, 'Cash', 'Completed', 50, '2026-04-06 15:30:00'),
 (3, 5, 2420.00, 'Bank Transfer', 'Completed', 50, '2026-04-06 14:00:00');
-
--- ==========================================
--- 24. AI_LOGS (AI decision tracking)
--- ==========================================
-
-INSERT INTO ai_logs (ai_model_name, ai_feature, patient_id, encounter_id, user_id_doctor, ai_suggestion, ai_confidence) VALUES
-('GPT-4', 'DIAGNOSIS_SUPPORT', 1, 1, 10, JSON_OBJECT('condition', 'Viral infection', 'confidence', 85), 85.0),
-('GPT-4', 'DIAGNOSIS_SUPPORT', 2, 2, 10, JSON_OBJECT('condition', 'Chronic pain syndrome', 'confidence', 72), 72.0),
-('GPT-4', 'MEDICATION_RECOMMENDATION', 5, 3, 13, JSON_OBJECT('drug', 'ACE inhibitor first-line', 'confidence', 90), 90.0),
-('GPT-4', 'DIAGNOSIS_SUPPORT', 7, 4, 10, JSON_OBJECT('condition', 'Meniscus tear', 'confidence', 95), 95.0);
-
--- ==========================================
--- ✅ SEED DATA COMPLETE
--- ==========================================
--- Only tables from db.txt have been populated
--- NO extra tables (session_logs, suppliers, medications removed)
--- All column names and data types match db.txt schema exactly
-

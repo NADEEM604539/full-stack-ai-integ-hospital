@@ -1020,6 +1020,83 @@ BEGIN
     SET p_message = 'SUCCESS: Patient admitted';
 END //
 
+-- SP5: Get admin profile
+CREATE PROCEDURE sp_get_admin_profile(
+    IN p_user_id INT
+)
+READS SQL DATA
+BEGIN
+    DECLARE v_count INT;
+    
+    -- Check if user exists and is admin (role_id = 1)
+    SELECT COUNT(*) INTO v_count
+    FROM users
+    WHERE user_id = p_user_id AND role_id = 1;
+    
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Admin profile not found';
+    END IF;
+    
+    -- Return admin profile from view
+    SELECT 
+        user_id,
+        email,
+        username,
+        role_id,
+        is_active,
+        created_at,
+        updated_at,
+        role
+    FROM view_admin_profile
+    WHERE user_id = p_user_id;
+END //
+
+-- SP6: Update admin profile
+CREATE PROCEDURE sp_update_admin_profile(
+    IN p_user_id INT,
+    IN p_email VARCHAR(100),
+    IN p_username VARCHAR(50)
+)
+sp_update_admin_label: BEGIN
+    DECLARE v_email_exists INT;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: Failed to update admin profile';
+    END;
+    
+    -- Validate inputs
+    IF p_email IS NULL OR p_email = '' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Email is required';
+    END IF;
+    
+    -- Check if user is admin
+    IF NOT EXISTS (SELECT 1 FROM users WHERE user_id = p_user_id AND role_id = 1) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User is not an admin';
+    END IF;
+    
+    -- Check if new email already exists (excluding current user)
+    SELECT COUNT(*) INTO v_email_exists
+    FROM users
+    WHERE email = TRIM(p_email) AND user_id != p_user_id;
+    
+    IF v_email_exists > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Email already in use';
+    END IF;
+    
+    START TRANSACTION;
+    
+    -- Update admin profile
+    UPDATE users 
+    SET 
+        email = TRIM(p_email), 
+        username = TRIM(IFNULL(p_username, username)),
+        updated_at = NOW()
+    WHERE user_id = p_user_id AND role_id = 1;
+    
+    COMMIT;
+END sp_update_admin_label //
+
 DELIMITER ;
 
 -- ================================================================================
@@ -1195,4 +1272,211 @@ SELECT
 FROM patients p
 LEFT JOIN departments d ON p.department_id = d.department_id
 WHERE p.is_deleted = FALSE;
+
+-- ================================================================================
+-- Admin Profile View - For admin-specific queries
+-- ================================================================================
+CREATE OR REPLACE VIEW view_admin_profile AS
+SELECT
+    u.user_id,
+    u.email,
+    u.username,
+    u.role_id,
+    u.is_active,
+    u.created_at,
+    u.updated_at,
+    r.role
+FROM users u
+JOIN roles r ON u.role_id = r.role_id
+WHERE u.role_id = 1;
+
+-- ================================================================================
+-- SECTION 11: ADMIN MANAGEMENT VIEWS (6 Optimized Views for Admin Panel)
+-- ================================================================================
+
+-- VIEW 1: Admin List - All admins with role and status info
+CREATE OR REPLACE VIEW view_admin_list AS
+SELECT
+    u.user_id,
+    u.email,
+    u.username,
+    u.is_active,
+    u.created_at,
+    u.updated_at,
+    r.role,
+    r.role_id
+FROM users u
+JOIN roles r ON u.role_id = r.role_id
+WHERE u.role_id = 1
+ORDER BY u.created_at DESC;
+
+-- VIEW 2: Patients Complete - All patients with department and user info
+CREATE OR REPLACE VIEW view_patients_complete AS
+SELECT 
+    p.patient_id,
+    p.user_id,
+    p.mrn,
+    p.first_name,
+    p.last_name,
+    p.date_of_birth,
+    p.gender,
+    p.blood_type,
+    p.phone_number,
+    p.email,
+    p.address,
+    p.city,
+    p.emergency_contact,
+    p.emergency_phone,
+    p.department_id,
+    p.is_active,
+    p.ai_readmission_risk,
+    p.created_at,
+    d.department_name,
+    u.role_id,
+    u.email as user_email,
+    CONCAT(p.first_name, ' ', p.last_name) AS patient_full_name
+FROM patients p
+LEFT JOIN departments d ON p.department_id = d.department_id
+LEFT JOIN users u ON p.user_id = u.user_id
+WHERE p.is_deleted = FALSE AND (u.role_id = 7 OR u.user_id IS NULL)
+ORDER BY p.first_name, p.last_name;
+
+-- VIEW 3: Patients as Users - Only patients who are still users with role_id = 7
+CREATE OR REPLACE VIEW view_patients_as_users AS
+SELECT 
+    u.user_id,
+    u.email,
+    u.is_active,
+    p.patient_id,
+    p.first_name,
+    p.last_name,
+    p.mrn,
+    p.date_of_birth,
+    p.gender,
+    p.blood_type,
+    p.phone_number,
+    p.email as patient_email,
+    p.department_id,
+    d.department_name,
+    u.role_id,
+    CONCAT(p.first_name, ' ', p.last_name) AS patient_full_name
+FROM patients p
+LEFT JOIN users u ON p.user_id = u.user_id
+LEFT JOIN departments d ON p.department_id = d.department_id
+WHERE u.role_id = 7 AND p.is_deleted = FALSE
+ORDER BY p.first_name, p.last_name;
+
+-- VIEW 4: Encounters Complete - All encounters with patient and doctor details
+CREATE OR REPLACE VIEW view_encounters_complete AS
+SELECT 
+    e.encounter_id,
+    e.patient_id,
+    e.doctor_id,
+    e.appointment_id,
+    e.admission_date,
+    e.encounter_type,
+    e.chief_complaint,
+    e.status,
+    e.created_by,
+    e.created_at,
+    p.first_name as patient_first_name,
+    p.last_name as patient_last_name,
+    p.mrn,
+    s.first_name as doctor_first_name,
+    s.last_name as doctor_last_name,
+    u.email as doctor_email,
+    a.satisfaction_rating,
+    CONCAT(p.first_name, ' ', p.last_name) AS patient_full_name,
+    CONCAT(s.first_name, ' ', s.last_name) AS doctor_full_name
+FROM encounters e
+LEFT JOIN patients p ON e.patient_id = p.patient_id
+LEFT JOIN doctors d ON e.doctor_id = d.doctor_id
+LEFT JOIN staff s ON d.staff_id = s.staff_id
+LEFT JOIN users u ON s.user_id = u.user_id
+LEFT JOIN appointments a ON e.appointment_id = a.appointment_id
+WHERE e.is_deleted = FALSE
+ORDER BY e.admission_date DESC;
+
+-- VIEW 5: Invoices Complete - All invoices with payment summary and appointment details
+CREATE OR REPLACE VIEW view_invoices_complete AS
+SELECT 
+    i.invoice_id,
+    i.appointment_id,
+    i.patient_id,
+    i.invoice_date,
+    i.due_date,
+    i.total_amount,
+    i.status,
+    i.created_at,
+    COALESCE(SUM(p.amount), 0) as amount_paid,
+    (i.total_amount - COALESCE(SUM(p.amount), 0)) as balance_due,
+    pa.first_name,
+    pa.last_name,
+    pa.mrn,
+    a.appointment_id as appt_id,
+    a.appointment_date,
+    a.appointment_time,
+    a.status as appointment_status,
+    a.reason_for_visit,
+    d.doctor_id,
+    s.first_name as doctor_first_name,
+    s.last_name as doctor_last_name,
+    dept.department_name,
+    dept.department_id,
+    CONCAT(pa.first_name, ' ', pa.last_name) AS patient_full_name,
+    CONCAT(s.first_name, ' ', s.last_name) AS doctor_full_name
+FROM invoices i
+LEFT JOIN patients pa ON i.patient_id = pa.patient_id
+LEFT JOIN payments p ON i.invoice_id = p.invoice_id
+LEFT JOIN appointments a ON i.appointment_id = a.appointment_id
+LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
+LEFT JOIN staff s ON d.staff_id = s.staff_id
+LEFT JOIN departments dept ON a.department_id = dept.department_id
+WHERE i.is_deleted = FALSE
+GROUP BY i.invoice_id
+ORDER BY a.appointment_date DESC, i.invoice_date DESC;
+
+-- VIEW 6: Staff Complete - All staff with department, user, and doctor details
+CREATE OR REPLACE VIEW view_staff_complete AS
+SELECT 
+    s.staff_id,
+    s.user_id,
+    s.department_id,
+    s.first_name,
+    s.last_name,
+    s.employee_id,
+    s.designation,
+    s.hire_date,
+    s.phone_number,
+    s.status,
+    s.created_at,
+    s.updated_at,
+    d.department_name,
+    u.email,
+    u.role_id,
+    u.is_active,
+    r.role,
+    doc.doctor_id,
+    doc.specialization,
+    doc.consultation_fee,
+    doc.max_appointments_per_day,
+    CONCAT(s.first_name, ' ', s.last_name) AS staff_full_name
+FROM staff s
+JOIN departments d ON s.department_id = d.department_id
+JOIN users u ON s.user_id = u.user_id
+JOIN roles r ON u.role_id = r.role_id
+LEFT JOIN doctors doc ON s.staff_id = doc.staff_id
+ORDER BY s.first_name, s.last_name;
+
+-- VIEW 7: Admin Dashboard Summary - Key statistics for admin dashboard
+CREATE OR REPLACE VIEW view_admin_dashboard_summary AS
+SELECT
+    (SELECT COUNT(*) FROM users WHERE role_id = 7 AND is_active = TRUE) as total_active_patients,
+    (SELECT COUNT(*) FROM staff s JOIN users u ON s.user_id = u.user_id WHERE u.role_id IN (2,3,4,5,6) AND s.status = 'Active') as total_active_staff,
+    (SELECT COUNT(*) FROM departments WHERE is_active = TRUE) as total_departments,
+    (SELECT COUNT(*) FROM appointments WHERE status = 'Scheduled' AND appointment_date >= CURDATE()) as upcoming_appointments,
+    (SELECT COUNT(*) FROM encounters WHERE status = 'Active') as active_encounters,
+    (SELECT COUNT(*) FROM invoices WHERE status IN ('Unpaid', 'Overdue') AND is_deleted = FALSE) as pending_invoices,
+    (SELECT COALESCE(SUM(total_amount - amount_paid), 0) FROM invoices WHERE status IN ('Unpaid', 'Overdue', 'Partial') AND is_deleted = FALSE) as total_pending_amount,
+    NOW() as last_updated;
 

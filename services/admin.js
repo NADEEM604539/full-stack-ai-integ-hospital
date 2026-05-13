@@ -65,11 +65,10 @@ export async function getAllAdmins() {
     
     await checkAdminAccess(connection);
 
+    // Query optimized view: view_admin_list
     const [admins] = await connection.query(
-      `SELECT user_id, email, username, is_active, created_at
-       FROM users
-       WHERE role_id = 1
-       ORDER BY created_at DESC`
+      `SELECT user_id, email, username, is_active, created_at, updated_at, role, role_id
+       FROM view_admin_list`
     );
 
     return admins || [];
@@ -206,32 +205,30 @@ export async function getAllPatients() {
     
     await checkAdminAccess(connection);
 
+    // Query optimized view: view_patients_complete
     const [patients] = await connection.query(
       `SELECT 
-        p.patient_id,
-        p.user_id,
-        p.mrn,
-        p.first_name,
-        p.last_name,
-        p.date_of_birth,
-        p.gender,
-        p.blood_type,
-        p.phone_number,
-        p.email,
-        p.address,
-        p.city,
-        p.emergency_contact,
-        p.emergency_phone,
-        p.department_id,
-        p.is_active,
-        p.ai_readmission_risk,
-        d.department_name,
-        p.created_at
-       FROM patients p
-       LEFT JOIN departments d ON p.department_id = d.department_id
-       LEFT JOIN users u ON p.user_id = u.user_id
-       WHERE (u.user_id IS NOT NULL AND u.role_id = 7) OR p.user_id IS NULL
-       ORDER BY p.first_name, p.last_name`
+        patient_id,
+        user_id,
+        mrn,
+        first_name,
+        last_name,
+        date_of_birth,
+        gender,
+        blood_type,
+        phone_number,
+        email,
+        address,
+        city,
+        emergency_contact,
+        emergency_phone,
+        department_id,
+        is_active,
+        ai_readmission_risk,
+        created_at,
+        department_name,
+        patient_full_name
+       FROM view_patients_complete`
     );
 
     return patients || [];
@@ -255,27 +252,25 @@ export async function getPatientsAsUsers() {
     
     await checkAdminAccess(connection);
 
+    // Query optimized view: view_patients_as_users
     const [patients] = await connection.query(
       `SELECT 
-        u.user_id,
-        u.email,
-        u.is_active,
-        p.patient_id,
-        p.first_name,
-        p.last_name,
-        p.mrn,
-        p.date_of_birth,
-        p.gender,
-        p.blood_type,
-        p.phone_number,
-        p.email as patient_email,
-        p.department_id,
-        d.department_name
-       FROM patients p
-       LEFT JOIN users u ON p.user_id = u.user_id
-       LEFT JOIN departments d ON p.department_id = d.department_id
-       WHERE u.role_id = 7
-       ORDER BY p.first_name, p.last_name`
+        user_id,
+        email,
+        is_active,
+        patient_id,
+        first_name,
+        last_name,
+        mrn,
+        date_of_birth,
+        gender,
+        blood_type,
+        phone_number,
+        patient_email,
+        department_id,
+        department_name,
+        patient_full_name
+       FROM view_patients_as_users`
     );
 
     return patients || [];
@@ -397,31 +392,28 @@ export async function getAllEncounters() {
     
     await checkAdminAccess(connection);
 
+    // Query optimized view: view_encounters_complete
     const [encounters] = await connection.query(
       `SELECT 
-        e.encounter_id,
-        e.patient_id,
-        e.doctor_id,
-        e.admission_date,
-        e.appointment_id,
-        e.encounter_type,
-        e.chief_complaint,
-        e.status,
-        e.created_by,
-        p.first_name as patient_first_name,
-        p.last_name as patient_last_name,
-        p.mrn,
-        u.email as doctor_email,
-        s.first_name as doctor_first_name,
-        s.last_name as doctor_last_name,
-        a.satisfaction_rating
-       FROM encounters e
-       LEFT JOIN patients p ON e.patient_id = p.patient_id
-       LEFT JOIN doctors d ON e.doctor_id = d.doctor_id
-       LEFT JOIN staff s ON d.staff_id = s.staff_id
-       LEFT JOIN users u ON s.user_id = u.user_id
-       LEFT JOIN appointments a ON e.appointment_id = a.appointment_id
-       ORDER BY e.admission_date DESC`
+        encounter_id,
+        patient_id,
+        doctor_id,
+        admission_date,
+        appointment_id,
+        encounter_type,
+        chief_complaint,
+        status,
+        created_by,
+        patient_first_name,
+        patient_last_name,
+        mrn,
+        doctor_email,
+        doctor_first_name,
+        doctor_last_name,
+        satisfaction_rating,
+        patient_full_name,
+        doctor_full_name
+       FROM view_encounters_complete`
     );
 
     return encounters || [];
@@ -506,40 +498,34 @@ export async function getAllInvoices() {
     
     await checkAdminAccess(connection);
 
+    // Query optimized view: view_invoices_complete
     const [invoices] = await connection.query(
       `SELECT 
-        i.invoice_id,
-        i.appointment_id,
-        i.patient_id,
-        i.invoice_date,
-        i.due_date,
-        i.total_amount,
-        i.status,
-        COALESCE(SUM(p.amount), 0) as amount_paid,
-        (i.total_amount - COALESCE(SUM(p.amount), 0)) as balance_due,
-        pa.first_name,
-        pa.last_name,
-        pa.mrn,
-        a.appointment_id,
-        a.appointment_date,
-        a.appointment_time,
-        a.status as appointment_status,
-        a.reason_for_visit,
-        d.doctor_id,
-        s.first_name as doctor_first_name,
-        s.last_name as doctor_last_name,
-        dept.department_name,
-        dept.department_id
-       FROM invoices i
-       LEFT JOIN patients pa ON i.patient_id = pa.patient_id
-       LEFT JOIN payments p ON i.invoice_id = p.invoice_id
-       LEFT JOIN appointments a ON i.appointment_id = a.appointment_id
-       LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
-       LEFT JOIN staff s ON d.staff_id = s.staff_id
-       LEFT JOIN departments dept ON a.department_id = dept.department_id
-       WHERE i.is_deleted = FALSE
-       GROUP BY i.invoice_id
-       ORDER BY a.appointment_date DESC, i.invoice_date DESC`
+        invoice_id,
+        appointment_id,
+        patient_id,
+        invoice_date,
+        due_date,
+        total_amount,
+        status,
+        amount_paid,
+        balance_due,
+        first_name,
+        last_name,
+        mrn,
+        appt_id,
+        appointment_date,
+        appointment_time,
+        appointment_status,
+        reason_for_visit,
+        doctor_id,
+        doctor_first_name,
+        doctor_last_name,
+        department_name,
+        department_id,
+        patient_full_name,
+        doctor_full_name
+       FROM view_invoices_complete`
     );
 
     // Calculate actual status based on due_date and balance
@@ -597,6 +583,7 @@ export async function getAllInvoices() {
 
 /**
  * Get current admin's profile
+ * Queries view_admin_profile directly for efficiency
  */
 export async function getAdminProfile() {
   let connection;
@@ -605,7 +592,8 @@ export async function getAdminProfile() {
     
     const { userId } = await checkAdminAccess(connection);
 
-    const [admin] = await connection.query(
+    // Query the view directly for profile data
+    const [adminProfile] = await connection.query(
       `SELECT 
         user_id,
         email,
@@ -613,17 +601,30 @@ export async function getAdminProfile() {
         role_id,
         is_active,
         created_at,
-        updated_at
-       FROM users
+        updated_at,
+        role
+       FROM view_admin_profile
        WHERE user_id = ?`,
       [userId]
     );
 
-    if (!admin || admin.length === 0) {
+    if (!adminProfile || adminProfile.length === 0) {
       throw new Error('Admin profile not found');
     }
 
-    return admin[0];
+    const profile = adminProfile[0];
+    
+    // Ensure proper data types
+    return {
+      user_id: profile.user_id,
+      email: profile.email || '',
+      username: profile.username || '',
+      role_id: profile.role_id,
+      is_active: Boolean(profile.is_active),
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
+      role: profile.role
+    };
   } catch (error) {
     const errorMsg = error?.message || String(error) || 'Unknown error';
     console.error('Error fetching admin profile:', errorMsg);
@@ -635,6 +636,7 @@ export async function getAdminProfile() {
 
 /**
  * Update admin profile
+ * Updates email and username for current admin
  */
 export async function updateAdminProfile(email, username) {
   let connection;
@@ -643,11 +645,11 @@ export async function updateAdminProfile(email, username) {
     
     const { userId } = await checkAdminAccess(connection);
 
-    if (!email || !username) {
-      throw new Error('Email and username are required');
+    if (!email || !email.trim()) {
+      throw new Error('Email is required');
     }
 
-    // Check if new email already exists
+    // Check if new email already exists (excluding current user)
     const [existing] = await connection.query(
       `SELECT user_id FROM users WHERE email = ? AND user_id != ?`,
       [email.trim(), userId]
@@ -657,12 +659,12 @@ export async function updateAdminProfile(email, username) {
       throw new Error('Email already in use');
     }
 
-    // Update admin
+    // Update admin profile
     const [result] = await connection.query(
       `UPDATE users 
        SET email = ?, username = ?, updated_at = NOW()
-       WHERE user_id = ?`,
-      [email.trim(), username.trim(), userId]
+       WHERE user_id = ? AND role_id = 1`,
+      [email.trim(), username?.trim() || null, userId]
     );
 
     if (result.affectedRows === 0) {
@@ -715,15 +717,15 @@ export async function getAllStaff() {
     
     await checkAdminAccess(connection);
 
+    // Query optimized view: view_staff_complete
     const [staff] = await connection.query(
-      `SELECT s.*, d.department_name, u.email, u.role_id, r.role,
-              doc.specialization, doc.consultation_fee, doc.max_appointments_per_day
-       FROM staff s
-       JOIN departments d ON s.department_id = d.department_id
-       JOIN users u ON s.user_id = u.user_id
-       JOIN roles r ON u.role_id = r.role_id
-       LEFT JOIN doctors doc ON s.staff_id = doc.staff_id
-       ORDER BY s.first_name, s.last_name`
+      `SELECT 
+        staff_id, user_id, department_id, first_name, last_name,
+        employee_id, designation, hire_date, phone_number, status,
+        created_at, updated_at, department_name, email, role_id,
+        is_active, role, doctor_id, specialization,
+        consultation_fee, max_appointments_per_day, staff_full_name
+       FROM view_staff_complete`
     );
 
     return staff || [];
@@ -746,15 +748,16 @@ export async function getStaffById(staffId) {
     
     await checkAdminAccess(connection);
 
+    // Query optimized view: view_staff_complete
     const [staff] = await connection.query(
-      `SELECT s.*, d.department_name, u.email, u.role_id, r.role, 
-              doc.specialization, doc.consultation_fee, doc.max_appointments_per_day
-       FROM staff s
-       JOIN departments d ON s.department_id = d.department_id
-       JOIN users u ON s.user_id = u.user_id
-       JOIN roles r ON u.role_id = r.role_id
-       LEFT JOIN doctors doc ON s.staff_id = doc.staff_id
-       WHERE s.staff_id = ?`,
+      `SELECT 
+        staff_id, user_id, department_id, first_name, last_name,
+        employee_id, designation, hire_date, phone_number, status,
+        created_at, updated_at, department_name, email, role_id,
+        is_active, role, doctor_id, specialization,
+        consultation_fee, max_appointments_per_day, staff_full_name
+       FROM view_staff_complete
+       WHERE staff_id = ?`,
       [staffId]
     );
 
