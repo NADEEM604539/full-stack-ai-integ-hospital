@@ -1468,15 +1468,5 @@ JOIN roles r ON u.role_id = r.role_id
 LEFT JOIN doctors doc ON s.staff_id = doc.staff_id
 ORDER BY s.first_name, s.last_name;
 
--- VIEW 7: Admin Dashboard Summary - Key statistics for admin dashboard
-CREATE OR REPLACE VIEW view_admin_dashboard_summary AS
-SELECT
-    (SELECT COUNT(*) FROM users WHERE role_id = 7 AND is_active = TRUE) as total_active_patients,
-    (SELECT COUNT(*) FROM staff s JOIN users u ON s.user_id = u.user_id WHERE u.role_id IN (2,3,4,5,6) AND s.status = 'Active') as total_active_staff,
-    (SELECT COUNT(*) FROM departments WHERE is_active = TRUE) as total_departments,
-    (SELECT COUNT(*) FROM appointments WHERE status = 'Scheduled' AND appointment_date >= CURDATE()) as upcoming_appointments,
-    (SELECT COUNT(*) FROM encounters WHERE status = 'Active') as active_encounters,
-    (SELECT COUNT(*) FROM invoices WHERE status IN ('Unpaid', 'Overdue') AND is_deleted = FALSE) as pending_invoices,
-    (SELECT COALESCE(SUM(total_amount - amount_paid), 0) FROM invoices WHERE status IN ('Unpaid', 'Overdue', 'Partial') AND is_deleted = FALSE) as total_pending_amount,
-    NOW() as last_updated;
+
 
